@@ -1,0 +1,19 @@
+---
+description: Require consulting the Wild Spider product spec for gameplay, UX, and content rules
+alwaysApply: true
+---
+
+# Wild Spider product spec
+
+The authoritative product specification lives at **[docs/WILD_SPIDER_SPEC.md](docs/WILD_SPIDER_SPEC.md)**.
+
+Before implementing or changing any of the following, **read or re-read that doc** and treat it as the source of truth (unless the user explicitly overrides it in chat):
+
+- Game setup: tableau, stock, jokers, columns, deals, seeds, scoring, undo
+- Card moves, foundation, dealing from stock, empty-column rules
+- Powers (joker/set), achievements, deck pairs, UI views and popups described there
+- Animation/sound behaviour tied to those rules
+
+If code and the spec disagree, **flag the mismatch to the user** instead of silently guessing.
+
+When you change behaviour that the spec describes, **update `docs/WILD_SPIDER_SPEC.md` in the same change** so the doc stays accurate.

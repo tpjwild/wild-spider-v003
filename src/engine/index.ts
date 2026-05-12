@@ -1,12 +1,26 @@
 export { gameToAscii } from "./ascii";
 export { buildDoubleDeck, buildJokers, isJoker, isRegular, rankChar } from "./cards";
-export { canDealFromStock, dealFromStock } from "./deal";
+export {
+  applyDealEntriesProgress,
+  canDealFromStock,
+  dealFromStock,
+  leadStockIndicesForUpcomingDeals,
+  type DealFlightEntry,
+} from "./deal";
 export {
   createInitialState,
   tableauCardCount,
   validateGameConfig,
   InvalidGameConfigError,
 } from "./setup";
+export {
+  applyInitialDealEntriesProgress,
+  blankTableauSnapshot,
+  buildInitialDealEntries,
+  buildInitialDealFlightPlanFromFinalColumns,
+  initialDealAnimationBase,
+  stripEphemeralGameState,
+} from "./initialDeal";
 export { newGame, moveTableau, moveToFoundation, dealStock, undo } from "./game";
 export { undoLastEntry } from "./history";
 export {
@@ -31,6 +45,7 @@ export type {
   GameConfig,
   GameState,
   HistoryEntry,
+  InitialDealEntry,
   JokerCard,
   MoveTableauArgs,
   MoveToFoundationArgs,

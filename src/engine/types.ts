@@ -31,6 +31,13 @@ export type ShelfJoker = {
 
 export type FoundationIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
+/** One animated step during new-game initial deal; `tableauColumn` null means joker flies to shelf (formatted-seed early jokers). */
+export type InitialDealEntry = {
+  card: Card;
+  tableauColumn: number | null;
+  faceUp: boolean;
+};
+
 export type HistoryEntry =
   | {
       type: "move_tableau";
@@ -77,6 +84,11 @@ export type GameState = {
   undoCount: number;
   /** Player actions only (used for undo); does not include implicit system events */
   history: HistoryEntry[];
+  /**
+   * When present, canonical order of initial-deal flights (tableau + optional shelf jokers).
+   * Omitted from persisted saves; used only when constructing a new game before the deal animation runs.
+   */
+  initialDealFlightPlan?: InitialDealEntry[];
 };
 
 export type MoveTableauArgs = {

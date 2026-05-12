@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildDoubleDeck } from "./cards";
+import { dealFromStock, canDealFromStock } from "./deal";
 import {
   createInitialState,
   InvalidGameConfigError,
@@ -43,14 +44,27 @@ describe("validateGameConfig", () => {
       }),
     ).toThrow(InvalidGameConfigError);
   });
+
+  it("rejects jokerCount > 8", () => {
+    expect(() =>
+      validateGameConfig({
+        columns: 8,
+        deals: 6,
+        deckPairId: "x",
+        seed: "s",
+        jokerCount: 9,
+      }),
+    ).toThrow(InvalidGameConfigError);
+  });
 });
 
 describe("createInitialState determinism", () => {
+  const formattedSeed = "08-006-PLH-12345678901234";
   const cfg = {
     columns: 8,
     deals: 6,
-    deckPairId: "test",
-    seed: "deterministic-seed-42",
+    deckPairId: "placeholder",
+    seed: formattedSeed,
     jokerCount: 2,
   };
 
@@ -63,12 +77,50 @@ describe("createInitialState determinism", () => {
     expect(a.columns.map((c) => c.length)).toEqual(b.columns.map((c) => c.length));
   });
 
-  it("different seeds differ", () => {
-    const a = createInitialState({ ...cfg, seed: "aaa" });
-    const b = createInitialState({ ...cfg, seed: "bbb" });
+  it("different shuffle keys differ", () => {
+    const a = createInitialState({
+      ...cfg,
+      seed: "08-006-PLH-11111111111111",
+    });
+    const b = createInitialState({
+      ...cfg,
+      seed: "08-006-PLH-22222222222222",
+    });
     const idsA = a.stock.map((c) => (c.kind === "regular" ? c.id : -1 - c.id));
     const idsB = b.stock.map((c) => (c.kind === "regular" ? c.id : -1 - c.id));
     expect(idsA).not.toEqual(idsB);
+  });
+  it("legacy non-formatted seed still creates a valid game", () => {
+    const g = createInitialState({
+      columns: 4,
+      deals: 5,
+      deckPairId: "placeholder",
+      seed: "legacy-plain-seed",
+      jokerCount: 0,
+    });
+    expect(g.columns.reduce((n, c) => n + c.length, 0)).toBe(104 - 20);
+  });
+
+  it("formatted seed: stock pile top matches deal order so jokers can surface from stock deals", () => {
+    const g = createInitialState({
+      columns: 10,
+      deals: 5,
+      deckPairId: "placeholder",
+      seed: "10-005-PLH-44444444444444",
+      jokerCount: 8,
+    });
+    let s = g;
+    let jokersFromDeals = 0;
+    for (let d = 0; d < 40; d++) {
+      if (!canDealFromStock(s)) break;
+      const r = dealFromStock(s);
+      if (!r) break;
+      const h = r.history;
+      if (h.type !== "deal") break;
+      jokersFromDeals += h.entries.filter((e) => e.card.kind === "joker").length;
+      s = r.state;
+    }
+    expect(jokersFromDeals).toBeGreaterThan(0);
   });
 });
 
@@ -76,7 +128,7 @@ describe("tableau distribution", () => {
   it("sums to 104 - columns*deals - jokers for all valid pairs", () => {
     for (let columns = 1; columns <= 10; columns++) {
       for (let deals = 5; deals <= 20; deals++) {
-        for (let jokers = 0; jokers <= 4; jokers++) {
+        for (let jokers = 0; jokers <= 8; jokers++) {
           if (columns * deals > 104) continue;
           const cfg = {
             columns,

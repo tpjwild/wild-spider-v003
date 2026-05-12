@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { buildDoubleDeck, isJoker } from "./cards";
-import { canDealFromStock, dealFromStock } from "./deal";
+import {
+  applyDealEntriesProgress,
+  canDealFromStock,
+  dealFromStock,
+  leadStockIndicesForUpcomingDeals,
+} from "./deal";
 import { createInitialState } from "./setup";
 
 describe("canDealFromStock", () => {
@@ -56,6 +61,22 @@ describe("canDealFromStock", () => {
   });
 });
 
+describe("leadStockIndicesForUpcomingDeals", () => {
+  function reg(id: number) {
+    return { kind: "regular" as const, id, suit: "S" as const, rank: 1 as const };
+  }
+
+  it("returns first popped index per deal (no jokers), current top first", () => {
+    const stock = Array.from({ length: 16 }, (_, i) => reg(i));
+    expect(leadStockIndicesForUpcomingDeals(stock, 8, 8)).toEqual([15, 7]);
+  });
+
+  it("respects maxLayers", () => {
+    const stock = Array.from({ length: 40 }, (_, i) => reg(i));
+    expect(leadStockIndicesForUpcomingDeals(stock, 8, 2)).toEqual([39, 31]);
+  });
+});
+
 describe("dealFromStock", () => {
   it("places one face-up card per column and shortens stock", () => {
     const g = createInitialState({
@@ -75,6 +96,32 @@ describe("dealFromStock", () => {
     }
   });
 
+  it("moves jokers left on top of the stock after the round to the shelf (same deal)", () => {
+    function reg(id: number) {
+      return { kind: "regular" as const, id, suit: "S" as const, rank: 1 as const };
+    }
+    function jok(id: number) {
+      return { kind: "joker" as const, id };
+    }
+    const g = createInitialState({
+      columns: 2,
+      deals: 5,
+      deckPairId: "t",
+      seed: "drain-joker",
+      jokerCount: 0,
+    });
+    // Bottom joker would strand after two pops if we did not drain post-round.
+    g.stock = [jok(0), reg(100), reg(101)];
+    const r = dealFromStock(g);
+    expect(r).not.toBeNull();
+    expect(r!.state.stock).toEqual([]);
+    expect(r!.state.shelf.map((s) => s.card)).toEqual([jok(0)]);
+    expect(r!.history.type).toBe("deal");
+    if (r!.history.type === "deal") {
+      expect(r!.history.entries.length).toBe(3);
+    }
+  });
+
   it("sends jokers to shelf and still fills each column with regular cards", () => {
     const g = createInitialState({
       columns: 3,
@@ -91,11 +138,47 @@ describe("dealFromStock", () => {
     expect(r).not.toBeNull();
     expect(r!.history.type).toBe("deal");
     if (r!.history.type === "deal") {
-      expect(r.history.entries.some((e) => e.tableauColumn === null)).toBe(true);
+      expect(r!.history.entries.some((e) => e.tableauColumn === null)).toBe(true);
     }
     expect(r!.state.shelf.length).toBeGreaterThan(0);
     for (let c = 0; c < 3; c++) {
       expect(r!.state.columns[c]!.at(-1)!.card.kind).toBe("regular");
     }
+  });
+});
+
+describe("applyDealEntriesProgress", () => {
+  it("matches full dealFromStock when applied to the full entry list", () => {
+    const g = createInitialState({
+      columns: 4,
+      deals: 8,
+      deckPairId: "t",
+      seed: "deal-once",
+      jokerCount: 0,
+    });
+    const r = dealFromStock(g);
+    expect(r).not.toBeNull();
+    const h = r!.history;
+    expect(h.type).toBe("deal");
+    if (h.type !== "deal") return;
+    const stepped = applyDealEntriesProgress(g, h.entries, h.entries.length);
+    expect(stepped.columns).toEqual(r!.state.columns);
+    expect(stepped.stock).toEqual(r!.state.stock);
+    expect(stepped.shelf).toEqual(r!.state.shelf);
+  });
+
+  it("is a no-op at landedCount 0", () => {
+    const g = createInitialState({
+      columns: 4,
+      deals: 8,
+      deckPairId: "t",
+      seed: "deal-once",
+      jokerCount: 0,
+    });
+    const r = dealFromStock(g);
+    expect(r).not.toBeNull();
+    const h = r!.history;
+    if (h.type !== "deal") return;
+    expect(applyDealEntriesProgress(g, h.entries, 0)).toBe(g);
   });
 });

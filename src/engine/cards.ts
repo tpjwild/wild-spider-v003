@@ -37,6 +37,15 @@ export function isJoker(c: Card): c is JokerCard {
   return c.kind === "joker";
 }
 
+/** Which physical deck (0 or 1) this card belongs to — used for face-down back colour. */
+export function cardDeckIndexForBack(card: Card): 0 | 1 {
+  if (card.kind === "regular") {
+    return card.id < 52 ? 0 : 1;
+  }
+  /** Jokers have no deck id in v1; alternate by joker id so multiple jokers are not identical. */
+  return (card.id & 1) === 0 ? 0 : 1;
+}
+
 export function rankChar(rank: Rank): string {
   if (rank === 1) return "A";
   if (rank >= 2 && rank <= 10) return String(rank);

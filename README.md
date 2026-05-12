@@ -1,40 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wild Spider
 
-## Getting Started
+Spider solitaire with jokers and achievements — see **[docs/WILD_SPIDER_SPEC.md](docs/WILD_SPIDER_SPEC.md)** for product rules.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Next.js (App Router) + TypeScript + Tailwind · Headless engine in `src/engine/` · Client state in `src/state/gameStore.ts` (Zustand).
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Command | Purpose |
+|--------|---------|
+| `pnpm dev` | Next.js dev server |
+| `pnpm build` / `pnpm start` | Production build and run |
+| `pnpm test` | Vitest (engine + components) |
+| `pnpm test:e2e` | Playwright (starts dev server; run `pnpm exec playwright install chromium` once if browsers are missing) |
+| `pnpm lint` | ESLint |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Stage 1 — Engine
 
-## Learn More
+Rules and scoring live in **`src/engine/`**. Run **`pnpm test`**. For a text snapshot of a state, use **`gameToAscii`** from `src/engine/ascii.ts`.
 
-To learn more about Next.js, take a look at the following resources:
+## Stage 2 — Playable UI
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **`/`** — Game view: tableau, foundation (8), stock (double-click deal), shelf, game bar (seed, moves, score to one decimal). Actions: New Game, Restart, End Game, Undo. Save / Logout / hamburger are disabled placeholders; Deck / Stock bar buttons disabled until Stage 4.
+- **Drag & drop** — `@dnd-kit/core`: legal tableau moves and single-card to foundation; invalid drop snaps back (overlay). Successful drag-to-tableau / drag-to-foundation does **not** play placement sounds (per spec); **`cardFlipped`** only when a face-down card is revealed by that move.
+- **Animations** — Framer Motion on foundation row after new deal / restart; timings from `src/constants/timings.ts`.
+- **Sound** — `playSound()` in `src/lib/playSound.ts`: loads `public/sounds/<effect>.mp3` if present, otherwise Web Audio synth. **`/dev/sounds`** (dev only): native `<audio>` players for **CC0 WAV candidates** under `public/sounds/candidates/` (see `src/constants/soundCandidates.ts`) plus buttons that call `playSound()` like the game. **`public/sounds/CREDITS.md`** and **`KENNEY_INTERFACE_SOUNDS_LICENSE.txt`** document the candidate pack.
+- **Persistence** — After each move the full `GameState` (including `history`) is written to **`localStorage`** key `wild-spider-game-v1` for refresh recovery.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Create Next App
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Wild Spider engine (Stage 1)
-
-Headless rules live in [`src/engine/`](src/engine/). Run `pnpm test` (Vitest) for coverage. Use `gameToAscii` from [`src/engine/ascii.ts`](src/engine/ascii.ts) for a quick text snapshot of a `GameState`.
+This project was bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app). See [Next.js docs](https://nextjs.org/docs) for framework details.
