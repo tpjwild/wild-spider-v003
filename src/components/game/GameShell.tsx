@@ -349,9 +349,12 @@ export function GameShell() {
       await upsertSavedGame(client, user.id, effectiveGame);
       markCloudSaveComplete();
       setSaveCompleteDialogOpen(true);
-    } catch {
+    } catch (e) {
       useGameStore.setState({
-        lastError: "Could not save to the server. Check your connection and try again.",
+        lastError:
+          e instanceof Error
+            ? e.message
+            : "Could not save to the server. Check your connection and try again.",
       });
     } finally {
       setCloudSaveBusy(false);
