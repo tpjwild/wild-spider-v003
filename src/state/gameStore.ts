@@ -182,6 +182,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       hydrated: true,
       game: loaded,
       newGameOpen: false,
+      sessionKey: get().sessionKey + 1,
       lastError: null,
       dealAnimation: null,
       dealAnimSession: 0,

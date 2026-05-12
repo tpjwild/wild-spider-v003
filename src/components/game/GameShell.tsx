@@ -17,6 +17,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LayoutGroup, motion } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { CloudBusyOverlay } from "@/components/game/CloudBusyOverlay";
 import { CardView } from "@/components/game/CardView";
 import { DealAnimationLayer } from "@/components/game/DealAnimationLayer";
 import { EndGameDialog } from "@/components/game/EndGameDialog";
@@ -35,7 +36,7 @@ import { applyInitialDealEntriesProgress } from "@/engine/initialDeal";
 import type { FoundationIndex, PlacedCard } from "@/engine/types";
 import { clearGameState } from "@/lib/gameStorage";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { upsertSavedGame } from "@/lib/savedGamesRemote";
+import { fetchSavedGame, upsertSavedGame } from "@/lib/savedGamesRemote";
 import { useGameStore } from "@/state/gameStore";
 
 const { cardHeight: ch, tableauColumnCardOffset: off } = dimensions;
@@ -51,8 +52,9 @@ const ACTION_MENU_CHORDS = {
   newGame: "Alt+Shift+N",
   restart: "Alt+Shift+A",
   save: "Alt+Shift+S",
+  loadGame: "Alt+Shift+L",
   endGame: "Alt+Shift+E",
-  logout: "Alt+Shift+L",
+  logout: "Alt+Shift+O",
   undo: "Alt+Shift+U",
 } as const;
 
@@ -68,7 +70,24 @@ function isTextEntryElement(el: HTMLElement): boolean {
 export function GameShell() {
   const router = useRouter();
   const pathname = usePathname();
-  const { bypass, signOut } = useAuth();
+  const { bypass, signOut, user } = useAuth();
+
+  const titleBarUserLabel = useMemo(() => {
+    if (!user) return null;
+    const meta = user.user_metadata as Record<string, unknown> | undefined;
+    const fromMeta = (key: string) => {
+      const v = meta?.[key];
+      return typeof v === "string" ? v.trim() : "";
+    };
+    const fullName = fromMeta("full_name");
+    if (fullName) return fullName;
+    const name = fromMeta("name");
+    if (name) return name;
+    const email = user.email?.trim();
+    if (!email) return null;
+    const at = email.indexOf("@");
+    return at > 0 ? email.slice(0, at) : email;
+  }, [user]);
 
   const game = useGameStore((s) => s.game);
   const dealAnimation = useGameStore((s) => s.dealAnimation);
@@ -82,11 +101,17 @@ export function GameShell() {
   const tryMoveToFoundation = useGameStore((s) => s.tryMoveToFoundation);
   const markCloudSaveComplete = useGameStore((s) => s.markCloudSaveComplete);
   const resetForLogout = useGameStore((s) => s.resetForLogout);
+  const applyCloudBootstrap = useGameStore((s) => s.applyCloudBootstrap);
+  const clearError = useGameStore((s) => s.clearError);
+  const lastError = useGameStore((s) => s.lastError);
 
   const [overlayCards, setOverlayCards] = useState<PlacedCard[] | null>(null);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [cloudSaveBusy, setCloudSaveBusy] = useState(false);
+  const [cloudLoadBusy, setCloudLoadBusy] = useState(false);
+  const [loadGameConfirmOpen, setLoadGameConfirmOpen] = useState(false);
+  const [saveCompleteDialogOpen, setSaveCompleteDialogOpen] = useState(false);
   const actionsMenuRef = useRef<HTMLDetailsElement>(null);
 
   const closeActionsMenu = useCallback(() => {
@@ -145,7 +170,7 @@ export function GameShell() {
         if (isTextEntryElement(t)) return;
       }
       const { dealAnimation, newGameOpen, endGameOpen } = useGameStore.getState();
-      if (newGameOpen || endGameOpen) return;
+      if (newGameOpen || endGameOpen || loadGameConfirmOpen || saveCompleteDialogOpen) return;
       if (!dealAnimation) return;
       e.preventDefault();
       e.stopPropagation();
@@ -153,7 +178,31 @@ export function GameShell() {
     };
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, []);
+  }, [loadGameConfirmOpen, saveCompleteDialogOpen]);
+
+  useEffect(() => {
+    if (!loadGameConfirmOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setLoadGameConfirmOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [loadGameConfirmOpen]);
+
+  useEffect(() => {
+    if (!saveCompleteDialogOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setSaveCompleteDialogOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [saveCompleteDialogOpen]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -251,6 +300,41 @@ export function GameShell() {
   }, [game, dealAnimation]);
 
   const canCloudSave = Boolean(!bypass && isSupabaseConfigured() && effectiveGame);
+  const canCloudLoad = Boolean(!bypass && isSupabaseConfigured());
+
+  const openLoadGameConfirm = useCallback(() => {
+    if (!canCloudLoad) return;
+    if (useGameStore.getState().dealAnimation) return;
+    clearError();
+    setLoadGameConfirmOpen(true);
+  }, [canCloudLoad, clearError]);
+
+  const confirmLoadFromCloud = useCallback(async () => {
+    if (!canCloudLoad) return;
+    if (useGameStore.getState().dealAnimation) return;
+    const client = getSupabaseBrowserClient();
+    if (!client) return;
+    const { data: authData, error: authErr } = await client.auth.getUser();
+    const user = authData.user;
+    if (authErr || !user) return;
+    setLoadGameConfirmOpen(false);
+    clearError();
+    setCloudLoadBusy(true);
+    try {
+      const cloud = await fetchSavedGame(client, user.id);
+      if (!cloud) {
+        useGameStore.setState({ lastError: "No saved game on the server." });
+        return;
+      }
+      applyCloudBootstrap(cloud);
+    } catch (e) {
+      useGameStore.setState({
+        lastError: e instanceof Error ? e.message : "Could not load from the server.",
+      });
+    } finally {
+      setCloudLoadBusy(false);
+    }
+  }, [canCloudLoad, clearError, applyCloudBootstrap]);
 
   const saveToCloud = useCallback(async () => {
     if (!effectiveGame) return;
@@ -259,10 +343,12 @@ export function GameShell() {
     const { data: authData, error: authErr } = await client.auth.getUser();
     const user = authData.user;
     if (authErr || !user) return;
+    setSaveCompleteDialogOpen(false);
     setCloudSaveBusy(true);
     try {
       await upsertSavedGame(client, user.id, effectiveGame);
       markCloudSaveComplete();
+      setSaveCompleteDialogOpen(true);
     } catch {
       useGameStore.setState({
         lastError: "Could not save to the server. Check your connection and try again.",
@@ -294,8 +380,8 @@ export function GameShell() {
         if (isTextEntryElement(t)) return;
       }
 
-      const { game, newGameOpen, endGameOpen } = useGameStore.getState();
-      if (newGameOpen || endGameOpen) return;
+      const { game, newGameOpen, endGameOpen, dealAnimation } = useGameStore.getState();
+      if (newGameOpen || endGameOpen || loadGameConfirmOpen || saveCompleteDialogOpen) return;
 
       switch (e.code) {
         case "KeyN":
@@ -318,6 +404,13 @@ export function GameShell() {
           void saveToCloud();
           closeActionsMenu();
           break;
+        case "KeyL":
+          if (!canCloudLoad || cloudLoadBusy || dealAnimation) return;
+          e.preventDefault();
+          e.stopPropagation();
+          openLoadGameConfirm();
+          closeActionsMenu();
+          break;
         case "KeyE":
           if (!game) return;
           e.preventDefault();
@@ -325,7 +418,7 @@ export function GameShell() {
           openEndGame();
           closeActionsMenu();
           break;
-        case "KeyL":
+        case "KeyO":
           if (bypass) return;
           e.preventDefault();
           e.stopPropagation();
@@ -346,7 +439,23 @@ export function GameShell() {
 
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [openNewGame, restart, openEndGame, undoMove, closeActionsMenu, canCloudSave, cloudSaveBusy, saveToCloud, bypass, logout]);
+  }, [
+    openNewGame,
+    restart,
+    openEndGame,
+    undoMove,
+    closeActionsMenu,
+    canCloudSave,
+    cloudSaveBusy,
+    saveToCloud,
+    canCloudLoad,
+    cloudLoadBusy,
+    openLoadGameConfirm,
+    loadGameConfirmOpen,
+    bypass,
+    logout,
+    saveCompleteDialogOpen,
+  ]);
 
   return (
     <div
@@ -369,7 +478,7 @@ export function GameShell() {
             className="flex items-center justify-between gap-3 border-b border-black/20 px-2 py-2"
             style={{ backgroundColor: colors.titleBar }}
           >
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
               <button
                 type="button"
                 className="shrink-0 cursor-pointer rounded p-2 text-emerald-200/80 hover:bg-white/10"
@@ -382,11 +491,21 @@ export function GameShell() {
               </button>
               <h1 className="truncate text-sm font-semibold tracking-[0.18em] text-emerald-50">WILD SPIDER</h1>
             </div>
-            <details
-              ref={actionsMenuRef}
-              className="relative ml-auto shrink-0"
-              onToggle={(e) => setActionsMenuOpen(e.currentTarget.open)}
-            >
+            <div className="flex min-w-0 shrink-0 items-center gap-2">
+              {titleBarUserLabel ? (
+                <span
+                  className="max-w-[min(40vw,11rem)] truncate text-right text-xs text-emerald-100/80"
+                  title={titleBarUserLabel}
+                  data-testid="title-bar-user"
+                >
+                  {titleBarUserLabel}
+                </span>
+              ) : null}
+              <details
+                ref={actionsMenuRef}
+                className="relative shrink-0"
+                onToggle={(e) => setActionsMenuOpen(e.currentTarget.open)}
+              >
               <summary
                 data-testid="actions-menu-trigger"
                 className="cursor-pointer list-none rounded px-3 py-1 text-xs text-emerald-100/90 hover:bg-white/10 [&::-webkit-details-marker]:hidden"
@@ -442,6 +561,21 @@ export function GameShell() {
                 <li>
                   <button
                     type="button"
+                    disabled={!canCloudLoad || cloudLoadBusy || Boolean(dealAnimation) || loadGameConfirmOpen}
+                    className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/10 disabled:cursor-not-allowed disabled:text-zinc-600"
+                    aria-keyshortcuts={ACTION_MENU_CHORDS.loadGame}
+                    onClick={() => {
+                      openLoadGameConfirm();
+                      closeActionsMenu();
+                    }}
+                  >
+                    <span>Load Game</span>
+                    <span className="shrink-0 text-[10px] text-zinc-500">{ACTION_MENU_CHORDS.loadGame}</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
                     disabled={!game}
                     className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/10 disabled:cursor-not-allowed disabled:text-zinc-600"
                     aria-keyshortcuts={ACTION_MENU_CHORDS.endGame}
@@ -477,7 +611,24 @@ export function GameShell() {
                 </li>
               </ul>
             </details>
+            </div>
           </header>
+
+          {lastError ? (
+            <div
+              className="flex shrink-0 items-center justify-center gap-3 border-b border-red-900/40 bg-red-950/50 px-3 py-2 text-center text-xs text-red-100"
+              role="status"
+            >
+              <span className="min-w-0 flex-1">{lastError}</span>
+              <button
+                type="button"
+                className="shrink-0 cursor-pointer rounded border border-red-800/80 px-2 py-0.5 text-[11px] text-red-100 hover:bg-red-900/50"
+                onClick={() => clearError()}
+              >
+                Dismiss
+              </button>
+            </div>
+          ) : null}
 
           {effectiveGame ? (
             <GameBar
@@ -587,6 +738,86 @@ export function GameShell() {
 
       <NewGameDialog />
       <EndGameDialog />
+
+      {loadGameConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-[55] flex cursor-default items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="load-game-confirm-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setLoadGameConfirmOpen(false);
+          }}
+        >
+          <div
+            className="w-full max-w-md cursor-default rounded-xl border border-white/15 bg-zinc-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="load-game-confirm-title" className="text-lg font-semibold text-zinc-100">
+              Load game from server?
+            </h2>
+            <p className="mt-3 text-sm text-zinc-400">
+              This replaces your current in-progress game with the save stored for your account. Unsaved local
+              changes since your last successful server save will be lost.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setLoadGameConfirmOpen(false)}
+                className="cursor-pointer rounded border border-white/20 px-4 py-2 text-sm text-zinc-300 hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmLoadFromCloud()}
+                className="cursor-pointer rounded bg-emerald-800 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                data-testid="load-game-confirm"
+              >
+                Load
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {cloudLoadBusy ? <CloudBusyOverlay label="Loading from server…" ariaLabel="Loading game from server" /> : null}
+
+      {cloudSaveBusy ? <CloudBusyOverlay label="Saving to server…" ariaLabel="Saving game to server" /> : null}
+
+      {saveCompleteDialogOpen ? (
+        <div
+          className="fixed inset-0 z-[110] flex cursor-default items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="save-complete-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSaveCompleteDialogOpen(false);
+          }}
+        >
+          <div
+            className="w-full max-w-md cursor-default rounded-xl border border-white/15 bg-zinc-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="save-complete-title" className="text-lg font-semibold text-zinc-100">
+              Save complete
+            </h2>
+            <p className="mt-3 text-sm text-zinc-400">
+              Your in-progress game was saved to the server. You can load it again anytime from this device or after
+              signing in elsewhere.
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSaveCompleteDialogOpen(false)}
+                className="cursor-pointer rounded bg-emerald-800 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {navOpen ? (
         <>

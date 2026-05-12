@@ -229,17 +229,19 @@ Every view has a title bar with:
 
 - A hamburger menu on the left — allows navigation between views.
 - A title to the right of the hamburger menu: **WILD SPIDER**.
+- When the user is signed in, a **display name** (profile name from the provider if present, otherwise the part of the email before `@`) appears on the right, immediately to the left of the action menu; long values truncate with the full string available on hover.
 - An action menu on the right — allows the user to take different actions on each view:
 
 **Game**
 
 - New Game
 - Restart Game — undoes **all** moves and restores the game to its **initial** layout and state (same **seed** and thus the same card order as when the game started).
-- Save Game
+- Save Game — from the Actions menu: while the server request runs, a full-screen spinner is shown; when it succeeds, a short **Save complete** dialog confirms the save (errors use the dismissible error strip). Saving from the **End game** save prompt uses the same spinner, then returns to the end-game flow without that dialog.
+- Load Game — asks for confirmation, then replaces the in-progress game with the single saved row from the server (same as resume on login). While the request runs, a loading indicator is shown. Disabled when not signed in, when Supabase is not configured, while a deal animation is running, or while a load is already in progress.
 - End Game — opens a confirmation dialog showing **final score** and **game configuration** (columns, deals, deck pair, joker count, seed with the same **copy icon beside the seed** as on the game bar), plus **OK** / **Cancel**. **OK** clears the in-progress game and local save and returns to the empty game screen **without** opening the New Game dialog (the user opens New Game when they want). **Cancel**, **Escape**, or clicking the **backdrop** outside the dialog panel closes the dialog and leaves the game unchanged.
 - Logout
 
-On the **Game** view, when no modal dialog is open and keyboard focus is not in a text-entry control, the action menu items also respond to **Alt+Shift** chords (**Alt** is **Option** on macOS): **N** New Game, **A** Restart Game, **S** Save Game, **E** End Game, **L** Logout, **U** Undo. Chords are shown next to each item in the Actions menu. Chords use the **physical** key codes (`KeyA`, etc.) and are handled in the **capture** phase so the browser (or embedded preview host) is less likely to consume the shortcut before the page.
+On the **Game** view, when no modal dialog is open and keyboard focus is not in a text-entry control, the action menu items also respond to **Alt+Shift** chords (**Alt** is **Option** on macOS): **N** New Game, **A** Restart Game, **S** Save Game, **L** Load Game, **E** End Game, **O** Logout, **U** Undo. Chords are shown next to each item in the Actions menu. Chords use the **physical** key codes (`KeyA`, etc.) and are handled in the **capture** phase so the browser (or embedded preview host) is less likely to consume the shortcut before the page.
 
 **Achievements** — Logout
 

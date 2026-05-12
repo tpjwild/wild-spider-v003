@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CloudBusyOverlay } from "@/components/game/CloudBusyOverlay";
 import { CopySeedIcon } from "@/components/game/CopySeedIcon";
 import { deckPairs } from "@/constants/deckPairs";
 import { applyDealEntriesProgress } from "@/engine/deal";
@@ -106,15 +107,17 @@ export function EndGameDialog() {
 
   if (endGameStep === "save_prompt" && isSupabaseConfigured()) {
     return (
-      <div
-        className="fixed inset-0 z-50 flex cursor-default items-center justify-center bg-black/70 p-4"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="end-game-save-title"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) cancel();
-        }}
-      >
+      <>
+        {saving ? <CloudBusyOverlay label="Saving to server…" ariaLabel="Saving game to server" /> : null}
+        <div
+          className="fixed inset-0 z-50 flex cursor-default items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="end-game-save-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) cancel();
+          }}
+        >
         <div
           className="w-full max-w-md cursor-default rounded-xl border border-white/15 bg-zinc-900 p-6 shadow-2xl"
           onClick={(e) => e.stopPropagation()}
@@ -155,6 +158,7 @@ export function EndGameDialog() {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
