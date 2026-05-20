@@ -31,7 +31,7 @@ git diff                 # full diff (optional)
 - macOS `.DS_Store` or other editor junk — delete or exclude.
 - Local experiments you do not want on `main`.
 
-**Large assets** (for example under `public/decks/` or `public/gameArt/`): include them only if they are meant to ship with the app.
+**Large assets:** commit generated files under `public/gameArt/` (medium/small portraits). Do **not** commit gitignored masters in `art-source/` — see **[ART_PIPELINE.md](./ART_PIPELINE.md)**. Legacy paths under `public/decks/` should not be added unless still in use.
 
 ---
 

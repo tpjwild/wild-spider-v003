@@ -16,8 +16,12 @@ Paths are defined in `src/constants/sharedDeckAssets.ts` and `src/constants/game
 
 ## Per pair (courts and jokers)
 
-Portrait files live under `public/gameArt/portraits/<pairId>/deck1/` and `deck2/`. Filenames and display names are listed in `src/constants/portraitManifest.ts` for themed pairs; **Base** uses `base01-jack-clubs-jack.svg` style names (SVG courts, no jokers).
+Shipped portrait files live under `public/gameArt/portraits/<pairId>/deck1/` and `deck2/` (medium — card details). Small tableau assets will live under `public/gameArt/portraits-small/` once the portrait pipeline is fully wired (see below).
+
+Filenames and display names are listed in `src/content/portraitManifest.ts` for themed pairs; **Base** uses `base01-jack-clubs-jack.svg` style names (SVG courts, no jokers).
 
 Current pair ids: `base`, `computerScience`, `westernPhilosophy`, `mathematics`.
 
-Adding a new deck pair is done by editing `deckPairs.ts`, extending the portrait manifest when needed, and dropping the corresponding files under `public/gameArt/` when art is ready.
+**Masters vs shipped art:** Full-resolution exports belong in gitignored **`art-source/portraits/`** at the repo root. Run **`pnpm run generate:portraits`** (Phase 2) to produce committed medium/small files under `public/gameArt/`. Full workflow: **[docs/ART_PIPELINE.md](../../docs/ART_PIPELINE.md)** and **`art-source.example/`**.
+
+Adding a new deck pair is done by editing `deckPairs.ts`, extending the portrait manifest when needed, placing masters in `art-source/`, generating, then committing `public/gameArt/portraits/` (and `portraits-small/` when applicable).

@@ -26,6 +26,9 @@
 .DS_Store
 *.pem
 
+# portrait masters (generated medium/small ship under public/gameArt/)
+/art-source/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
