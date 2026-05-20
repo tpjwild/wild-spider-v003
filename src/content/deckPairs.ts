@@ -95,7 +95,7 @@ export function deckFacePortraitPath(
   rank: DeckFaceRank,
   suit: Suit,
 ): string {
-  return gameArtPortraitUrl(deckPairId, deckNum, `${rankSuitImageStem(rank, suit)}.png`);
+  return gameArtPortraitUrl(deckPairId, deckNum, `${rankSuitImageStem(rank, suit)}.webp`);
 }
 
 /** @deprecated Pair id ignored — use {@link sharedDeckCardBackPath} from `sharedDeckAssets`. */

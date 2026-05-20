@@ -4,7 +4,7 @@ This folder is **committed** as documentation only. Real masters go in the gitig
 
 **`../art-source/portraits/`** (repo root, not tracked by git)
 
-Mirror the same paths under both trees:
+Mirror the same paths under both trees. **Masters** use your export format (usually `.png`). **Shipped** basenames in `portraitManifest.ts` use `.webp` after running the generator.
 
 ```
 portraits/

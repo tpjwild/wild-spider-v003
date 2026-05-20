@@ -48,6 +48,7 @@ Committed template (no binaries): **`art-source.example/`** mirrors the path rul
 3. Run **`pnpm run generate:portraits`** to refresh `public/gameArt/portraits/` and `public/gameArt/portraits-small/`.
    - Optional: `pnpm run generate:portraits -- --pair computerScience`
    - Preview: `pnpm run generate:portraits -- --dry-run`
+   - Drop shipped PNG/JPEG when WebP exists: `pnpm run generate:portraits -- --prune-legacy-rasters`
 4. **Commit** only changes under `public/gameArt/` (and code/manifest). **Do not** commit `art-source/`.
 5. Spot-check in dev and after deploy (first flip on tableau, card details popup).
 
@@ -66,10 +67,15 @@ If large PNGs still live only under `public/gameArt/portraits/`:
    cp -R public/gameArt/portraits/. art-source/portraits/
    ```
 
-2. After Phase 2 generator exists, run **`pnpm run generate:portraits`** and commit the smaller WebP outputs.
-3. Remove obsolete multi-megabyte PNGs from `public/gameArt/portraits/` once WebP medium/small are verified.
+2. Run **`pnpm run generate:portraits`** and commit the WebP outputs under `public/gameArt/portraits/` and `portraits-small/`.
+3. Point **`portraitManifest.ts`** at `.webp` basenames (shipped names, not master `.png` names).
+4. Remove legacy PNG/JPEG from shipped trees:
 
-Until the generator runs, the app keeps using whatever is already under `public/gameArt/portraits/`.
+   ```bash
+   pnpm run generate:portraits -- --prune-legacy-rasters
+   ```
+
+   Or combine regenerate + prune after art changes.
 
 ---
 
@@ -77,7 +83,7 @@ Until the generator runs, the app keeps using whatever is already under `public/
 
 - [x] **Phase 1** — `art-source/` gitignored, `docs/ART_PIPELINE.md`, `art-source.example/`
 - [x] **Phase 2** — `sharp` + `scripts/generate-portrait-derivatives.mjs` + `pnpm run generate:portraits`
-- [ ] **Phase 3** — Migrate `public/` to generated WebP; drop huge PNGs from git
+- [x] **Phase 3** — Migrate `public/` to generated WebP; drop huge PNGs from git
 - [ ] **Phase 4** — `portraitThumbPath` / `gameArtPortraitThumbUrl` in code; CardView vs CardDetails paths
 - [ ] **Phase 5** — Optional non-blocking thumb preload at game start
 - [ ] **Phase 6** — CI/manifest check (optional)

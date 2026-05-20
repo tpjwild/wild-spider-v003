@@ -8,8 +8,9 @@
  * Run: pnpm run generate:portraits
  *      pnpm run generate:portraits -- --pair computerScience
  *      pnpm run generate:portraits -- --dry-run
+ *      pnpm run generate:portraits -- --prune-legacy-rasters
  */
-import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
+import { copyFile, mkdir, readdir, stat, unlink } from "node:fs/promises";
 import { dirname, extname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
@@ -26,16 +27,18 @@ const SMALL_WIDTH = 160;
 const WEBP_QUALITY = 82;
 
 const RASTER_EXT = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+const LEGACY_RASTER_EXT = new Set([".png", ".jpg", ".jpeg"]);
 
 function parseArgs(argv) {
   const dryRun = argv.includes("--dry-run");
+  const pruneLegacyRasters = argv.includes("--prune-legacy-rasters");
   const pairIdx = argv.indexOf("--pair");
   const pairFilter = pairIdx >= 0 ? argv[pairIdx + 1] : null;
   if (pairIdx >= 0 && !pairFilter) {
     console.error("Usage: --pair <pairId>  (e.g. computerScience)");
     process.exit(1);
   }
-  return { dryRun, pairFilter };
+  return { dryRun, pairFilter, pruneLegacyRasters };
 }
 
 async function pathExists(p) {
@@ -88,10 +91,49 @@ async function copySvg(inputPath, outputPath, dryRun) {
   await copyFile(inputPath, outputPath);
 }
 
+/** Remove legacy PNG/JPEG from shipped trees when a matching .webp exists (Phase 3 migration). */
+async function pruneLegacyRasterFiles({ dryRun, pairFilter }) {
+  let removed = 0;
+  for (const root of [MEDIUM_ROOT, SMALL_ROOT]) {
+    if (!(await pathExists(root))) continue;
+    for (const filePath of await walkFiles(root)) {
+      const rel = relative(root, filePath);
+      const relPosix = rel.split(sep).join("/");
+      if (pairFilter && !relPosix.startsWith(`${pairFilter}/`)) continue;
+
+      const ext = extname(filePath).toLowerCase();
+      if (!LEGACY_RASTER_EXT.has(ext)) continue;
+
+      const webpPath = webpBasename(filePath);
+      if (!(await pathExists(webpPath))) {
+        console.warn(`skip prune (no webp): ${relative(REPO_ROOT, filePath)}`);
+        continue;
+      }
+
+      if (dryRun) {
+        console.log(`[dry-run] prune ${relative(REPO_ROOT, filePath)}`);
+      } else {
+        await unlink(filePath);
+      }
+      removed++;
+    }
+  }
+  return removed;
+}
+
 async function main() {
-  const { dryRun, pairFilter } = parseArgs(process.argv.slice(2));
+  const { dryRun, pairFilter, pruneLegacyRasters } = parseArgs(process.argv.slice(2));
+
+  if (pruneLegacyRasters) {
+    const removed = await pruneLegacyRasterFiles({ dryRun, pairFilter });
+    console.log(`${dryRun ? "dry-run: would prune" : "pruned"} ${removed} legacy raster(s).`);
+    if (!dryRun && removed > 0) {
+      console.log("Update portraitManifest.ts to .webp basenames if not already done.");
+    }
+  }
 
   if (!(await pathExists(SOURCE_ROOT))) {
+    if (pruneLegacyRasters) return;
     console.error(`Missing source folder: ${SOURCE_ROOT}`);
     console.error("Copy masters into art-source/portraits/ (see docs/ART_PIPELINE.md).");
     process.exit(1);
@@ -152,7 +194,7 @@ async function main() {
   if (!dryRun && stats.rasterMedium > 0) {
     console.log(`Medium → ${relative(REPO_ROOT, MEDIUM_ROOT)} (${MEDIUM_WIDTH}px)`);
     console.log(`Small  → ${relative(REPO_ROOT, SMALL_ROOT)} (${SMALL_WIDTH}px)`);
-    console.log("App still uses .png paths until Phase 4; remove old PNGs in Phase 3 after verification.");
+    console.log("Run with --prune-legacy-rasters to delete shipped PNG/JPEG when matching .webp exists.");
   }
 }
 

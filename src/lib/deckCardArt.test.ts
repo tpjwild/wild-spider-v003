@@ -27,7 +27,7 @@ describe("deckCardArt", () => {
       rank: 13,
     });
     expect(king?.portraitPath).toBe(
-      "/gameArt/portraits/mathematics/deck1/math01-king-diamonds-carl-friedrich-gauss.png",
+      "/gameArt/portraits/mathematics/deck1/math01-king-diamonds-carl-friedrich-gauss.webp",
     );
     expect(king?.framePath).toBe("/gameArt/shared/frames/king-diamonds-frame.svg");
   });
