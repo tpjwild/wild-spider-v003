@@ -45,7 +45,9 @@ Committed template (no binaries): **`art-source.example/`** mirrors the path rul
 
 1. Export masters into **`art-source/portraits/<pairId>/deck{n}/`** using the filenames from `portraitManifest.ts` (or the naming pattern documented there).
 2. Update **`src/content/portraitManifest.ts`** and **`src/content/deckPairs.ts`** when adding a new pair or new faces.
-3. Run **`pnpm run generate:portraits`** (script added in Phase 2) to refresh `public/gameArt/portraits/` and `public/gameArt/portraits-small/`.
+3. Run **`pnpm run generate:portraits`** to refresh `public/gameArt/portraits/` and `public/gameArt/portraits-small/`.
+   - Optional: `pnpm run generate:portraits -- --pair computerScience`
+   - Preview: `pnpm run generate:portraits -- --dry-run`
 4. **Commit** only changes under `public/gameArt/` (and code/manifest). **Do not** commit `art-source/`.
 5. Spot-check in dev and after deploy (first flip on tableau, card details popup).
 
@@ -74,7 +76,7 @@ Until the generator runs, the app keeps using whatever is already under `public/
 ## Phase checklist
 
 - [x] **Phase 1** — `art-source/` gitignored, `docs/ART_PIPELINE.md`, `art-source.example/`
-- [ ] **Phase 2** — `sharp` + `scripts/generate-portrait-derivatives.mjs` + `pnpm run generate:portraits`
+- [x] **Phase 2** — `sharp` + `scripts/generate-portrait-derivatives.mjs` + `pnpm run generate:portraits`
 - [ ] **Phase 3** — Migrate `public/` to generated WebP; drop huge PNGs from git
 - [ ] **Phase 4** — `portraitThumbPath` / `gameArtPortraitThumbUrl` in code; CardView vs CardDetails paths
 - [ ] **Phase 5** — Optional non-blocking thumb preload at game start

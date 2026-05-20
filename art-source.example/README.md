@@ -31,4 +31,4 @@ portraits/
 
 Read **`docs/ART_PIPELINE.md`** for sizes (medium 520px, small 160px, WebP) and the full workflow.
 
-After dropping masters into `art-source/portraits/`, run **`pnpm run generate:portraits`** once that script exists (Phase 2).
+After dropping masters into `art-source/portraits/`, run **`pnpm run generate:portraits`** (see `scripts/generate-portrait-derivatives.mjs`).
