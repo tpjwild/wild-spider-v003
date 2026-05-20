@@ -1,8 +1,20 @@
 export { achievements } from "./achievements";
 export { colors } from "./colors";
-export { deckPairs } from "./deckPairs";
+export { GAME_CONTENT, type GameContent } from "@/content/gameContent";
+export { deckPairs } from "@/content/deckPairs";
+export { sharedDeckCardBackPath, sharedDeckFramePath, sharedJokerPortraitPath } from "./sharedDeckAssets";
 export { FORMATTED_JOKER_INSERT_BACK_FRACTION } from "./formattedJokerDeal";
-export { dimensions, stockStackMaxHeightPx } from "./dimensions";
-export { powers } from "./powers";
+export {
+  dimensions,
+  shelfFoundationStockStripMinHeightPx,
+  stockStackRegionHeightPx,
+  stockVisibleDealCapForLayout,
+} from "./dimensions";
+export { powers } from "@/content/powerDefinitions";
 export { SOUND_CANDIDATES } from "./soundCandidates";
-export { layoutSpring, timings } from "./timings";
+export {
+  layoutIdCardMotionProps,
+  layoutIdDropTransition,
+  layoutSpring,
+  timings,
+} from "./timings";

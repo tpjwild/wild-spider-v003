@@ -1,6 +1,11 @@
+import { DEFAULT_DECK_PAIR_ID, deckPairs, maxJokersInPlayForDeckPair } from "@/content/deckPairs";
+import { normalizeShelfJoker } from "@/content/powerDefinitions";
+import { emptyEffectsState } from "@/engine/effects";
 import { stripEphemeralGameState } from "@/engine/initialDeal";
+import { createShelfJokerEntry } from "@/engine/powers";
 import { validateGameConfig } from "@/engine/setup";
-import type { GameConfig, GameState } from "@/engine/types";
+import type { GameConfig, GameState, ShelfJoker } from "@/engine/types";
+import { formatFormattedGameSeed, newRandomShuffleKey } from "@/lib/formattedGameSeed";
 
 const STORAGE_KEY = "wild-spider-game-v1";
 const LAST_NEW_GAME_DEFAULTS_KEY = "wild-spider-last-new-game-defaults-v1";
@@ -43,6 +48,8 @@ export function loadLastNewGameDefaults(): GameConfig | null {
     ) {
       return null;
     }
+    const maxJ = Math.min(8, maxJokersInPlayForDeckPair(parsed.deckPairId));
+    parsed.jokerCount = Math.min(Math.max(0, parsed.jokerCount), maxJ);
     validateGameConfig(parsed);
     return parsed;
   } catch {
@@ -64,12 +71,39 @@ export function parseStoredGameState(value: unknown): GameState | null {
     ) {
       return null;
     }
-    validateGameConfig(parsed.config as GameConfig);
+    const cfg = parsed.config as GameConfig;
+    const maxJ = Math.min(8, maxJokersInPlayForDeckPair(cfg.deckPairId));
+    cfg.jokerCount = Math.min(Math.max(0, cfg.jokerCount), maxJ);
+    validateGameConfig(cfg);
     if (!Array.isArray(parsed.history)) return null;
-    return parsed;
+    return normalizeStoredGameState(parsed);
   } catch {
     return null;
   }
+}
+
+/** Fills Stage 5 fields missing from older persisted saves. */
+export function normalizeStoredGameState(parsed: GameState): GameState {
+  const effects = emptyEffectsState();
+  const shelf: ShelfJoker[] = (parsed.shelf ?? []).map((entry) => {
+    if (
+      entry &&
+      typeof entry === "object" &&
+      "powerId" in entry &&
+      "chargesRemaining" in entry &&
+      "slot" in entry
+    ) {
+      return normalizeShelfJoker(entry as ShelfJoker);
+    }
+    const card = (entry as { card: ShelfJoker["card"] }).card;
+    return createShelfJokerEntry(parsed.config.deckPairId, card);
+  });
+  return {
+    ...parsed,
+    shelf,
+    cardEffects: parsed.cardEffects ?? effects.cardEffects,
+    columnEffects: parsed.columnEffects ?? effects.columnEffects,
+  };
 }
 
 export function loadGameState(): GameState | null {
@@ -91,4 +125,21 @@ export function clearGameState(): void {
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * Config for an empty “cleared” board when there is no persisted game: last New Game defaults if any, else
+ * product defaults (8×6, Base pair, random formatted shuffle key).
+ */
+export function resolvedGameConfigForEmptyShell(): GameConfig {
+  const last = loadLastNewGameDefaults();
+  if (last) return last;
+  const pairCode = deckPairs.find((p) => p.id === DEFAULT_DECK_PAIR_ID)?.pairCode ?? "BAS";
+  return {
+    columns: 8,
+    deals: 6,
+    deckPairId: DEFAULT_DECK_PAIR_ID,
+    seed: formatFormattedGameSeed(8, 6, pairCode, newRandomShuffleKey()),
+    jokerCount: 0,
+  };
 }

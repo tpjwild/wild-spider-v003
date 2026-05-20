@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { GameShell } from "@/components/game/GameShell";
+import { clearSkipCloudGameAutoload, peekSkipCloudGameAutoload } from "@/lib/authSessionGameBootstrap";
+import { loadGameState } from "@/lib/gameStorage";
 import { fetchSavedGame } from "@/lib/savedGamesRemote";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { fetchUserSettings } from "@/lib/userSettingsRemote";
@@ -29,6 +31,10 @@ export function GameApp() {
       return;
     }
 
+    if (useGameStore.getState().hydrated) {
+      return;
+    }
+
     const userId = user.id;
     const runId = ++bootstrapRun.current;
     let cancelled = false;
@@ -39,23 +45,39 @@ export function GameApp() {
       const client = getSupabaseBrowserClient();
       if (!client) {
         if (cancelled || runId !== bootstrapRun.current) return;
+        if (peekSkipCloudGameAutoload()) {
+          clearSkipCloudGameAutoload();
+        }
         hydrateFromLocalAfterAuth();
         return;
       }
+      const skipCloudAutoload = peekSkipCloudGameAutoload();
       try {
-        const [cloud, settings] = await Promise.all([
-          fetchSavedGame(client, userId),
-          fetchUserSettings(client, userId),
-        ]);
+        const settings = await fetchUserSettings(client, userId);
         if (cancelled || runId !== bootstrapRun.current) return;
         setUserSettings({ confirmSave: settings.confirm_save });
-        if (cloud) {
-          applyCloudBootstrap(cloud);
-        } else {
-          hydrateFromLocalAfterAuth();
+
+        const hadLocalSavedGame = loadGameState() !== null;
+        hydrateFromLocalAfterAuth();
+
+        if (skipCloudAutoload) {
+          clearSkipCloudGameAutoload();
+          return;
+        }
+
+        // Cloud is a fallback when this browser has never persisted a game (fresh tab / new device).
+        if (!hadLocalSavedGame) {
+          const cloud = await fetchSavedGame(client, userId);
+          if (cancelled || runId !== bootstrapRun.current) return;
+          if (cloud) {
+            applyCloudBootstrap(cloud);
+          }
         }
       } catch {
         if (cancelled || runId !== bootstrapRun.current) return;
+        if (peekSkipCloudGameAutoload()) {
+          clearSkipCloudGameAutoload();
+        }
         hydrateFromLocalAfterAuth();
       }
     })();
@@ -63,7 +85,7 @@ export function GameApp() {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, bypass, user?.id, hydrateLocalOnly, hydrateFromLocalAfterAuth, applyCloudBootstrap, setUserSettings]);
+  }, [authLoading, bypass, user, hydrateLocalOnly, hydrateFromLocalAfterAuth, applyCloudBootstrap, setUserSettings]);
 
   if (!hydrated) {
     return (

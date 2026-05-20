@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { GameBar } from "@/components/game/GameBar";
-import { DEFAULT_DECK_PAIR_ID } from "@/constants/deckPairs";
+import { DEFAULT_DECK_PAIR_ID } from "@/content/deckPairs";
 import { newGame } from "@/engine/game";
 
 describe("GameBar", () => {
@@ -51,5 +51,55 @@ describe("GameBar", () => {
     expect(writeText).toHaveBeenCalledTimes(1);
     expect(writeText).toHaveBeenCalledWith("inner-seed");
     vi.unstubAllGlobals();
+  });
+
+  it("enables Deck when canOpenDeckPopup and onOpenDeck are set", () => {
+    const game = newGame({
+      columns: 4,
+      deals: 5,
+      seed: "s",
+      deckPairId: DEFAULT_DECK_PAIR_ID,
+      jokerCount: 0,
+    });
+    const onOpenDeck = vi.fn();
+    render(<GameBar game={game} canOpenDeckPopup onOpenDeck={onOpenDeck} canOpenStockPopup onOpenStock={vi.fn()} />);
+    expect(screen.getByTestId("deck-popup-open")).not.toBeDisabled();
+  });
+
+  it("disables Deck when canOpenDeckPopup is false", () => {
+    const game = newGame({
+      columns: 4,
+      deals: 5,
+      seed: "s",
+      deckPairId: DEFAULT_DECK_PAIR_ID,
+      jokerCount: 0,
+    });
+    render(<GameBar game={game} canOpenDeckPopup={false} onOpenDeck={() => {}} canOpenStockPopup={false} onOpenStock={() => {}} />);
+    expect(screen.getByTestId("deck-popup-open")).toBeDisabled();
+  });
+
+  it("enables Stock when canOpenStockPopup and onOpenStock are set", () => {
+    const game = newGame({
+      columns: 4,
+      deals: 5,
+      seed: "s",
+      deckPairId: DEFAULT_DECK_PAIR_ID,
+      jokerCount: 0,
+    });
+    const onOpenStock = vi.fn();
+    render(<GameBar game={game} canOpenStockPopup onOpenStock={onOpenStock} />);
+    expect(screen.getByTestId("stock-popup-open")).not.toBeDisabled();
+  });
+
+  it("disables Stock when canOpenStockPopup is false", () => {
+    const game = newGame({
+      columns: 4,
+      deals: 5,
+      seed: "s",
+      deckPairId: DEFAULT_DECK_PAIR_ID,
+      jokerCount: 0,
+    });
+    render(<GameBar game={game} canOpenStockPopup={false} onOpenStock={() => {}} />);
+    expect(screen.getByTestId("stock-popup-open")).toBeDisabled();
   });
 });

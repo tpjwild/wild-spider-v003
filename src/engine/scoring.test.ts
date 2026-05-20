@@ -8,12 +8,14 @@ function emptyState(): Omit<GameState, "columns" | "foundation"> {
     config: {
       columns: 2,
       deals: 10,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "s",
       jokerCount: 0,
     },
     stock: [],
     shelf: [],
+    cardEffects: {},
+    columnEffects: {},
     undoCount: 0,
     history: [],
   };

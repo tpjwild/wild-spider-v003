@@ -24,7 +24,7 @@ test.describe("cloud save resume", () => {
     if (await dialog.isVisible()) {
       await page.getByTestId("new-game-columns").fill("4");
       await page.getByTestId("new-game-deals").fill("5");
-      await page.getByTestId("new-game-seed").fill("04-005-PLH-11111111111111");
+      await page.getByTestId("new-game-seed").fill("04-005-BAS-11111111111111");
       await page.getByTestId("new-game-start").click();
     }
 

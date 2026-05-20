@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DEFAULT_DECK_PAIR_ID, deckPairs } from "@/constants/deckPairs";
+import { DEFAULT_DECK_PAIR_ID, deckPairs, maxJokersInPlayForDeckPair } from "@/content/deckPairs";
 import {
   formatFormattedGameSeed,
   getPairCodeForDeckId,
@@ -20,7 +20,7 @@ import { useGameStore } from "@/state/gameStore";
 const defaultColumns = 8;
 const defaultDeals = 6;
 const defaultJokers = 0;
-const maxJokersUi = 8;
+const maxJokersCap = 8;
 
 function seedFieldError(trim: string, jokerCount: number): string | null {
   if (!trim) return null;
@@ -88,11 +88,6 @@ export function NewGameDialog() {
     return decodeShareableGameSetup(seedTrim);
   }, [hasSeedText, seedTrim, parsedFormatted]);
 
-  const seedErr = useMemo(
-    () => seedFieldError(seedTrim, jokers),
-    [seedTrim, jokers],
-  );
-
   const effective = useMemo(() => {
     if (parsedFormatted) {
       return {
@@ -113,6 +108,12 @@ export function NewGameDialog() {
 
   const product = effective.columns * effective.deals;
   const layoutProductInvalid = product > 104;
+  const maxJokersForPair = Math.min(maxJokersCap, maxJokersInPlayForDeckPair(effective.deckPairId));
+  const jokersInRange = Math.min(jokers, maxJokersForPair);
+  const seedErr = useMemo(
+    () => seedFieldError(seedTrim, jokersInRange),
+    [seedTrim, jokersInRange],
+  );
   const startDisabled =
     layoutProductInvalid || (hasSeedText && seedErr != null);
 
@@ -171,10 +172,10 @@ export function NewGameDialog() {
       columns: effective.columns,
       deals: effective.deals,
       seed,
-      jokers,
+      jokers: jokersInRange,
       deckPairId: effective.deckPairId,
     };
-  }, [effective.columns, effective.deals, effective.deckPairId, seed, jokers]);
+  }, [effective.columns, effective.deals, effective.deckPairId, seed, jokersInRange]);
 
   useEffect(() => {
     if (!open) return;
@@ -362,19 +363,19 @@ export function NewGameDialog() {
               value={seed}
               onChange={(e) => setSeed(e.target.value)}
               className="mt-1 w-full rounded border border-white/20 bg-black/40 px-2 py-1 font-mono text-sm text-zinc-100"
-              placeholder="e.g. 08-006-PLH-12345678901234"
+              placeholder="e.g. 08-006-BAS-12345678901234"
               data-testid="new-game-seed"
             />
           </label>
           <label className="text-xs text-zinc-400">
-            Jokers in stock (0–{maxJokersUi}) — temporary control
+            Jokers in stock (0–{maxJokersForPair}) — temporary control
             <input
               type="number"
               min={0}
-              max={maxJokersUi}
-              value={jokers}
+              max={maxJokersForPair}
+              value={jokersInRange}
               onChange={(e) =>
-                setJokers(Math.min(maxJokersUi, Math.max(0, Number(e.target.value) || 0)))
+                setJokers(Math.min(maxJokersForPair, Math.max(0, Number(e.target.value) || 0)))
               }
               className="mt-1 w-full rounded border border-white/20 bg-black/40 px-2 py-1 text-sm text-zinc-100"
               data-testid="new-game-jokers"
@@ -399,7 +400,8 @@ export function NewGameDialog() {
         </div>
 
         <p className="mt-2 text-xs text-zinc-500">
-          Max eight jokers per deck pair (four per deck). This spinner is temporary until unlocks set the count.
+          Joker count is capped by the deck pair (Base has none; themed pairs allow up to eight). This spinner is
+          temporary until unlocks set the count.
         </p>
 
         <p className="mt-2 text-xs text-zinc-500">

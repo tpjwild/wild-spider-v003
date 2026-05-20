@@ -90,7 +90,7 @@ The app has a number of deck pairs.
 
 Each Deck Pair consists of two Decks.
 
-Each Deck Pair has a deck pair theme, e.g. Philosophers, Mathematicians.
+Each Deck Pair has a deck pair theme, e.g. Western Philosophy, Computer Science.
 
 Each Deck Pair has a suit theme name and suit theme details for each suit.
 
@@ -98,7 +98,7 @@ e.g. Suit theme name: Metaphysics & Ontology – “The suit of hidden foundatio
 
 e.g. Suit theme details: This suit explores the basic structure of reality: what exists, what it means to be, and how things hang together at the deepest level. Its philosophers ask what kinds of things are real—minds, bodies, numbers, causes, possibilities—and how those underlying structures shape everything else.
 
-Each deck has four jokers.
+Each deck in a **themed** deck pair (Computer Science, Western Philosophy, Mathematics) has **four** jokers in the shipped registry. The **Base** pair has **no** jokers in the registry (no joker cards for that pair in product data).
 
 Each face card and joker for a given deck depicts a different person relevant to the deck’s theme.
 
@@ -110,12 +110,14 @@ Each joker and face card has:
 
 Each card face image has two image elements:
 
-- Person Portrait: A png picture of the person
-- Card frame: An svg file of the card frame that is put on top of the portrait
+- Person Portrait: a **PNG** or **SVG** picture of the person (Base courts ship as SVG in the art set)
+- Card frame: An svg file of the card frame that is put on top of the portrait. In the UI the frame is **scaled to the full card face** (same width and height as the card) so artwork that is narrower than the card still spans edge to edge.
 
 Each deck has one image element:
 
 - Card back image: A png
+
+The deck pair registry lives in `src/constants/deckPairs.ts`. The shipped product data includes **Base** (`BAS`), **Computer Science** (`CPS`), **Western Philosophy** (`WPH`), and **Mathematics** (`MAT`), each with two decks, four suit themes, and twelve face cards per deck. **Base** defines **no** jokers; each **themed** pair defines **four** jokers per deck. **Optional** bitmap/SVG art lives under `public/gameArt/portraits/<pairId>/deck{n}/` for court and joker portraits (see `src/constants/portraitManifest.ts` for themed basenames), under `public/gameArt/shared/backs/` for card backs, `public/gameArt/shared/cards/` for **A–10 pip faces** (`AS.svg` … `10H.svg`), and `public/gameArt/shared/frames/` for per-rank and per-joker-colour frame overlays (see `src/constants/sharedDeckAssets.ts` and `src/constants/gameArtPaths.ts`). **A–10** faces use a **white** card field; pip cards use the same **zinc border and shadow** as other face-up cards (courts, jokers, typography fallbacks). Pip art is scaled to fit within the padded area without cropping. If a back image is missing or fails to load, the face-down card shows the deck palette **gradient only**. When a back image is present, the UI shows **gradient plus bitmap only** (no playing-card index glyph on the back). If a joker or court **portrait** or **frame** fails to load, the card uses the same **corner typography** style as rank/suit cards (jokers use **JOKER** with letters **stacked vertically** in each corner, like a playing-card index). If a pip face SVG fails to load, **A–10** fall back to that same corner typography. The repo does not require every asset path to exist on disk.
 
 ## Jokers
 
@@ -131,7 +133,10 @@ The face cards for a given suit of a given deck are called a set.
 
 Each set has a unique set power.
 
-A set power instance is created the first time in a given game that a set is aligned (i.e. the jack is on the queen which is on the king).
+A set power instance is created the first time in a given game that a set is **aligned**. **Aligned** means the same **suit** and same **deck** (first 52 cards = deck 1, second 52 = deck 2), with:
+
+- **Tableau:** Jack on Queen on King — the Jack is immediately above the Queen, which is immediately above the King (face-up or face-down).
+- **Foundation:** King on Queen on Jack — the King is on top of the Queen, which is on top of the Jack (same suit and deck in that foundation pile).
 
 If more than one set becomes aligned as the result of a **single** move, multiple set power instances are created; the **order** in which those instances appear on the shelf **does not matter**.
 
@@ -153,8 +158,8 @@ A set power can be triggered if it is sitting on the shelf and it has at least o
 
 There are two trigger classes of power:
 
-- **Immediate:** Will take effect immediately, e.g. make all jokers transparent.
-- **Targeted:** Will only take effect when the user selects a target, e.g. make the selected card transparent.
+- **Immediate:** Will take effect immediately, e.g. make all **Kings** transparent (red jokers in the initial registry; see **Effects**).
+- **Targeted:** Will only take effect when the user selects a target, e.g. make the **selected** card transparent (black jokers in the initial registry; see **Effects**).
 
 When a targeted power is triggered, if the user clicks on an invalid target or hits escape then the power’s triggering is canceled and no charge is consumed.
 
@@ -176,7 +181,42 @@ Targeting a power does not count as a move. Undoing the triggering of a power wi
 
 Undoing the triggering of a power will restore the charge to its source and undo any effects that it caused.
 
-Powers **do not flip** cards between face up and face down. A power may change how a card is rendered (for example the **transparent** mode) but card orientation is only changed by normal dealing and player moves as described elsewhere in this document.
+See **Effects** for how powers change appearance (badges, transparent rendering). Powers **do not flip** cards; orientation changes only through dealing and normal moves as described elsewhere in this document.
+
+## Effects
+
+Powers apply **effects** to game entities. An effect is either on a **card** or on a **tableau column**.
+
+### Where effects appear (badges)
+
+- **Tableau column:** Each effect on a column adds a badge in that column’s **badge holder** (see Tableau under Game View). If a column has more than two effects, show a single badge with a count; each badge has a tooltip.
+- **Card:** Each effect on a card shows a **badge on the card** in:
+  - the **tableau** (on the card widget),
+  - the **Deck popup**, and
+  - the **Stock popup**.
+  Card effect badges are **not** shown on cards in the **foundation** row or on the **stock pile** widget (face-down backs in the main game view).
+
+### Transparent effect (card)
+
+If a card has the **transparent** effect:
+
+- **Tableau, face down:** Render the card’s **face** art with the standard **card-back image** on top at **`transparentEffectBackOpacity`** (default **0.75** in `dimensions.ts` — opacity of the back layer; tweak there). Deck-popup cells without the transparent effect still use **`deckPopupFaceDownBackOpacity`** (default **0.5**).
+- **Stock popup:** Same **face + semi-transparent back** treatment at **`transparentEffectBackOpacity`** when the effect applies.
+- **Tableau, face up** and **Deck popup (face-up cells):** No face+back overlay; the card shows a **transparent effect badge** only (see badges above).
+- **Foundation** and **stock pile widget:** No transparent visual treatment and no effect badges (badges are not shown there in any case).
+
+Powers **do not flip** cards. Transparent only changes rendering and badges as above; orientation still changes only through dealing and normal moves.
+
+### Stage 5 joker powers (initial registry)
+
+Until achievements gate powers (Stage 6), themed jokers use a fixed mapping by **joker slot** within each deck (**1–2** = red, **3–4** = black; see portrait manifest). Each shelf joker instance starts with **`initialCharges`** from the deck-pair catalog in `deckPairs.ts` (per joker; typically **3** today).
+
+| Slot | Power class | Effect |
+|------|-------------|--------|
+| **1–2 (red)** | **Immediate** | Apply **transparent** to **every King** (rank 13) in the current game — all suits, both decks, every zone (tableau, foundation, stock list, etc.); rendering/badges follow the rules above per surface. |
+| **3–4 (black)** | **Targeted** | Apply **transparent** to **one** valid target: any **face-down** card on the **tableau**; **any** card in the **Stock popup**; any card in the **Deck popup** that is **not** shown face-up (i.e. still in stock or face-down on tableau in that popup). After triggering, **hovering** the **Deck** or **Stock** button on the game bar while in **Power Target** mode opens the corresponding popup so the user can click a valid card there. Invalid target or **Escape** cancels without spending a charge. |
+
+Set powers and additional powers are defined in Stage 5 / later content.
 
 ## Achievements
 
@@ -236,9 +276,9 @@ Every view has a title bar with:
 
 - New Game
 - Restart Game — undoes **all** moves and restores the game to its **initial** layout and state (same **seed** and thus the same card order as when the game started).
-- Save Game — from the Actions menu: while the server request runs, a full-screen spinner is shown; when it succeeds, a short **Save complete** dialog confirms the save (errors use the dismissible error strip). Saving from the **End game** save prompt uses the same spinner, then returns to the end-game flow without that dialog.
-- Load Game — asks for confirmation, then replaces the in-progress game with the single saved row from the server (same as resume on login). While the request runs, a loading indicator is shown. Disabled when not signed in, when Supabase is not configured, while a deal animation is running, or while a load is already in progress.
-- End Game — opens a confirmation dialog showing **final score** and **game configuration** (columns, deals, deck pair, joker count, seed with the same **copy icon beside the seed** as on the game bar), plus **OK** / **Cancel**. **OK** clears the in-progress game and local save and returns to the empty game screen **without** opening the New Game dialog (the user opens New Game when they want). **Cancel**, **Escape**, or clicking the **backdrop** outside the dialog panel closes the dialog and leaves the game unchanged.
+- Save Game — from the Actions menu (or **Alt+Shift+S**): when **Confirm before saving game** is enabled in Settings (stored as `user_settings.confirm_save`, default **on**), the app first shows a **confirmation dialog**; **Save** or **Enter** / **Return** (main or keypad) then runs the server request the same way, **Cancel** / **Escape** / backdrop dismiss without saving. When that setting is **off**, the server request runs immediately. While the request runs, a full-screen spinner is shown; when it succeeds, a short **Save complete** dialog confirms the save — dismiss with **OK**, **Enter** / **Return**, **Escape**, or the backdrop. On failure, errors use the dismissible error strip. Save and Load confirmations cannot be open at the same time (the other action is disabled while one is open).
+- Load Game — when the **game area has any cards in play** (in-progress game or a deal animation that has already placed cards), the app asks for **confirmation** before replacing that state with the single saved row from the server (same as resume on login). When the board is **cleared** (no cards on tableau, foundation, stock, or shelf), **Load Game** runs immediately with no confirmation dialog. While the request runs, a loading indicator is shown. Disabled when not signed in, when Supabase is not configured, while a deal animation is running, while a load is already in progress, or while the **Save Game** confirmation dialog is open.
+- End Game — opens a confirmation dialog showing **final score** and **game configuration** (columns, deals, deck pair, joker count, seed with the same **copy icon beside the seed** as on the game bar), plus **OK** / **Cancel**. **OK** or **Enter** / **Return** (main or keypad) confirms ending the same way, except when keyboard focus is on **Cancel** or the seed **copy** control (those keep their normal behaviour). Confirming clears the in-progress game and local save, leaves the **shelf, foundation row, and stock pile visible (empty)**, and shows an empty tableau for the same column count — **without** opening the New Game dialog (the user opens New Game when they want). The user is **not** prompted to save to the server before ending; they can use **Save Game** from the Actions menu when they wish. **Cancel**, **Escape**, or clicking the **backdrop** outside the dialog panel closes the dialog and leaves the game unchanged.
 - Logout
 
 On the **Game** view, when no modal dialog is open and keyboard focus is not in a text-entry control, the action menu items also respond to **Alt+Shift** chords (**Alt** is **Option** on macOS): **N** New Game, **A** Restart Game, **S** Save Game, **L** Load Game, **E** End Game, **O** Logout, **U** Undo. Chords are shown next to each item in the Actions menu. Chords use the **physical** key codes (`KeyA`, etc.) and are handled in the **capture** phase so the browser (or embedded preview host) is less likely to consume the shortcut before the page.
@@ -256,7 +296,7 @@ On the **Game** view, when no modal dialog is open and keyboard focus is not in 
 - **Login page:** User lands here when they are not logged in. Cannot otherwise be navigated to.
 - **Game:** Where the game itself is played.
 - **Achievements:** Lists all achievements, both achieved and not yet achieved.
-- **Decks:** Lists **all deck pairs** available in the game. Each deck pair’s name links to its **Deck Pair Details** view when that deck pair is **unlocked** (locked pairs are still listed but are not inspectable in detail until unlocked).
+- **Decks:** Lists **all deck pairs** available in the game. Choosing an **unlocked** pair opens the **Deck Popup** for that pair with **every card face up** (browse-only). Locked pairs are listed but cannot be opened until unlocked.
 - **Hall of Fame:** Lists all users ranked by various things.
 - **Settings:** Allows the user to edit game settings.
 
@@ -264,11 +304,11 @@ On the **Game** view, when no modal dialog is open and keyboard focus is not in 
 
 Allows the user to log in and create an account if they don’t have one. The login experience includes **password reset** (e.g. email link via Supabase Auth).
 
-After login the user is taken to the game view. **If there is a saved in-progress game for the user, it is loaded.**
+After login the user is taken to the game view. **Bootstrap:** On load (including full **browser refresh**), the app **restores from `localStorage`** key `wild-spider-game-v1` when a valid saved state exists, so in-progress play survives refresh. If there is **no** local snapshot (first visit or after **End Game**, which clears that key), the app may **fallback** to the single **server** row (same as **Load Game**) when the user is logged in and Supabase is configured — otherwise it shows the **cleared layout** (empty shelf, foundation, stock, and tableau) using last **New Game** defaults from this browser when known, otherwise product defaults — and the **New Game** dialog does **not** open by itself. If the user logged out on a **cleared** board while a server save still exists but local was cleared, the next login triggers that empty-local path and can therefore restore from the server. (The “skip server autoload on next login” hint remains stored in **localStorage** for this origin and is removed only after that login’s bootstrap applies the cleared layout, so auth remounts do not consume it too early.) A **first-time** user (no server row, no local save) sees the same **cleared board** without being forced through **New Game** immediately; they can open **New Game** from the Actions menu when they want.
 
 ### Saved games (database and local)
 
-The user may have **at most one in-progress saved game** in the database per account. Choosing **Save Game** writes (or replaces) that single saved row. **Local storage** also stores the current state after each move for crash recovery and should mirror the same single in-progress game concept.
+The user may have **at most one in-progress saved game** in the database per account. Choosing **Save Game** writes (or replaces) that single saved row. **Local storage** also stores the current state after each move for crash recovery and **takes precedence on refresh** over the server row when a local snapshot exists; use **Save Game** to push the current local game to the server.
 
 ### Game View
 
@@ -276,13 +316,9 @@ Cards in the game can be rendered in the following modes:
 
 - Face Up
 - Face Down — the back design uses **blue** tones for the **first** standard 52-card deck in the box and **red** tones for the **second** 52-card deck (by card identity in the double deck). Jokers use the same two palettes by joker id until deck-specific joker art exists.
-- Transparent (rendered face up with a semitransparent image of the card’s back on top)
+- **Transparent (effect):** Not a global display mode by itself; see **Effects** — transparent cards use **face + semi-transparent back** when face down on the tableau or in the Stock popup, and **effect badges** in Deck-popup / face-up contexts.
 
-The card will also have a badge for each active effect it has.
-
-If there are more than two effects it will have a single badge with a number indicating the number of effects.
-
-Each badge has a tool tip describing the effect or effects it represents.
+Effect **badges** on cards and columns follow **Effects** (including: no card badges on foundation or the stock pile widget; column badges in the badge holder strip).
 
 The mouse pointer in the game view can be in the following modes:
 
@@ -297,18 +333,21 @@ The mouse pointer in the game view can be in the following modes:
 - One row above the tableau: **Shelf** (left), **Foundation** (centre), **Stock** (right).
 - The **top** of the shelf’s joker/power strip, the **top** of the foundation row, and the **top** of the **stock stack area** share the same vertical alignment (implemented with **shelfVerticalPad**: shelf inner padding plus matching top inset on the foundation and stock columns).
 - The **foundation** sits in the **centre** of the row. To its **left** is a region reserved for the **shelf**; to its **right** is a region reserved for the **stock**. Those two regions are **always the same width** as each other and are **never narrower than shelfWidth**; when the row is wider than the minimum, the two regions **grow equally** (CSS `minmax(shelfWidth, 1fr)` on each flank). The **shelf** panel (bordered area) is **horizontally centred** within the left region; **jokers / powers inside the shelf** are **left-justified**. The **stock** pile is **horizontally centred** within the right region.
-- The **stock** stack uses a **fixed vertical height** for the face-down pile for the whole game (from **stockMaxVisibleLayers** and **stockCardOffset**); only the number of visible backs changes as deals run down.
+- The **stock** stack reserves a **vertical height** for the face-down pile for the whole game from the current setup’s **deals** count (capped by **stockMaxVisibleDeals** in `dimensions`, with **stockCardOffset** between backs) and **`stockStackRegionHeightPx`** in `src/constants/dimensions.ts`; only the number of **visible** backs changes as deals run down. The shelf / foundation / stock strip uses **`shelfFoundationStockStripMinHeightPx(deals)`** so that row’s minimum height matches the tallest of shelf, foundation, and stock regions when a game starts or loads.
 
 #### The Game View has the following elements
+
+- The in-game shell is **`100dvh`** tall with **overflow hidden** on the window chrome; the **tableau** pane below the shelf / foundation / stock row (`[data-tableau-scroll-pane]`) uses **vertical scrolling** when its content exceeds the remaining height. While a game is in play, each tableau column droppable stretches to the **bottom of that scroll pane** (not only the card stack height) so empty drop space and drag highlights reach the bottom of the visible tableau area.
 
 **Tableau**
 
 - In the middle of the window.
 - Contains a tableau column for each column in the game.
-- Each tableau column has a drop area that extends to the bottom of the tableau.
-- Above each tableau column is a square element called the badge holder which displays badges for any effects that have been applied to the column.
+- Each tableau column has a drop area that extends to the bottom of the **tableau scroll pane** while a game is loaded (plus small padding above the stack minimum); when no game is shown, droppables are not rendered.
+- Above each tableau column is a **badge holder** strip that displays **column-level** effect badges; see **Effects**. It is **`tableauColumnBadgeHolderHeight`** tall (default **30** px in `src/constants/dimensions.ts`), **`cardWidth`** wide (same as the column card stack), with a thin **white** outline (`TableauColumnBadgeHolder` in `src/components/game/TableauColumn.tsx`). **`tableauColumnBadgeHolderGapPx`** (default **10** px) separates the badge holder from the card stack / empty-column outline below.
 - The tableau column **drop area** has no visible border or background in normal play; while dragging, a valid target column may show a light tint only. **Empty** columns show a **dashed** white card-sized outline (**2px** stroke) at the **column head** only (same style as an empty foundation slot).
-- The first card in the column (the base of the pile) is placed on the tableau column head at the **top** of the stack. Each subsequent card is offset **vertically downward** from the previous by **tableauColumnCardOffset** (higher cards in the pile have higher stacking order so the face-up tail remains readable).
+- The first card in the column (the base of the pile) is placed on the tableau column head at the **top** of the stack. Each subsequent card is offset **vertically downward** from the previous: the step is **tableauColumnFaceDownCardOffset** when the card above is face **down**, and **tableauColumnFaceUpCardOffset** when the card above is face **up** (see `src/constants/dimensions.ts`). Higher cards in the pile have higher stacking order so the face-up tail remains readable.
+- **Pointer hover (draggable run):** When the pointer is over a **face-up** card that **can start a legal tableau drag** (same-suit descending tail to the column top), **that** card and **every card above it in that same legal run** are scaled by **`TABLEAU_DRAGGABLE_HOVER_SCALE`** (`dimensions.ts`, default **110%**) from the card **centre**. Only the **top‑hit** card at the pointer (stacking order above) “arms” the hover: a card wholly covered by a higher card does not receive the pointer. **In-column** scale follows **hover only** (not the drag `active` id): once the **`DragOverlay`** is mounted the source cards are hidden and the overlay shows the lifted run at the same scale until **drop or cancel**. **`onDragEnd`** / **`onDragCancel`** clear hover run state as soon as the pointer releases so **illegal** returns are not scaled from a stale drag id after the overlay unmounts. The **source** column also ignores **`pointerenter`** hover re-arm for **`timings.tableauLayoutReturnBoostMs`** after a tableau drag from that column ends (same window as the layout-return z-boost in **`GameShell`**) so **`visibility: hidden` → visible** during the return flight does not re-apply **110%** while the pointer has not moved. In-column cards use an explicit **`scale(1)`** with **no** CSS transform transition when not hovered so scale snaps to **100%** immediately. **Successful** drop commits the overlay to **normal (100%)** size **before** the overlay is cleared. The **`DragOverlay`** preview is **plain DOM** (no Framer **`layoutId`** on the follow layer) and sits **outside** the board **`LayoutGroup`** so it tracks the pointer without layout-projection work. **Tableau and foundation** cards that participate in **`layoutId`** use **`layoutIdCardMotionProps`** (**position-only** layout in `src/constants/timings.ts`) so post-drop motion does **not** interpolate **size** (no visible **110%→100%** size tween). Those transitions use **`layoutIdDropTransition`** (snappier than **`layoutSpring`**). No hover growth while a deal animation locks the board.
 
 **Foundation**
 
@@ -319,8 +358,8 @@ The mouse pointer in the game view can be in the following modes:
 **Stock**
 
 - To the right of the Foundation.
-- Face-down backs show **one card per remaining deal** (up to **stockMaxVisibleLayers**), with **vertical** offset only between backs. Each back uses the **blue or red deck palette** of the **actual stock card** that will be the **first card popped** when that deal runs (same pop/joker rules as dealing); the count of backs matches how many full deals the stock can still complete, not a fixed eight.
-- The **face-down stack** sits in a **fixed-height** region (see **stockMaxVisibleLayers** / **stockCardOffset** in constants); that height does not shrink as the stock empties.
+- Face-down backs show **one card per remaining deal** (up to **`min(rules deals, stockMaxVisibleDeals)`**), with **vertical** offset only between backs. Each back uses the **blue or red deck palette** of the **actual stock card** that will be the **first card popped** when that deal runs (same pop/joker rules as dealing); the count of backs matches how many full deals the stock can still complete, capped by **stockMaxVisibleDeals** when rules deals are higher.
+- The **face-down stack** sits in a **fixed-height** region for that game’s **deals** (see **stockMaxVisibleDeals**, **`stockStackRegionHeightPx`**, and **stockCardOffset** in `src/constants/dimensions.ts`); that reserved height does not shrink as the stock empties during play.
 - When the stock has **no cards left** (all deals from the stock have been performed), the stock area shows a **dashed** card outline (**2px** stroke, same size and style as an **empty foundation** slot) and no face-down stack.
 - Double clicking on the stock will execute the next deal.
 
@@ -329,6 +368,7 @@ The mouse pointer in the game view can be in the following modes:
 - To the left of the Foundation.
 - Inner padding uses **shelfVerticalPad** and **shelfHorizontalPad** so jokers sit inset from the shelf border consistently. The shelf panel height is **cardHeight + 2 × shelfVerticalPad** (**shelfPanelHeightPx**) so there is **shelfVerticalPad** above and below the shelf cards.
 - Jokers and set-power instances on the shelf use horizontal step **`max(0, cardWidth − shelfOverlap)`** (first card always flush with the inner left of the shelf). When **`shelfOverlap` &lt; cardWidth**, that step gives about **`shelfOverlap` pixels of overlap** with the card to the left; when **`shelfOverlap` ≥ cardWidth**, step is 0 (cards stacked on one x) and **later cards paint above earlier ones**. If the strip exceeds **shelfWidth**, it **scrolls horizontally**.
+- **Pointer hover:** The item under the pointer is highlighted only when that item is the **topmost** shelf card at that point (overlapping regions use normal hit testing so a card behind another does not hover). The highlighted item is drawn in front and scaled by **`SHELF_CARD_HOVER_SCALE`** (default matches **110%**) from the **centre** of the card. The shelf strip uses extra **bleed** around the scroll area (see **`shelfHoverScaleBleedPx`** in `src/constants/dimensions.ts`) and **overflow** so the scaled card is not clipped by inner padding or the shelf border.
 - Contains all jokers that have been dealt and all set power instances that have been created.
 - Each joker and set power instance has a badge indicating how many charges it has.
 - When a joker or set power has zero charges it stays in the shelf but gets a treatment to show it is depleted.
@@ -337,11 +377,11 @@ The mouse pointer in the game view can be in the following modes:
 
 - Above the Foundation.
 - **Layout:** **Seed** on the **left** (after the initial deal animation completes for a new game or restart, the bar shows an en-dash until then). A **copy icon** beside the seed copies **that same string** to the clipboard when the seed is visible (what you see is what you paste). **Moves** and **Score** are **centered** between the seed and the right-hand controls. **Score** uses **one decimal place**, per scoring rules.
-- **Right:** buttons for **Deck** (opens Deck Popup) and **Stock** (opens Stock Popup).
+- **Right:** buttons for **Deck** (opens the Deck Popup) and **Stock** (opens the Stock Popup). Only one of these popups is shown at a time; opening one closes the other.
 
 **New Game Popup**
 
-- Opened when the user starts a new game.
+- Opened when the user chooses **New Game** from the Actions menu (or equivalent). It does **not** open automatically on login or when showing the cleared board.
 - Each time the popup opens, **columns**, **deals**, **deck pair**, and **joker count** default to the **last played game’s** values (persisted in the browser when a game is saved or started; **not** cleared when the user ends a game). The **seed** field is always **empty** on open so **Start Game** uses a **new random shuffle** with those layout options unless the user types or pastes a seed. If no prior configuration exists (first visit), defaults are **8** columns, **6** deals, **0** jokers, default deck pair, and an **empty** seed.
 - **Seed format:** `CC-DDD-XXX-SSSSSSSSSSSSSS` as in **Setup** above (hyphens required). A valid **`ws1:`** replay string is still accepted for backwards compatibility.
 - When the seed field is **empty**, **Start Game** builds a new formatted seed using the current **columns**, **deals**, and **deck pair** plus a random 14-digit shuffle key, and the chosen **joker count**.
@@ -352,23 +392,26 @@ The mouse pointer in the game view can be in the following modes:
 
 **Deck Popup**
 
+- Opened from the **Deck** button on the game bar while a game with cards in play is active; **Escape**, **Close** (bottom right of the panel), or clicking the **backdrop** dismisses it — **unless** the **Card details** dialog is open on top (see below), in which case those actions dismiss **only** the card details first. It is dismissed when **New Game** or **End Game** dialogs open, when the in-progress game is cleared, or when the board has no cards.
+- The heading is the deck pair **display name** only (e.g. **Western Philosophy**). The panel width fits the widest row (13 cards across two decks) plus horizontal padding; each card row is **horizontally centred**. Deck Popup layout uses **`deckPopupCardWidth`**, **`deckPopupCardHeight`**, **`deckPopupColumnPad`**, **`deckPopupHorizontalEdgePad`**, **`deckPopupVerticalEdgePad`**, and **`deckPopupFaceDownBackOpacity`** in `src/constants/dimensions.ts`. The nested **Card details** dialog uses **`cardDetailsPopupImageWidth`**, **`cardDetailsPopupImageHeight`**, and **`cardDetailsPopupGapPx`** for the large face image and column gap; court/joker portrait inset and ace pip padding use the helpers **`cardDetailsPortraitInsetPx()`** and **`cardDetailsPipFacePaddingPx()`** (scaled from **`courtJokerPortraitPaddingPx`** and **`cardPipFacePaddingPx`** vs the in-game card width) so framing matches **`CardView`**. **Colours** for the Deck Popup and Card details (light-green panels, scrims, borders, text, and close buttons) live in **`src/constants/colors.ts`** (**`deckPopupBackdrop`**, **`deckPopupPanelBackground`**, **`cardDetailsPopupBackdrop`**, **`cardDetailsPopupPanelBackground`**, **`popupLightPanelBorder`**, **`popupLightPanelTitleText`**, **`popupLightPanelMutedText`**, **`popupLightPanelDivider`**, **`popupLightPanelBodyText`**, **`cardDetailsPopupImageWellBackground`**, **`popupLightCloseButtonBackground`**, **`popupLightCloseButtonBorder`**, **`popupLightCloseButtonText`**).
 - Shows all cards in the game’s Deck Pair.
-- A row at the top for any jokers in the deck.
+- A row at the top for any jokers in the deck. When **eight** jokers are shown, the first **four** (deck 1) and second **four** (deck 2) are separated by **triple** the normal horizontal card gap (**`3 × deckPopupColumnPad`** in `dimensions.ts`) so the two decks read as two groups.
 - A row for each suit (i.e. 8 rows: Deck 1 - Spades, Clubs, Diamonds, Hearts then Deck 2 - Spades, Clubs, Diamonds, Hearts).
 - Cards in each row ordered from Ace up to King.
-- If a card has been dealt it will be rendered face up.
-- If a card has not been dealt it will be rendered in transparent mode.
-- If a card has had one or more effects applied to it then it will have an icon for each effect. If there are more than three effects it will have a single icon indicating the number of effects.
+- **Dealt** vs **face-down in the popup:** A card still in the **stock** pile, or **face down** on the **tableau**, uses the **`deckPopupFaceDown`** **`CardView`** mode: the full **face** art is drawn, then the standard **card-back bitmap** at **`deckPopupFaceDownBackOpacity`** (default **0.5** in `dimensions.ts`) on top. Once a card has left the stock and is **face up** on the tableau, foundation, or shelf, it is shown **face up** only (no back overlay).
+- **Browse from Decks:** From **`/decks`**, choosing an **unlocked** pair opens the same panel layout for that pair with **every** card **face up** (no stock / tableau state). **`DeckCatalogPopup`** in `src/components/game/DeckCatalogPopup.tsx` uses **`catalogDeckPopupSnapshot`** in `src/lib/deckPopupLayout.ts`.
+- **Card effects:** Cards with effects show **badges** on the card in this popup (see **Effects**). If a card has the **transparent** effect and is shown **face-up** in the popup, show the **badge** only (no face+back overlay). If the cell uses **`deckPopupFaceDown`** (still in stock or face-down on tableau), use **face + semi-transparent back** at **`deckPopupFaceDownBackOpacity`** unless the **transparent** effect applies, in which case use **`transparentEffectBackOpacity`**.
+- **Card details:** Clicking an **Ace**, **Jack**, **Queen**, **King**, or **Joker** in the Deck Popup opens a **Card details** dialog above the deck panel (pointer cursor on those cards only). The dialog shows a **large** card face on the **left** and on the **right** a **heading** and **body** (no physical deck-within-pair label). For **courts** and **jokers**, the heading is the **person name** and the body is the **bio**. For **Aces**, the heading is **“{Suit plural} the suit of {suit theme name}”**, where **{Suit plural}** is **Spades**, **Clubs**, **Diamonds**, or **Hearts** (matching the card’s suit), **{suit theme name}** comes from **`suitThemes.name`** for that suit, and if its **first character is uppercase** it is changed to **lowercase** so the phrase reads naturally after “the suit of ”. The body is **`suitThemes.description`** for that suit. **Close** (bottom right), **Escape**, or clicking the **backdrop** outside the details panel dismisses **only** this dialog (the Deck Popup stays open until dismissed separately).
 
 **Stock Popup**
 
 - Shows all the cards in the stock.
 - Cards are rendered face down.
-- If a card has had one or more effects applied to it then it will have an icon for each effect. If there are more than three effects it will have a single icon indicating the number of effects.
-- If a card has the transparent effect applied to it then it will be rendered in transparent mode.
+- **Card effects:** Cards with effects show **badges** on the card in this popup (see **Effects**). If a card has the **transparent** effect, use **face + semi-transparent back** at **`transparentEffectBackOpacity`** (see **Effects**), not the legacy gradient **transparent** display mode.
 - The jokers are rendered in a row at the top.
 - Each deal is rendered in its own row.
 - Note that, while the jokers are each part of a given deal depending on where they are in the stock, they are not rendered in the row for their deal.
+- **Implementation:** Opened from the **Stock** button on the game bar while a game with cards in play is active (same gating as the Deck button). **Escape**, **Close**, or the backdrop dismisses it. Layout uses the same mini-card sizing as the Deck Popup (**`deckPopupCardWidth`**, **`deckPopupCardHeight`**, **`deckPopupColumnPad`**, edge padding, and joker gap rules** in `dimensions.ts`) and the same light-panel colours as the Deck Popup in **`colors.ts`**. Rows are derived by **`stockPopupLayout(stock, columns)`** in `src/lib/stockPopupLayout.ts`, which mirrors **`dealFromStock`** pop order (jokers collected into the top row; each full deal round’s regular cards in column order in subsequent rows; any remainder is flushed after the last full round).
 
 **Achievement Popup**
 
@@ -381,9 +424,15 @@ The game is saved to local storage after each move.
 
 A game save includes both the current state and the entire history. **Ideally** the user can **undo all the way back to the start of the game**; if that proves impractical (storage, performance, or product limits), a narrower limit may be introduced later.
 
-**End Game:** When the user chooses **End Game**, if the current state has **not** been saved to the database since the last change, the app **offers to save** before the game is ended and achievements are evaluated.
+**End Game:** Choosing **End Game** opens the confirmation dialog directly (no server-save prompt). **OK** or **Enter** / **Return** confirms (except when focus is on **Cancel** or the seed **copy** control). When the user confirms, the in-progress game and local save are cleared; achievements are evaluated when that flow exists.
 
-A game ends when the user confirms **End Game** in the action menu (after any save prompt is resolved).
+A game ends when the user confirms **End Game** in the action menu (including via **Enter** / **Return** in that dialog when it applies).
+
+### App chrome (authenticated)
+
+- The **Game**, **Achievements**, **Decks**, **Hall of Fame**, and **Settings** views use a **title bar** with a **hamburger** control on the **left** (opens the navigation drawer), then **“WILD SPIDER”**, **“: ”**, and the **current view name** (e.g. **Game**, **Decks**).
+- The drawer lists **Game**, **Achievements**, **Decks**, **Hall of Fame**, and **Settings** for moving between views.
+- **`GameApp`** stays mounted in **`AuthAppChrome`** while the user browses other views (hidden with CSS) so returning to **Game** does not re-fetch settings or show a loading gate.
 
 ### Achievements View
 
@@ -393,18 +442,9 @@ Lists all the achievements: Name, Requirements, Rewards, Completion status.
 
 Lists **all deck pairs** in the game.
 
-Each deck pair name is a link to its deck pair details view.
+Choosing an **unlocked** pair’s name opens the **Deck Popup** for that deck pair with **all cards face up** (same layout as in-game: joker row when applicable, then eight suit rows). **Locked** pairs are listed with a **Locked** label and cannot be opened.
 
-The link to the deck pair details view is only enabled if the deck pair is unlocked.
-
-### Deck Pair Details View
-
-Shows the following details for a given deck pair:
-
-- The four suit themes with their descriptions.
-- For each of the decks, a row for each of the jokers, kings, queens and jacks showing both the name, bio and card face image.
-
-Only unlocked jokers are displayed.
+**Implementation:** Route **`/decks`**. Uses **`colors.decksListViewBackground`** (billiard felt) for the page body. Title bar and navigation drawer are provided by **`AuthAppChrome`** (same title pattern as **`GameShell`** on **`/`**). **`DeckCatalogPopup`** renders the browse-only popup.
 
 ### Hall of Fame View
 
@@ -421,7 +461,7 @@ When two users **tie** on the sorted metric in a Hall of Fame list, the tie is b
 Allows the user to edit the following settings:
 
 - Play sound effects
-- Confirm before saving game
+- Confirm before saving game — when **on** (default), choosing **Save Game** from the Actions menu (or **Alt+Shift+S**) opens a confirmation dialog before the server save runs; when **off**, save starts immediately.
 
 Has an OK button (saves edits) and a Cancel button (reverts edits).
 
@@ -433,7 +473,7 @@ When a new game is started, the engine builds the shuffled tableau and stock (sa
 
 Each flight uses **cardDealDuration**. Face-down cards fly **face down**; the eventual **face-up column tops** fly **face up** so they match the final state when they land. **cardDealDelay** is the **start-to-start** spacing between initial-deal flights (same overlapping rules as stock deals). When the last flight completes, the full game state (including stock) is committed and saved. **Escape** during the initial deal skips any remaining flights and commits the same final state immediately (same as if the animation had finished).
 
-The first card dealt into a tableau column is placed on the column head at the **top** of the stack; subsequent cards are placed **below** the previous with a vertical step of **tableauColumnCardOffset**.
+The first card dealt into a tableau column is placed on the column head at the **top** of the stack; subsequent cards are placed **below** the previous using **tableauColumnFaceDownCardOffset** or **tableauColumnFaceUpCardOffset** according to whether the card above is face down or face up (see `dimensions.ts`).
 
 The delay between each card being turned face up will be determined by **cardDealFaceUpDelay** (used elsewhere; initial deal uses the final face-up flags on the last cards of each flight as above).
 
@@ -473,15 +513,15 @@ When the user drops the card or cards:
 
 **Implementation (Stage 2):** The app loads optional **`public/sounds/<name>.mp3`** files when present; missing files use a small built-in synthesizer. For development, **`/dev/sounds`** lists **CC0 candidate clips** (WAV under `public/sounds/candidates/<effect>/`) with inline players, and buttons that call the same `playSound()` path as the game (MP3 or synth). Credits and source links: **`public/sounds/CREDITS.md`**. After you pick finals, export to MP3 as `public/sounds/<name>.mp3` and record each shipped file in **CREDITS.md**.
 
-There should be a constants file that contains all colour values so they can be edited in one place.
+There should be a constants file that contains all colour values so they can be edited in one place (including Deck Popup and Card details scrims, light-green panel fills, chrome, and close buttons — see **`deckPopupBackdrop`**, **`deckPopupPanelBackground`**, **`cardDetailsPopupBackdrop`**, **`cardDetailsPopupPanelBackground`**, **`popupLightPanel*`** and **`popupLightCloseButton*`** in **`src/constants/colors.ts`**).
 
-There should be a constants file that contains all of the length definitions, e.g. offset of cards in the stock, **shelfWidth**, **shelfOverlap**, **shelfVerticalPad**, **shelfHorizontalPad**, **shelfPanelHeightPx**, **columnSpacing** (gap between tableau columns and between foundation slots), **stockMaxVisibleLayers**, and timings, e.g. dealDuration.
+There should be a constants file that contains all of the length definitions, e.g. offset of cards in the stock, **shelfWidth**, **shelfOverlap**, **shelfVerticalPad**, **shelfHorizontalPad**, **shelfPanelHeightPx**, **columnSpacing** (gap between tableau columns and between foundation slots), **stockMaxVisibleDeals**, **`stockStackRegionHeightPx`** / **`shelfFoundationStockStripMinHeightPx`** (layout helpers derived from rules **deals**), **`gameViewScrollWhenFoundationWithinPxOfViewportBottom`** (when the foundation column is this close to the viewport bottom, tableau uses viewport-floor drop heights and internal scroll), Deck Popup sizing (**`deckPopupCardWidth`**, **`deckPopupCardHeight`**, **`deckPopupHorizontalEdgePad`**, **`deckPopupVerticalEdgePad`**, **`deckPopupColumnPad`**, **`deckPopupFaceDownBackOpacity`**), Deck Popup **Card details** sizing (**`cardDetailsPopupImageWidth`**, **`cardDetailsPopupImageHeight`**, **`cardDetailsPopupGapPx`**, **`cardDetailsPortraitInsetPx()`**, **`cardDetailsPipFacePaddingPx()`**), pointer-hover scales (**`SHELF_CARD_HOVER_SCALE`**, **`TABLEAU_DRAGGABLE_HOVER_SCALE`**, plus **`shelfHoverScaleBleedPx`** used by the shelf), and timings, e.g. dealDuration.
 
 There should be a constants file that defines the achievement parameters and the code should be structured so that adding a new achievement or editing an existing one should just require editing this file.
 
 There should be a constants file that defines all powers and the code should be structured so that adding a new power or editing an existing one should just require editing this file.
 
-There should be a constants file that defines all the deck pairs and their parameters and the code should be structured so that adding a new deck pair or editing an existing one just requires editing this file and adding the required portrait images.
+There should be a constants file that defines all the deck pairs and their parameters and the code should be structured so that adding a new deck pair or editing an existing one just requires editing this file and, when art is ready, adding the optional portrait, frame, back, and joker image files under `public/gameArt/` as described in the deck pair section above.
 
 ## Core Stack
 

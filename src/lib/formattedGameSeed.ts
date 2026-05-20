@@ -1,4 +1,4 @@
-import { deckPairs } from "@/constants/deckPairs";
+import { deckPairs } from "@/content/deckPairs";
 
 /** Full game seed: CC-DDD-XXX-SSSSSSSSSSSSSS (hyphens required). XXX = stable deck pair code. */
 export const FORMATTED_GAME_SEED_PATTERN =

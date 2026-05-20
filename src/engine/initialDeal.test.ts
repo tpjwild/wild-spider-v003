@@ -13,7 +13,7 @@ describe("buildInitialDealEntries", () => {
     const g = createInitialState({
       columns: 4,
       deals: 10,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "initial-deal-order",
       jokerCount: 0,
     });
@@ -33,7 +33,7 @@ describe("buildInitialDealEntries", () => {
     const g = createInitialState({
       columns: 10,
       deals: 5,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "uneven-tableau-deal-order",
       jokerCount: 0,
     });
@@ -49,7 +49,7 @@ describe("buildInitialDealEntries", () => {
     const g = createInitialState({
       columns: 3,
       deals: 8,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "x",
       jokerCount: 1,
     });
@@ -67,8 +67,8 @@ describe("buildInitialDealEntries", () => {
       const trial = createInitialState({
         columns: 8,
         deals: 6,
-        deckPairId: "placeholder",
-        seed: `08-006-PLH-${shuffleKey}`,
+        deckPairId: "mathematics",
+        seed: `08-006-MAT-${shuffleKey}`,
         jokerCount: 8,
       });
       if (trial.shelf.length > 0) {

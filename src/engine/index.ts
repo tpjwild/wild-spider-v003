@@ -8,7 +8,9 @@ export {
   type DealFlightEntry,
 } from "./deal";
 export {
+  createEmptyBoardShell,
   createInitialState,
+  gameHasAnyCards,
   tableauCardCount,
   validateGameConfig,
   InvalidGameConfigError,
@@ -21,7 +23,37 @@ export {
   initialDealAnimationBase,
   stripEphemeralGameState,
 } from "./initialDeal";
-export { newGame, moveTableau, moveToFoundation, dealStock, undo } from "./game";
+export {
+  newGame,
+  moveTableau,
+  moveToFoundation,
+  dealStock,
+  undo,
+  triggerImmediatePower,
+  triggerTargetedPower,
+  type BlackJokerTargetContext,
+} from "./game";
+export {
+  cardEffectKey,
+  cardEffectsForCard,
+  columnEffectsForColumn,
+  hasCardEffect,
+  emptyEffectsState,
+} from "./effects";
+export {
+  applyMakeAllKingsTransparent,
+  applyMakeCardTransparent,
+  canTriggerImmediatePower,
+  createShelfJokerEntry,
+  cardAlreadyHasTargetedPowerEffect,
+  columnAlreadyHasTargetedPowerEffect,
+  isValidBlackJokerCardTarget,
+  isValidTargetedCardTarget,
+  jokerPortraitSlotForCard,
+  restoreShelfCharge,
+  type AppliedCardEffect,
+  type PowerTriggerResult,
+} from "./powers";
 export { undoLastEntry } from "./history";
 export {
   applyMoveTableau,
@@ -41,15 +73,19 @@ export {
 } from "./seededRng";
 export type {
   Card,
+  CardEffectKey,
+  EffectId,
   FoundationIndex,
   GameConfig,
   GameState,
   HistoryEntry,
   InitialDealEntry,
   JokerCard,
+  JokerPortraitSlot,
   MoveTableauArgs,
   MoveToFoundationArgs,
   PlacedCard,
+  PowerId,
   Rank,
   RegularCard,
   ShelfJoker,

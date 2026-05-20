@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { newGame } from "@/engine/game";
-import { DEFAULT_DECK_PAIR_ID } from "@/constants/deckPairs";
+import { DEFAULT_DECK_PAIR_ID } from "@/content/deckPairs";
 import { stripEphemeralGameState } from "@/engine/initialDeal";
 import { fetchSavedGame, upsertSavedGame } from "./savedGamesRemote";
 
@@ -10,7 +10,7 @@ function makeGame() {
       columns: 4,
       deals: 5,
       deckPairId: DEFAULT_DECK_PAIR_ID,
-      seed: "04-005-PLH-11111111111111",
+      seed: "04-005-BAS-11111111111111",
       jokerCount: 0,
     }),
   );

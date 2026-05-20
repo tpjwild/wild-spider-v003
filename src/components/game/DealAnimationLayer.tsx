@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { CardView } from "@/components/game/CardView";
-import { dimensions, shelfHorizontalStepPx } from "@/constants/dimensions";
+import { dimensions, shelfHorizontalStepPx, stockVisibleDealCapForLayout, tableauColumnStackTopPx } from "@/constants/dimensions";
 import { timings } from "@/constants/timings";
 import { applyDealEntriesProgress, leadStockIndicesForUpcomingDeals } from "@/engine/deal";
 import { applyInitialDealEntriesProgress } from "@/engine/initialDeal";
@@ -21,10 +21,8 @@ const {
   cardWidth: cw,
   cardHeight: ch,
   stockCardOffset: so,
-  stockMaxVisibleLayers,
   shelfHorizontalPad,
   shelfVerticalPad,
-  tableauColumnCardOffset: off,
 } = dimensions;
 
 type FlyPayload = {
@@ -61,7 +59,11 @@ function measureStockDealFly(
   if (!stockStack) return null;
   const sr = stockStack.getBoundingClientRect();
   const cols = partialFrom.columns.length;
-  const leads = leadStockIndicesForUpcomingDeals(partialFrom.stock, cols, stockMaxVisibleLayers);
+  const leads = leadStockIndicesForUpcomingDeals(
+    partialFrom.stock,
+    cols,
+    stockVisibleDealCapForLayout(baseGame.config.deals),
+  );
   const shown = Math.max(1, leads.length);
   const fromX = sr.left;
   const fromY = sr.top + (shown - 1) * so;
@@ -73,10 +75,10 @@ function measureStockDealFly(
     const stackEl = document.querySelector<HTMLElement>(`[data-tableau-stack="${col}"]`);
     if (!stackEl) return null;
     const tr = stackEl.getBoundingClientRect();
-    const depth = partialTo.columns[col]!.length;
+    const colPlaced = partialTo.columns[col]!;
     return {
       from: { x: fromX, y: fromY },
-      to: { x: tr.left, y: tr.top + depth * off },
+      to: { x: tr.left, y: tr.top + tableauColumnStackTopPx(colPlaced, colPlaced.length) },
       card: entry.card,
       durationMs,
       faceUp: false,
@@ -138,10 +140,10 @@ function measureInitialDealFly(
     const stackEl = document.querySelector<HTMLElement>(`[data-tableau-stack="${col}"]`);
     if (!stackEl) return null;
     const tr = stackEl.getBoundingClientRect();
-    const depth = partialTo.columns[col]!.length;
+    const colPlaced = partialTo.columns[col]!;
     return {
       from: { x: fromX, y: fromY },
-      to: { x: tr.left, y: tr.top + depth * off },
+      to: { x: tr.left, y: tr.top + tableauColumnStackTopPx(colPlaced, colPlaced.length) },
       card: entry.card,
       durationMs,
       faceUp: entry.faceUp,

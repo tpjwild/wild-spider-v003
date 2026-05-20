@@ -10,9 +10,22 @@ export function GameBar({
   game,
   /** When true, seed is hidden until the initial deal animation finishes (new game / restart). */
   deferSeedDisplay = false,
+  canOpenDeckPopup = false,
+  onOpenDeck,
+  canOpenStockPopup = false,
+  onOpenStock,
+  /** While a targeted power is armed, pointer enter opens the popup (spec Power Target mode). */
+  openDeckOnPointerEnter = false,
+  openStockOnPointerEnter = false,
 }: {
   game: GameState;
   deferSeedDisplay?: boolean;
+  canOpenDeckPopup?: boolean;
+  onOpenDeck?: () => void;
+  canOpenStockPopup?: boolean;
+  onOpenStock?: () => void;
+  openDeckOnPointerEnter?: boolean;
+  openStockOnPointerEnter?: boolean;
 }) {
   const score = formatScore(computeScore(game).total);
   const moves = game.history.length;
@@ -61,20 +74,38 @@ export function GameBar({
         </span>
       </div>
 
-      <div className="flex justify-end justify-self-end gap-2">
+      <div className="flex justify-end justify-self-end gap-2" data-power-target-cancel-safe="true">
         <button
           type="button"
-          disabled
-          className="cursor-not-allowed rounded border border-emerald-950/40 px-3 py-1 text-xs text-emerald-200/40"
-          title="Deck popup — Stage 4"
+          disabled={!canOpenDeckPopup || !onOpenDeck}
+          className={
+            canOpenDeckPopup && onOpenDeck
+              ? "cursor-pointer rounded border border-emerald-800/60 px-3 py-1 text-xs text-emerald-100/90 hover:bg-emerald-950/40"
+              : "cursor-not-allowed rounded border border-emerald-950/40 px-3 py-1 text-xs text-emerald-200/40"
+          }
+          title={canOpenDeckPopup ? "Show full deck (dealt vs stock)" : "Available when a game has cards in play"}
+          data-testid="deck-popup-open"
+          onClick={() => onOpenDeck?.()}
+          onPointerEnter={() => {
+            if (openDeckOnPointerEnter) onOpenDeck?.();
+          }}
         >
           Deck
         </button>
         <button
           type="button"
-          disabled
-          className="cursor-not-allowed rounded border border-emerald-950/40 px-3 py-1 text-xs text-emerald-200/40"
-          title="Stock popup — Stage 4"
+          disabled={!canOpenStockPopup || !onOpenStock}
+          className={
+            canOpenStockPopup && onOpenStock
+              ? "cursor-pointer rounded border border-emerald-800/60 px-3 py-1 text-xs text-emerald-100/90 hover:bg-emerald-950/40"
+              : "cursor-not-allowed rounded border border-emerald-950/40 px-3 py-1 text-xs text-emerald-200/40"
+          }
+          title={canOpenStockPopup ? "Show stock pile (face-down by deal)" : "Available when a game has cards in play"}
+          data-testid="stock-popup-open"
+          onClick={() => onOpenStock?.()}
+          onPointerEnter={() => {
+            if (openStockOnPointerEnter) onOpenStock?.();
+          }}
         >
           Stock
         </button>

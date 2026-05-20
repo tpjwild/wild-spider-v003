@@ -1,5 +1,4 @@
-import { GameApp } from "@/components/game/GameApp";
-
+/** Game UI is mounted persistently in {@link AuthAppChrome}. */
 export default function HomePage() {
-  return <GameApp />;
+  return null;
 }

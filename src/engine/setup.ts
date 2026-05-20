@@ -16,9 +16,12 @@ import type {
   RegularCard,
   ShelfJoker,
 } from "./types";
+import { emptyEffectsState } from "./effects";
+import { createShelfJokerEntry } from "./powers";
 import { FORMATTED_JOKER_INSERT_BACK_FRACTION } from "@/constants/formattedJokerDeal";
 import { parseFormattedGameSeed } from "@/lib/formattedGameSeed";
 import type { ParsedFormattedGameSeed } from "@/lib/formattedGameSeed";
+import { maxJokersInPlayForDeckPair } from "@/content/deckPairs";
 
 const MAX_COLUMNS = 10;
 const MIN_DEALS = 5;
@@ -46,6 +49,12 @@ export function validateGameConfig(config: GameConfig): void {
   if (config.jokerCount < 0 || config.jokerCount > MAX_JOKERS) {
     throw new InvalidGameConfigError(
       `jokerCount must be 0..${MAX_JOKERS}, got ${config.jokerCount}`,
+    );
+  }
+  const maxForPair = maxJokersInPlayForDeckPair(config.deckPairId);
+  if (config.jokerCount > maxForPair) {
+    throw new InvalidGameConfigError(
+      `jokerCount must be 0..${maxForPair} for this deck pair, got ${config.jokerCount}`,
     );
   }
   if (config.columns * config.deals > 104) {
@@ -167,7 +176,7 @@ function createInitialStateFormatted(
       placedRegular++;
     } else if (isJoker(card) && placedRegular < tCount) {
       /** Would appear before the initial tableau is full — same as dealing a joker from stock: goes to shelf. */
-      shelf.push({ card });
+      shelf.push(createShelfJokerEntry(config.deckPairId, card));
       flightPlan.push({ card, tableauColumn: null, faceUp: false });
     } else {
       stockCards.push(card);
@@ -210,6 +219,7 @@ function createInitialStateFormatted(
     foundation,
     stock: stockCards,
     shelf,
+    ...emptyEffectsState(),
     undoCount: 0,
     history: [],
     initialDealFlightPlan: flightPlan,
@@ -270,8 +280,36 @@ export function createInitialState(config: GameConfig): GameState {
     foundation,
     stock: stockCards,
     shelf: [],
+    ...emptyEffectsState(),
     undoCount: 0,
     history: [],
     initialDealFlightPlan: buildInitialDealFlightPlanFromFinalColumns(columns),
+  };
+}
+
+/** True if any card is on the tableau, foundation, stock, or shelf (used for save / End Game gating). */
+export function gameHasAnyCards(state: GameState): boolean {
+  if (state.stock.length > 0 || state.shelf.length > 0) return true;
+  if (state.columns.some((c) => c.length > 0)) return true;
+  if (state.foundation.some((f) => f.length > 0)) return true;
+  return false;
+}
+
+/**
+ * Cleared-board layout: same {@link GameConfig} as the ended game, all regions empty, no history.
+ * Used after **End Game** so the shelf, foundation row, and stock pile stay visible until **New Game** or **Restart**.
+ */
+export function createEmptyBoardShell(config: GameConfig): GameState {
+  validateGameConfig(config);
+  const n = config.columns;
+  return {
+    config,
+    columns: Array.from({ length: n }, () => [] as PlacedCard[]),
+    foundation: Array.from({ length: 8 }, () => [] as PlacedCard[]),
+    stock: [],
+    shelf: [],
+    ...emptyEffectsState(),
+    undoCount: 0,
+    history: [],
   };
 }

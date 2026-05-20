@@ -1,3 +1,8 @@
+import {
+  removeCardEffectsAdded,
+  removeColumnEffectsAdded,
+} from "./effects";
+import { restoreShelfCharge } from "./powers";
 import type { GameState, HistoryEntry } from "./types";
 
 function undoMoveTableau(
@@ -53,6 +58,16 @@ function undoDeal(
   return { ...state, columns, stock, shelf };
 }
 
+function undoPowerTrigger(
+  state: GameState,
+  entry: HistoryEntry & { type: "power_trigger" },
+): GameState {
+  let next = removeCardEffectsAdded(state, entry.cardEffectsAdded);
+  next = removeColumnEffectsAdded(next, entry.columnEffectsAdded);
+  next = restoreShelfCharge(next, entry.shelfIndex, entry.chargesBefore);
+  return next;
+}
+
 /** Reverts the last history entry without mutating the input. */
 export function undoLastEntry(state: GameState): GameState | null {
   if (state.history.length === 0) return null;
@@ -60,6 +75,7 @@ export function undoLastEntry(state: GameState): GameState | null {
   let next: GameState;
   if (h.type === "move_tableau") next = undoMoveTableau(state, h);
   else if (h.type === "move_to_foundation") next = undoMoveToFoundation(state, h);
+  else if (h.type === "power_trigger") next = undoPowerTrigger(state, h);
   else next = undoDeal(state, h);
 
   return {

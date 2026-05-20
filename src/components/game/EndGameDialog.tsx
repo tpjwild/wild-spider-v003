@@ -1,15 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CloudBusyOverlay } from "@/components/game/CloudBusyOverlay";
+import { useEffect, useMemo } from "react";
 import { CopySeedIcon } from "@/components/game/CopySeedIcon";
-import { deckPairs } from "@/constants/deckPairs";
+import { deckPairs } from "@/content/deckPairs";
 import { applyDealEntriesProgress } from "@/engine/deal";
 import { applyInitialDealEntriesProgress } from "@/engine/initialDeal";
 import { computeScore } from "@/engine/scoring";
 import { formatScore } from "@/lib/formatScore";
-import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { upsertSavedGame } from "@/lib/savedGamesRemote";
 import type { GameState } from "@/engine/types";
 import type { DealAnimationState } from "@/state/gameStore";
 import { useGameStore } from "@/state/gameStore";
@@ -31,18 +28,21 @@ function deckPairLabel(deckPairId: string): string {
   return p ? `${p.name} (${p.pairCode})` : deckPairId;
 }
 
+function isTextEntryElement(el: HTMLElement): boolean {
+  if (el.isContentEditable) return true;
+  const tag = el.tagName;
+  if (tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (tag !== "INPUT") return false;
+  const t = (el as HTMLInputElement).type;
+  return !["button", "submit", "reset", "checkbox", "radio", "file", "hidden"].includes(t);
+}
+
 export function EndGameDialog() {
   const open = useGameStore((s) => s.endGameOpen);
-  const endGameStep = useGameStore((s) => s.endGameStep);
   const cancel = useGameStore((s) => s.cancelEndGame);
   const confirm = useGameStore((s) => s.confirmEndGame);
-  const continueWithoutSave = useGameStore((s) => s.continueEndGameWithoutCloudSave);
-  const markCloudSaveComplete = useGameStore((s) => s.markCloudSaveComplete);
   const game = useGameStore((s) => s.game);
   const dealAnimation = useGameStore((s) => s.dealAnimation);
-
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   const snapshot = useMemo(
     () => effectiveGameForSummary(game, dealAnimation),
@@ -56,111 +56,30 @@ export function EndGameDialog() {
 
   useEffect(() => {
     if (!open) return;
-    setSaveError(null);
-    setSaving(false);
-  }, [open, endGameStep]);
-
-  useEffect(() => {
-    if (open && endGameStep === "save_prompt" && !isSupabaseConfigured()) {
-      continueWithoutSave();
-    }
-  }, [open, endGameStep, continueWithoutSave]);
-
-  useEffect(() => {
-    if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        cancel();
+        return;
+      }
+      if (e.key !== "Enter" && e.code !== "NumpadEnter") return;
+      if (e.repeat) return;
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+      if (isTextEntryElement(t)) return;
+      const onPrimaryOk = t.closest('[data-testid="end-game-confirm"]');
+      const activeBtn = t.closest("button");
+      if (activeBtn && !onPrimaryOk) return;
       e.preventDefault();
-      cancel();
+      e.stopPropagation();
+      confirm();
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [open, cancel]);
-
-  const onSaveThenContinue = useCallback(async () => {
-    if (!snapshot) return;
-    const client = getSupabaseBrowserClient();
-    if (!client) {
-      setSaveError("Cloud save is not configured.");
-      return;
-    }
-    const { data: authData, error: authErr } = await client.auth.getUser();
-    const user = authData.user;
-    if (authErr || !user) {
-      setSaveError("Not signed in.");
-      return;
-    }
-    setSaving(true);
-    setSaveError(null);
-    try {
-      await upsertSavedGame(client, user.id, snapshot);
-      markCloudSaveComplete();
-      continueWithoutSave();
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Save failed");
-    } finally {
-      setSaving(false);
-    }
-  }, [snapshot, markCloudSaveComplete, continueWithoutSave]);
+  }, [open, cancel, confirm]);
 
   if (!open) return null;
-
-  if (endGameStep === "save_prompt" && isSupabaseConfigured()) {
-    return (
-      <>
-        {saving ? <CloudBusyOverlay label="Saving to server…" ariaLabel="Saving game to server" /> : null}
-        <div
-          className="fixed inset-0 z-50 flex cursor-default items-center justify-center bg-black/70 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="end-game-save-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) cancel();
-          }}
-        >
-        <div
-          className="w-full max-w-md cursor-default rounded-xl border border-white/15 bg-zinc-900 p-6 shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <h2 id="end-game-save-title" className="text-lg font-semibold text-zinc-100">
-            Save before ending?
-          </h2>
-          <p className="mt-3 text-sm text-zinc-400">
-            Your game has not been saved to the server since your last move. Save your in-progress game now, or end
-            without saving to the cloud.
-          </p>
-          {saveError ? <p className="mt-3 text-sm text-red-400">{saveError}</p> : null}
-          <div className="mt-6 flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={cancel}
-              className="cursor-pointer rounded border border-white/20 px-4 py-2 text-sm text-zinc-300 hover:bg-white/5"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => continueWithoutSave()}
-              className="cursor-pointer rounded border border-white/20 px-4 py-2 text-sm text-zinc-300 hover:bg-white/5 disabled:opacity-50"
-            >
-              End without saving
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => void onSaveThenContinue()}
-              className="cursor-pointer rounded bg-emerald-800 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-              data-testid="end-game-save-first"
-            >
-              {saving ? "Saving…" : "Save to server"}
-            </button>
-          </div>
-        </div>
-      </div>
-      </>
-    );
-  }
 
   const cfg = snapshot?.config;
 

@@ -13,7 +13,7 @@ describe("canDealFromStock", () => {
     const g = createInitialState({
       columns: 4,
       deals: 10,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "deal-block",
       jokerCount: 0,
     });
@@ -30,7 +30,7 @@ describe("canDealFromStock", () => {
     const g = createInitialState({
       columns: 4,
       deals: 10,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "deal-ok",
       jokerCount: 0,
     });
@@ -43,7 +43,7 @@ describe("canDealFromStock", () => {
     const g = createInitialState({
       columns: 5,
       deals: 10,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "x",
       jokerCount: 0,
     });
@@ -82,7 +82,7 @@ describe("dealFromStock", () => {
     const g = createInitialState({
       columns: 4,
       deals: 8,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "deal-once",
       jokerCount: 0,
     });
@@ -106,7 +106,7 @@ describe("dealFromStock", () => {
     const g = createInitialState({
       columns: 2,
       deals: 5,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "drain-joker",
       jokerCount: 0,
     });
@@ -126,7 +126,7 @@ describe("dealFromStock", () => {
     const g = createInitialState({
       columns: 3,
       deals: 5,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "joker-deal-seed",
       jokerCount: 2,
     });
@@ -152,7 +152,7 @@ describe("applyDealEntriesProgress", () => {
     const g = createInitialState({
       columns: 4,
       deals: 8,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "deal-once",
       jokerCount: 0,
     });
@@ -171,7 +171,7 @@ describe("applyDealEntriesProgress", () => {
     const g = createInitialState({
       columns: 4,
       deals: 8,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "deal-once",
       jokerCount: 0,
     });

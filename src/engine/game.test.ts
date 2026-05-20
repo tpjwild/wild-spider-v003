@@ -11,7 +11,7 @@ describe("undo chain", () => {
     let g = newGame({
       columns: 2,
       deals: 10,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "undo-test",
       jokerCount: 0,
     });
@@ -33,7 +33,7 @@ describe("undo chain", () => {
     const g = newGame({
       columns: 3,
       deals: 6,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "deal-undo",
       jokerCount: 0,
     });

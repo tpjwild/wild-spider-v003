@@ -1,16 +1,47 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { OptionalCardBackImage } from "@/components/game/OptionalCardBackImage";
 import { colors } from "@/constants/colors";
-import { dimensions, stockStackMaxHeightPx } from "@/constants/dimensions";
+import { dimensions, stockStackRegionHeightPx, stockVisibleDealCapForLayout } from "@/constants/dimensions";
 import { cardDeckIndexForBack } from "@/engine/cards";
 import { leadStockIndicesForUpcomingDeals } from "@/engine/deal";
 import type { Card, GameState } from "@/engine/types";
+import { faceDownBackPathForCard } from "@/lib/deckCardArt";
 
-const { cardWidth: cw, cardHeight: ch, stockCardOffset: so, stockMaxVisibleLayers } = dimensions;
+const { cardWidth: cw, cardHeight: ch, stockCardOffset: so } = dimensions;
 
 function backGradientForCard(card: Card): string {
   return cardDeckIndexForBack(card) === 0 ? colors.cardBackDeckOne : colors.cardBackDeckTwo;
+}
+
+/** One face-down stock card: same back URL + gradient layering as {@link CardView}. */
+function StockBackCard({
+  card,
+  className,
+  style,
+  onDoubleClick,
+}: {
+  card: Card;
+  /** Positioning + chrome (must not include `absolute` — this component applies it). */
+  className: string;
+  style: CSSProperties;
+  onDoubleClick?: () => void;
+}) {
+  return (
+    <div
+      className={`absolute flex flex-col items-center justify-center overflow-hidden ${className}`}
+      style={style}
+      onDoubleClick={onDoubleClick}
+    >
+      <div className="absolute inset-0" style={{ background: backGradientForCard(card) }} aria-hidden />
+      <OptionalCardBackImage
+        src={faceDownBackPathForCard(card)}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+    </div>
+  );
 }
 
 export function StockPile({
@@ -33,6 +64,8 @@ export function StockPile({
 }) {
   const stockEmpty = game.stock.length === 0;
   const topCardInteractive = canDeal && !stockEmpty;
+  const stackRegionH = stockStackRegionHeightPx(game.config.deals);
+  const leadPreviewCap = stockVisibleDealCapForLayout(game.config.deals);
 
   let stackBody: ReactNode = null;
   if (!stockEmpty) {
@@ -40,9 +73,10 @@ export function StockPile({
       const fromTop = Math.min(initialDealRevealCount, Math.max(0, game.stock.length - 1));
       const card = game.stock[game.stock.length - 1 - fromTop]!;
       stackBody = (
-        <div
+        <StockBackCard
           key={`init-stock-${fromTop}-${card.kind}-${card.id}`}
-          className={`absolute left-0 top-0 rounded-md border border-zinc-600/80 shadow ${
+          card={card}
+          className={`left-0 top-0 rounded-md border border-zinc-600/80 shadow ${
             topCardInteractive ? "cursor-pointer" : "cursor-default"
           }`}
           style={{
@@ -50,7 +84,6 @@ export function StockPile({
             height: ch,
             top: 0,
             zIndex: 0,
-            background: backGradientForCard(card),
           }}
           onDoubleClick={topCardInteractive ? () => onDeal() : undefined}
         />
@@ -61,7 +94,7 @@ export function StockPile({
         frozenUpcomingLeadCards != null && frozenUpcomingLeadCards.length > 0;
       const leads = useFrozen
         ? null
-        : leadStockIndicesForUpcomingDeals(game.stock, columns, stockMaxVisibleLayers);
+        : leadStockIndicesForUpcomingDeals(game.stock, columns, leadPreviewCap);
       const shown = useFrozen ? frozenUpcomingLeadCards.length : leads!.length;
       stackBody = (
         <>
@@ -76,9 +109,10 @@ export function StockPile({
               ? `${isTop ? "live" : "frz"}-${card.kind}-${card.id}-${i}`
               : `${card.kind}-${card.id}-${leads![shown - 1 - i]}-${i}`;
             return (
-              <div
+              <StockBackCard
                 key={key}
-                className={`absolute left-0 rounded-md border border-zinc-600/80 shadow ${
+                card={card}
+                className={`left-0 rounded-md border border-zinc-600/80 shadow ${
                   isTop && topCardInteractive ? "cursor-pointer" : "cursor-default"
                 }`}
                 style={{
@@ -86,7 +120,6 @@ export function StockPile({
                   height: ch,
                   top: i * so,
                   zIndex: i,
-                  background: backGradientForCard(card),
                 }}
                 onDoubleClick={isTop && topCardInteractive ? () => onDeal() : undefined}
               />
@@ -100,7 +133,7 @@ export function StockPile({
   return (
     <div
       className="flex w-full min-w-0 flex-col items-center justify-start"
-      style={{ minHeight: stockStackMaxHeightPx }}
+      style={{ minHeight: stackRegionH }}
     >
       <div className="select-none" data-testid="stock-pile">
         <div
@@ -108,7 +141,7 @@ export function StockPile({
           data-stock-stack
           style={{
             width: cw,
-            height: stockStackMaxHeightPx,
+            height: stackRegionH,
           }}
         >
           {stockEmpty ? (

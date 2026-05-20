@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildDoubleDeck } from "./cards";
 import { dealFromStock, canDealFromStock } from "./deal";
 import {
+  createEmptyBoardShell,
   createInitialState,
+  gameHasAnyCards,
   InvalidGameConfigError,
   tableauCardCount,
   validateGameConfig,
@@ -56,14 +58,26 @@ describe("validateGameConfig", () => {
       }),
     ).toThrow(InvalidGameConfigError);
   });
+
+  it("rejects jokerCount above deck pair maximum (Base has none)", () => {
+    expect(() =>
+      validateGameConfig({
+        columns: 8,
+        deals: 6,
+        deckPairId: "base",
+        seed: "08-006-BAS-12345678901234",
+        jokerCount: 1,
+      }),
+    ).toThrow(InvalidGameConfigError);
+  });
 });
 
 describe("createInitialState determinism", () => {
-  const formattedSeed = "08-006-PLH-12345678901234";
+  const formattedSeed = "08-006-MAT-12345678901234";
   const cfg = {
     columns: 8,
     deals: 6,
-    deckPairId: "placeholder",
+    deckPairId: "mathematics" as const,
     seed: formattedSeed,
     jokerCount: 2,
   };
@@ -80,11 +94,11 @@ describe("createInitialState determinism", () => {
   it("different shuffle keys differ", () => {
     const a = createInitialState({
       ...cfg,
-      seed: "08-006-PLH-11111111111111",
+      seed: "08-006-MAT-11111111111111",
     });
     const b = createInitialState({
       ...cfg,
-      seed: "08-006-PLH-22222222222222",
+      seed: "08-006-MAT-22222222222222",
     });
     const idsA = a.stock.map((c) => (c.kind === "regular" ? c.id : -1 - c.id));
     const idsB = b.stock.map((c) => (c.kind === "regular" ? c.id : -1 - c.id));
@@ -94,7 +108,7 @@ describe("createInitialState determinism", () => {
     const g = createInitialState({
       columns: 4,
       deals: 5,
-      deckPairId: "placeholder",
+      deckPairId: "base",
       seed: "legacy-plain-seed",
       jokerCount: 0,
     });
@@ -105,8 +119,8 @@ describe("createInitialState determinism", () => {
     const g = createInitialState({
       columns: 10,
       deals: 5,
-      deckPairId: "placeholder",
-      seed: "10-005-PLH-44444444444444",
+      deckPairId: "mathematics",
+      seed: "10-005-MAT-44444444444444",
       jokerCount: 8,
     });
     let s = g;
@@ -133,7 +147,7 @@ describe("tableau distribution", () => {
           const cfg = {
             columns,
             deals,
-            deckPairId: "t",
+            deckPairId: "mathematics",
             seed: "z",
             jokerCount: jokers,
           };
@@ -156,7 +170,7 @@ describe("tableau distribution", () => {
     const g = createInitialState({
       columns: 10,
       deals: 5,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "u",
       jokerCount: 0,
     });
@@ -177,7 +191,7 @@ describe("tableau distribution", () => {
     const g = createInitialState({
       columns: 7,
       deals: 8,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "v",
       jokerCount: 1,
     });
@@ -188,6 +202,38 @@ describe("tableau distribution", () => {
       }
       expect(col[col.length - 1]!.faceUp).toBe(true);
     }
+  });
+});
+
+describe("createEmptyBoardShell and gameHasAnyCards", () => {
+  const cfg = {
+    columns: 8,
+    deals: 6,
+    deckPairId: "base",
+    seed: "08-006-BAS-12345678901234",
+    jokerCount: 0,
+  };
+
+  it("createEmptyBoardShell matches column count and has no cards", () => {
+    const shell = createEmptyBoardShell(cfg);
+    expect(shell.config).toEqual(cfg);
+    expect(shell.columns).toHaveLength(8);
+    expect(shell.columns.every((c) => c.length === 0)).toBe(true);
+    expect(shell.foundation).toHaveLength(8);
+    expect(shell.foundation.every((f) => f.length === 0)).toBe(true);
+    expect(shell.stock).toHaveLength(0);
+    expect(shell.shelf).toHaveLength(0);
+    expect(shell.history).toHaveLength(0);
+    expect(gameHasAnyCards(shell)).toBe(false);
+  });
+
+  it("gameHasAnyCards is true when stock has a card", () => {
+    const shell = createEmptyBoardShell(cfg);
+    const withStock: typeof shell = {
+      ...shell,
+      stock: [{ kind: "joker" as const, id: 0 }],
+    };
+    expect(gameHasAnyCards(withStock)).toBe(true);
   });
 });
 

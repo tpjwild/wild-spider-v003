@@ -9,37 +9,45 @@ import {
   useSensor,
   useSensors,
   type CollisionDetection,
+  type DragCancelEvent,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { unstable_batchedUpdates as batchReactUpdates } from "react-dom";
 import { LayoutGroup, motion } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { NavDrawer } from "@/components/layout/NavDrawer";
 import { CloudBusyOverlay } from "@/components/game/CloudBusyOverlay";
 import { CardView } from "@/components/game/CardView";
 import { DealAnimationLayer } from "@/components/game/DealAnimationLayer";
+import { DeckPopup } from "@/components/game/DeckPopup";
 import { EndGameDialog } from "@/components/game/EndGameDialog";
+import { StockPopup } from "@/components/game/StockPopup";
 import { FoundationSlot } from "@/components/game/FoundationSlot";
 import { GameBar } from "@/components/game/GameBar";
 import { NewGameDialog } from "@/components/game/NewGameDialog";
 import { ShelfStrip } from "@/components/game/ShelfStrip";
 import { StockPile } from "@/components/game/StockPile";
 import { TableauColumn } from "@/components/game/TableauColumn";
+import {
+  TableauDragOverlayContext,
+  type TableauDragOverlayContextValue,
+} from "@/components/game/TableauDragOverlayContext";
 import { colors } from "@/constants/colors";
-import { dimensions } from "@/constants/dimensions";
-import { layoutSpring, timings } from "@/constants/timings";
-import { cardLayoutId } from "@/lib/cardLayoutId";
+import { dimensions, shelfFoundationStockStripMinHeightPx, tableauColumnStackHeightPx, tableauColumnStackTopPx, TABLEAU_DRAGGABLE_HOVER_SCALE } from "@/constants/dimensions";
+import { timings } from "@/constants/timings";
 import { applyDealEntriesProgress, canDealFromStock } from "@/engine/deal";
+import { gameHasAnyCards } from "@/engine/setup";
 import { applyInitialDealEntriesProgress } from "@/engine/initialDeal";
 import type { FoundationIndex, PlacedCard } from "@/engine/types";
 import { clearGameState } from "@/lib/gameStorage";
+import { recordLogoutHadInProgressGame } from "@/lib/authSessionGameBootstrap";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { fetchSavedGame, upsertSavedGame } from "@/lib/savedGamesRemote";
+import { POWER_TARGET_CURSOR_CLASS } from "@/lib/powerTargetUi";
 import { useGameStore } from "@/state/gameStore";
-
-const { cardHeight: ch, tableauColumnCardOffset: off } = dimensions;
 
 const collision: CollisionDetection = (args) => {
   const first = pointerWithin(args);
@@ -67,9 +75,10 @@ function isTextEntryElement(el: HTMLElement): boolean {
   return !["button", "submit", "reset", "checkbox", "radio", "file", "hidden"].includes(t);
 }
 
+const TABLEAU_LAYOUT_RETURN_BOOST_MS = timings.tableauLayoutReturnBoostMs;
+
 export function GameShell() {
   const router = useRouter();
-  const pathname = usePathname();
   const { bypass, signOut, user } = useAuth();
 
   const titleBarUserLabel = useMemo(() => {
@@ -100,24 +109,75 @@ export function GameShell() {
   const tryMoveTableau = useGameStore((s) => s.tryMoveTableau);
   const tryMoveToFoundation = useGameStore((s) => s.tryMoveToFoundation);
   const markCloudSaveComplete = useGameStore((s) => s.markCloudSaveComplete);
+  const confirmSaveEnabled = useGameStore((s) => s.confirmSaveEnabled);
   const resetForLogout = useGameStore((s) => s.resetForLogout);
   const applyCloudBootstrap = useGameStore((s) => s.applyCloudBootstrap);
   const clearError = useGameStore((s) => s.clearError);
   const lastError = useGameStore((s) => s.lastError);
+  const powerTargeting = useGameStore((s) => s.powerTargeting);
+  const cancelPowerTargeting = useGameStore((s) => s.cancelPowerTargeting);
 
-  const [overlayCards, setOverlayCards] = useState<PlacedCard[] | null>(null);
+  const [overlayCards, setOverlayCards] = useState<readonly PlacedCard[] | null>(null);
+  /** While set, only this draggable id keeps `useDraggable` during the drag (see `TableauColumn`). */
+  const [activeTableauDragId, setActiveTableauDragId] = useState<string | null>(null);
+  const [overlayApplyDragHoverScale, setOverlayApplyDragHoverScale] = useState(true);
+  const [layoutBoostColumn, setLayoutBoostColumn] = useState<number | null>(null);
+  const layoutBoostClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tableauScrollPaneRef = useRef<HTMLDivElement>(null);
+  const [measuredTableauDropFloorBottomPx, setMeasuredTableauDropFloorBottomPx] = useState<number | null>(
+    null,
+  );
+
+  const boostLayoutReturnForColumn = useCallback((column: number) => {
+    if (layoutBoostClearTimeoutRef.current != null) {
+      clearTimeout(layoutBoostClearTimeoutRef.current);
+    }
+    setLayoutBoostColumn(column);
+    layoutBoostClearTimeoutRef.current = setTimeout(() => {
+      setLayoutBoostColumn(null);
+      layoutBoostClearTimeoutRef.current = null;
+    }, TABLEAU_LAYOUT_RETURN_BOOST_MS);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (layoutBoostClearTimeoutRef.current != null) {
+        clearTimeout(layoutBoostClearTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [cloudSaveBusy, setCloudSaveBusy] = useState(false);
   const [cloudLoadBusy, setCloudLoadBusy] = useState(false);
   const [loadGameConfirmOpen, setLoadGameConfirmOpen] = useState(false);
+  const [saveGameConfirmOpen, setSaveGameConfirmOpen] = useState(false);
   const [saveCompleteDialogOpen, setSaveCompleteDialogOpen] = useState(false);
+  const [deckPopupOpen, setDeckPopupOpen] = useState(false);
+  const [stockPopupOpen, setStockPopupOpen] = useState(false);
   const actionsMenuRef = useRef<HTMLDetailsElement>(null);
 
   const closeActionsMenu = useCallback(() => {
     const el = actionsMenuRef.current;
     if (el) el.open = false;
   }, []);
+
+  const closeDeckPopup = useCallback(() => setDeckPopupOpen(false), []);
+  const closeStockPopup = useCallback(() => setStockPopupOpen(false), []);
+
+  const openNewGameFromShell = useCallback(() => {
+    closeDeckPopup();
+    closeStockPopup();
+    openNewGame();
+  }, [closeDeckPopup, closeStockPopup, openNewGame]);
+
+  const openEndGameFromShell = useCallback(() => {
+    closeDeckPopup();
+    closeStockPopup();
+    openEndGame();
+  }, [closeDeckPopup, closeStockPopup, openEndGame]);
 
   useEffect(() => {
     if (!actionsMenuOpen) return;
@@ -159,6 +219,35 @@ export function GameShell() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [navOpen]);
 
+  /** Escape cancels armed targeted power (no charge); popups handle their own Escape first. */
+  useEffect(() => {
+    if (!powerTargeting) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.repeat) return;
+      const t = e.target;
+      if (t instanceof HTMLElement && isTextEntryElement(t)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      cancelPowerTargeting();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [powerTargeting, cancelPowerTargeting]);
+
+  /** Click outside valid targets cancels targeting (spec: invalid target). */
+  useEffect(() => {
+    if (!powerTargeting) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = e.target;
+      if (!(el instanceof HTMLElement)) return;
+      if (el.closest('[data-power-target-valid="true"]')) return;
+      if (el.closest("[data-power-target-cancel-safe]")) return;
+      cancelPowerTargeting();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [powerTargeting, cancelPowerTargeting]);
+
   /** Escape skips in-progress initial or stock deal animations (not while a modal dialog is open). */
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -169,8 +258,18 @@ export function GameShell() {
         if (t.closest('[aria-modal="true"]')) return;
         if (isTextEntryElement(t)) return;
       }
+      if (useGameStore.getState().powerTargeting) return;
       const { dealAnimation, newGameOpen, endGameOpen } = useGameStore.getState();
-      if (newGameOpen || endGameOpen || loadGameConfirmOpen || saveCompleteDialogOpen) return;
+      if (
+        newGameOpen ||
+        endGameOpen ||
+        loadGameConfirmOpen ||
+        saveGameConfirmOpen ||
+        saveCompleteDialogOpen ||
+        deckPopupOpen ||
+        stockPopupOpen
+      )
+        return;
       if (!dealAnimation) return;
       e.preventDefault();
       e.stopPropagation();
@@ -178,7 +277,7 @@ export function GameShell() {
     };
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [loadGameConfirmOpen, saveCompleteDialogOpen]);
+  }, [loadGameConfirmOpen, saveGameConfirmOpen, saveCompleteDialogOpen, deckPopupOpen, stockPopupOpen]);
 
   useEffect(() => {
     if (!loadGameConfirmOpen) return;
@@ -195,7 +294,16 @@ export function GameShell() {
   useEffect(() => {
     if (!saveCompleteDialogOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setSaveCompleteDialogOpen(false);
+        return;
+      }
+      if (e.key !== "Enter" && e.code !== "NumpadEnter") return;
+      if (e.repeat) return;
+      const t = e.target;
+      if (t instanceof HTMLElement && isTextEntryElement(t)) return;
       e.preventDefault();
       e.stopPropagation();
       setSaveCompleteDialogOpen(false);
@@ -206,14 +314,24 @@ export function GameShell() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
+      activationConstraint: { distance: 0 },
     }),
   );
 
+  const clearTableauDragSession = useCallback(() => {
+    setActiveTableauDragId(null);
+    setOverlayCards(null);
+    setOverlayApplyDragHoverScale(true);
+  }, []);
+
   const onDragStart = useCallback(
     (e: DragStartEvent) => {
+      if (useGameStore.getState().powerTargeting) {
+        clearTableauDragSession();
+        return;
+      }
       if (useGameStore.getState().dealAnimation) {
-        setOverlayCards(null);
+        clearTableauDragSession();
         return;
       }
       const g = useGameStore.getState().game;
@@ -221,74 +339,111 @@ export function GameShell() {
         | { type?: string; fromColumn?: number; startIndex?: number }
         | undefined;
       if (!g || !d || d.type !== "tableau" || d.fromColumn === undefined || d.startIndex === undefined) {
-        setOverlayCards(null);
+        clearTableauDragSession();
         return;
       }
       const col = g.columns[d.fromColumn];
       if (!col) {
-        setOverlayCards(null);
+        clearTableauDragSession();
         return;
       }
+      setActiveTableauDragId(String(e.active.id));
+      setOverlayApplyDragHoverScale(true);
       setOverlayCards(col.slice(d.startIndex));
     },
-    [],
+    [clearTableauDragSession],
   );
 
   const onDragEnd = useCallback(
     (e: DragEndEvent) => {
-      const clearOverlay = () => setOverlayCards(null);
-      /** Let destination mount with same `layoutId` as overlay before unmounting overlay (shared layout → foundation/tableau). */
-      const clearOverlayAfterLayoutHandoff = () => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => clearOverlay());
-        });
+      const clearOverlay = () => {
+        clearTableauDragSession();
       };
 
       const d = e.active.data.current as
         | { type?: string; fromColumn?: number; startIndex?: number }
         | undefined;
       const over = e.over;
-      if (!d || d.type !== "tableau" || d.fromColumn === undefined || d.startIndex === undefined || !over) {
+
+      if (!d || d.type !== "tableau" || d.fromColumn === undefined || d.startIndex === undefined) {
         clearOverlay();
         return;
       }
+      const fromCol = d.fromColumn;
+
+      if (!over) {
+        boostLayoutReturnForColumn(fromCol);
+        clearOverlay();
+        return;
+      }
+
       const overId = String(over.id);
       if (overId.startsWith("col-")) {
         const toCol = Number(overId.slice(4));
-        if (!Number.isNaN(toCol)) {
-          const ok = tryMoveTableau(d.fromColumn, d.startIndex, toCol);
-          if (ok) clearOverlayAfterLayoutHandoff();
-          else clearOverlay();
-        } else clearOverlay();
+        if (Number.isNaN(toCol)) {
+          boostLayoutReturnForColumn(fromCol);
+          clearOverlay();
+          return;
+        }
+        const startIndex = d.startIndex;
+        let ok = false;
+        batchReactUpdates(() => {
+          ok = tryMoveTableau(fromCol, startIndex, toCol);
+          if (ok) clearOverlay();
+        });
+        if (!ok) {
+          boostLayoutReturnForColumn(fromCol);
+          clearOverlay();
+        }
         return;
       }
       if (overId.startsWith("foundation-")) {
         const g = useGameStore.getState().game;
         if (!g) {
+          boostLayoutReturnForColumn(fromCol);
           clearOverlay();
           return;
         }
-        const col = g.columns[d.fromColumn]!;
+        const col = g.columns[fromCol]!;
         if (d.startIndex !== col.length - 1) {
+          boostLayoutReturnForColumn(fromCol);
           clearOverlay();
           return;
         }
         const fi = Number(overId.slice("foundation-".length)) as FoundationIndex;
-        if (fi >= 0 && fi <= 7) {
-          const ok = tryMoveToFoundation(d.fromColumn, fi);
-          if (ok) clearOverlayAfterLayoutHandoff();
-          else clearOverlay();
-        } else clearOverlay();
+        if (fi < 0 || fi > 7) {
+          boostLayoutReturnForColumn(fromCol);
+          clearOverlay();
+          return;
+        }
+        let ok = false;
+        batchReactUpdates(() => {
+          ok = tryMoveToFoundation(fromCol, fi);
+          if (ok) clearOverlay();
+        });
+        if (!ok) {
+          boostLayoutReturnForColumn(fromCol);
+          clearOverlay();
+        }
         return;
       }
+      boostLayoutReturnForColumn(fromCol);
       clearOverlay();
     },
-    [tryMoveTableau, tryMoveToFoundation],
+    [tryMoveTableau, tryMoveToFoundation, boostLayoutReturnForColumn, clearTableauDragSession],
   );
 
-  const onDragCancel = useCallback(() => setOverlayCards(null), []);
+  const onDragCancel = useCallback(
+    (e: DragCancelEvent) => {
+      const id = String(e.active.id);
+      const m = /^t-(\d+)-\d+$/.exec(id);
+      if (m) boostLayoutReturnForColumn(Number(m[1]));
+      clearTableauDragSession();
+    },
+    [boostLayoutReturnForColumn, clearTableauDragSession],
+  );
 
-  const canDeal = Boolean(game && canDealFromStock(game) && !dealAnimation);
+  const canDeal = Boolean(game && canDealFromStock(game) && !dealAnimation && !powerTargeting);
 
   const effectiveGame = useMemo(() => {
     if (!game) return null;
@@ -299,15 +454,59 @@ export function GameShell() {
     return applyInitialDealEntriesProgress(game, dealAnimation.entries, dealAnimation.landedCount);
   }, [game, dealAnimation]);
 
-  const canCloudSave = Boolean(!bypass && isSupabaseConfigured() && effectiveGame);
-  const canCloudLoad = Boolean(!bypass && isSupabaseConfigured());
+  /** Stretch tableau column droppables to the bottom of the tableau scroll pane while a game is shown. */
+  const applyTableauDropViewportFloorMinHeight = Boolean(effectiveGame);
+  const tableauDropFloorBottomPx = applyTableauDropViewportFloorMinHeight
+    ? measuredTableauDropFloorBottomPx
+    : null;
 
-  const openLoadGameConfirm = useCallback(() => {
-    if (!canCloudLoad) return;
-    if (useGameStore.getState().dealAnimation) return;
-    clearError();
-    setLoadGameConfirmOpen(true);
-  }, [canCloudLoad, clearError]);
+  useLayoutEffect(() => {
+    if (!applyTableauDropViewportFloorMinHeight) return;
+    const pane = tableauScrollPaneRef.current;
+    if (!pane) return;
+
+    const sync = () => {
+      const bottom = pane.getBoundingClientRect().bottom;
+      setMeasuredTableauDropFloorBottomPx((prev) => (prev === bottom ? prev : bottom));
+    };
+
+    sync();
+
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => sync());
+      ro.observe(pane);
+    }
+
+    window.addEventListener("resize", sync);
+    window.addEventListener("scroll", sync, true);
+
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("scroll", sync, true);
+    };
+  }, [applyTableauDropViewportFloorMinHeight]);
+
+  const tableauDragOverlayValue = useMemo(
+    (): TableauDragOverlayContextValue => ({
+      activeTableauDragId,
+      layoutBoostColumn,
+      applyTableauDropViewportFloorMinHeight,
+      tableauDropFloorBottomPx,
+    }),
+    [
+      activeTableauDragId,
+      layoutBoostColumn,
+      applyTableauDropViewportFloorMinHeight,
+      tableauDropFloorBottomPx,
+    ],
+  );
+
+  const canCloudSave = Boolean(
+    !bypass && isSupabaseConfigured() && effectiveGame && gameHasAnyCards(effectiveGame),
+  );
+  const canCloudLoad = Boolean(!bypass && isSupabaseConfigured());
 
   const confirmLoadFromCloud = useCallback(async () => {
     if (!canCloudLoad) return;
@@ -327,6 +526,8 @@ export function GameShell() {
         return;
       }
       applyCloudBootstrap(cloud);
+      setDeckPopupOpen(false);
+      setStockPopupOpen(false);
     } catch (e) {
       useGameStore.setState({
         lastError: e instanceof Error ? e.message : "Could not load from the server.",
@@ -336,16 +537,27 @@ export function GameShell() {
     }
   }, [canCloudLoad, clearError, applyCloudBootstrap]);
 
+  const requestLoadGame = useCallback(() => {
+    if (!canCloudLoad) return;
+    if (useGameStore.getState().dealAnimation) return;
+    clearError();
+    if (effectiveGame && gameHasAnyCards(effectiveGame)) {
+      setLoadGameConfirmOpen(true);
+    } else {
+      void confirmLoadFromCloud();
+    }
+  }, [canCloudLoad, clearError, effectiveGame, confirmLoadFromCloud]);
+
   const saveToCloud = useCallback(async () => {
     if (!effectiveGame) return;
     const client = getSupabaseBrowserClient();
     if (!client) return;
-    const { data: authData, error: authErr } = await client.auth.getUser();
-    const user = authData.user;
-    if (authErr || !user) return;
     setSaveCompleteDialogOpen(false);
     setCloudSaveBusy(true);
     try {
+      const { data: authData, error: authErr } = await client.auth.getUser();
+      const user = authData.user;
+      if (authErr || !user) return;
       await upsertSavedGame(client, user.id, effectiveGame);
       markCloudSaveComplete();
       setSaveCompleteDialogOpen(true);
@@ -361,9 +573,51 @@ export function GameShell() {
     }
   }, [effectiveGame, markCloudSaveComplete]);
 
+  const requestSaveGame = useCallback(() => {
+    if (!canCloudSave || cloudSaveBusy) return;
+    clearError();
+    if (confirmSaveEnabled) {
+      setSaveGameConfirmOpen(true);
+    } else {
+      void saveToCloud();
+    }
+  }, [canCloudSave, cloudSaveBusy, clearError, confirmSaveEnabled, saveToCloud]);
+
+  const confirmSaveFromDialog = useCallback(() => {
+    setSaveGameConfirmOpen(false);
+    void saveToCloud();
+  }, [saveToCloud]);
+
+  useEffect(() => {
+    if (!saveGameConfirmOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setSaveGameConfirmOpen(false);
+        return;
+      }
+      if (e.key !== "Enter" && e.code !== "NumpadEnter") return;
+      if (e.repeat) return;
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+      if (isTextEntryElement(t)) return;
+      if (t.closest("[data-save-game-confirm-cancel]")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      void confirmSaveFromDialog();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [saveGameConfirmOpen, confirmSaveFromDialog]);
+
   const logout = useCallback(async () => {
     closeActionsMenu();
     setNavOpen(false);
+    setDeckPopupOpen(false);
+    setStockPopupOpen(false);
+    const { game: g } = useGameStore.getState();
+    recordLogoutHadInProgressGame(Boolean(g && gameHasAnyCards(g)));
     clearGameState();
     resetForLogout();
     if (!bypass) {
@@ -384,13 +638,13 @@ export function GameShell() {
       }
 
       const { game, newGameOpen, endGameOpen, dealAnimation } = useGameStore.getState();
-      if (newGameOpen || endGameOpen || loadGameConfirmOpen || saveCompleteDialogOpen) return;
+      if (newGameOpen || endGameOpen || loadGameConfirmOpen || saveGameConfirmOpen || saveCompleteDialogOpen) return;
 
       switch (e.code) {
         case "KeyN":
           e.preventDefault();
           e.stopPropagation();
-          openNewGame();
+          openNewGameFromShell();
           closeActionsMenu();
           break;
         case "KeyA":
@@ -404,21 +658,21 @@ export function GameShell() {
           if (!canCloudSave || cloudSaveBusy) return;
           e.preventDefault();
           e.stopPropagation();
-          void saveToCloud();
+          requestSaveGame();
           closeActionsMenu();
           break;
         case "KeyL":
           if (!canCloudLoad || cloudLoadBusy || dealAnimation) return;
           e.preventDefault();
           e.stopPropagation();
-          openLoadGameConfirm();
+          requestLoadGame();
           closeActionsMenu();
           break;
         case "KeyE":
-          if (!game) return;
+          if (!game || !gameHasAnyCards(game)) return;
           e.preventDefault();
           e.stopPropagation();
-          openEndGame();
+          openEndGameFromShell();
           closeActionsMenu();
           break;
         case "KeyO":
@@ -443,18 +697,19 @@ export function GameShell() {
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
   }, [
-    openNewGame,
+    openNewGameFromShell,
     restart,
-    openEndGame,
+    openEndGameFromShell,
     undoMove,
     closeActionsMenu,
     canCloudSave,
     cloudSaveBusy,
-    saveToCloud,
+    requestSaveGame,
     canCloudLoad,
     cloudLoadBusy,
-    openLoadGameConfirm,
+    requestLoadGame,
     loadGameConfirmOpen,
+    saveGameConfirmOpen,
     bypass,
     logout,
     saveCompleteDialogOpen,
@@ -462,9 +717,10 @@ export function GameShell() {
 
   return (
     <div
-      className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--fg)]"
+      className="flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--bg)] text-[var(--fg)]"
       style={{ ["--bg" as string]: colors.background, ["--fg" as string]: colors.text }}
     >
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <DndContext
         sensors={sensors}
         collisionDetection={collision}
@@ -472,7 +728,10 @@ export function GameShell() {
         onDragEnd={onDragEnd}
         onDragCancel={onDragCancel}
       >
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <LayoutGroup id="game-board">
+          <TableauDragOverlayContext.Provider value={tableauDragOverlayValue}>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div
             className="sticky top-0 z-40 shrink-0 border-b border-black/25 shadow-[0_6px_16px_rgba(0,0,0,0.28)]"
             style={{ backgroundColor: colors.background }}
@@ -492,7 +751,10 @@ export function GameShell() {
               >
                 ☰
               </button>
-              <h1 className="truncate text-sm font-semibold tracking-[0.18em] text-emerald-50">WILD SPIDER</h1>
+              <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-emerald-50 sm:text-base">
+                <span className="tracking-[0.14em]">WILD SPIDER</span>
+                <span className="font-normal tracking-normal">: Game</span>
+              </h1>
             </div>
             <div className="flex min-w-0 shrink-0 items-center gap-2">
               {titleBarUserLabel ? (
@@ -528,7 +790,7 @@ export function GameShell() {
                     type="button"
                     className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/10"
                     aria-keyshortcuts={ACTION_MENU_CHORDS.newGame}
-                    onClick={openNewGame}
+                    onClick={openNewGameFromShell}
                   >
                     <span>New Game</span>
                     <span className="shrink-0 text-[10px] text-zinc-500">{ACTION_MENU_CHORDS.newGame}</span>
@@ -549,11 +811,11 @@ export function GameShell() {
                 <li>
                   <button
                     type="button"
-                    disabled={!canCloudSave || cloudSaveBusy}
+                    disabled={!canCloudSave || cloudSaveBusy || loadGameConfirmOpen || saveGameConfirmOpen}
                     className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/10 disabled:cursor-not-allowed disabled:text-zinc-600"
                     aria-keyshortcuts={ACTION_MENU_CHORDS.save}
                     onClick={() => {
-                      void saveToCloud();
+                      requestSaveGame();
                       closeActionsMenu();
                     }}
                   >
@@ -564,11 +826,11 @@ export function GameShell() {
                 <li>
                   <button
                     type="button"
-                    disabled={!canCloudLoad || cloudLoadBusy || Boolean(dealAnimation) || loadGameConfirmOpen}
+                    disabled={!canCloudLoad || cloudLoadBusy || Boolean(dealAnimation) || loadGameConfirmOpen || saveGameConfirmOpen}
                     className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/10 disabled:cursor-not-allowed disabled:text-zinc-600"
                     aria-keyshortcuts={ACTION_MENU_CHORDS.loadGame}
                     onClick={() => {
-                      openLoadGameConfirm();
+                      requestLoadGame();
                       closeActionsMenu();
                     }}
                   >
@@ -579,10 +841,10 @@ export function GameShell() {
                 <li>
                   <button
                     type="button"
-                    disabled={!game}
+                    disabled={!game || !gameHasAnyCards(game)}
                     className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/10 disabled:cursor-not-allowed disabled:text-zinc-600"
                     aria-keyshortcuts={ACTION_MENU_CHORDS.endGame}
-                    onClick={openEndGame}
+                    onClick={openEndGameFromShell}
                   >
                     <span>End Game</span>
                     <span className="shrink-0 text-[10px] text-zinc-500">{ACTION_MENU_CHORDS.endGame}</span>
@@ -637,11 +899,26 @@ export function GameShell() {
             <GameBar
               game={effectiveGame}
               deferSeedDisplay={dealAnimation?.kind === "initial"}
+              canOpenDeckPopup={gameHasAnyCards(effectiveGame)}
+              onOpenDeck={() => {
+                setStockPopupOpen(false);
+                setDeckPopupOpen(true);
+              }}
+              openDeckOnPointerEnter={powerTargeting != null}
+              canOpenStockPopup={gameHasAnyCards(effectiveGame)}
+              onOpenStock={() => {
+                setDeckPopupOpen(false);
+                setStockPopupOpen(true);
+              }}
+              openStockOnPointerEnter={powerTargeting != null}
             />
           ) : null}
 
           {effectiveGame ? (
-            <div className="px-3 pb-3 pt-1">
+            <div
+              className="px-3 pb-3 pt-1"
+              style={{ minHeight: shelfFoundationStockStripMinHeightPx(effectiveGame.config.deals) }}
+            >
               <div
                 className="grid w-full items-start gap-x-2"
                 style={{
@@ -652,7 +929,7 @@ export function GameShell() {
                 <div className="flex min-w-0 justify-center">
                   <ShelfStrip game={effectiveGame} />
                 </div>
-                <div
+                <motion.div
                   className="flex min-w-0 justify-center"
                   style={{ paddingTop: dimensions.shelfVerticalPad }}
                 >
@@ -668,7 +945,7 @@ export function GameShell() {
                       <FoundationSlot key={i} game={effectiveGame} index={i as FoundationIndex} />
                     ))}
                   </motion.div>
-                </div>
+                </motion.div>
                 <div
                   className="flex min-w-0 justify-center"
                   style={{ paddingTop: dimensions.shelfVerticalPad }}
@@ -690,19 +967,31 @@ export function GameShell() {
           ) : null}
         </div>
 
+        <div
+          ref={tableauScrollPaneRef}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
+          data-tableau-scroll-pane
+        >
         {!game ? (
           <p className="p-6 text-sm text-emerald-100/75">
-            No active game — start one from the New game dialog (opens automatically when nothing is saved in this
-            browser).
+            No game loaded — use <strong className="text-emerald-100/90">New Game</strong> from the Actions menu.
+          </p>
+        ) : !gameHasAnyCards(game) ? (
+          <p className="p-6 text-sm text-emerald-100/75">
+            No cards in play — use <strong className="text-emerald-100/90">New Game</strong> or{" "}
+            <strong className="text-emerald-100/90">Restart Game</strong> from the Actions menu when you are ready.
           </p>
         ) : null}
 
         {effectiveGame ? (
-          <div className="relative z-0 isolate flex flex-col gap-4 p-3">
+          <div className="relative z-0 isolate flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-3">
             <div
-              className="flex flex-wrap justify-center"
+              className={`flex min-h-0 min-w-0 flex-1 flex-wrap content-start justify-center ${
+                powerTargeting ? POWER_TARGET_CURSOR_CLASS : ""
+              }`}
               style={{ gap: dimensions.columnSpacing }}
               data-testid="tableau-root"
+              data-power-target-mode={powerTargeting ? "true" : undefined}
             >
               {effectiveGame.columns.map((_, colIndex) => (
                 <TableauColumn key={colIndex} game={effectiveGame} columnIndex={colIndex} />
@@ -711,36 +1000,62 @@ export function GameShell() {
           </div>
         ) : null}
 
+        </div>
+        </div>
+
+          </TableauDragOverlayContext.Provider>
+        </LayoutGroup>
+
         <DragOverlay dropAnimation={null}>
           {overlayCards && overlayCards.length > 0 ? (
             <div
               className="relative cursor-grabbing shadow-xl"
               style={{
                 width: dimensions.cardWidth,
-                height: (overlayCards.length - 1) * off + ch,
+                height: tableauColumnStackHeightPx(overlayCards),
+                willChange: "transform",
               }}
             >
               {overlayCards.map((placed, i) => (
-                <motion.div
+                <div
                   key={`${placed.card.kind}-${placed.card.id}-${i}`}
-                  layoutId={cardLayoutId(placed.card)}
-                  transition={layoutSpring}
                   className="absolute left-0 inline-block"
-                  style={{ top: i * off, zIndex: i + 1 }}
+                  style={{ top: tableauColumnStackTopPx(overlayCards, i), zIndex: i + 1 }}
                 >
-                  <CardView placed={placed} />
-                </motion.div>
+                  <div
+                    className="inline-block"
+                    style={
+                      overlayApplyDragHoverScale
+                        ? {
+                            transform: `scale(${TABLEAU_DRAGGABLE_HOVER_SCALE})`,
+                            transformOrigin: "center center",
+                          }
+                        : undefined
+                    }
+                  >
+                    <CardView placed={placed} />
+                  </div>
+                </div>
               ))}
             </div>
           ) : null}
         </DragOverlay>
-        </LayoutGroup>
+        </div>
       </DndContext>
+      </div>
 
       <DealAnimationLayer />
 
       <NewGameDialog />
       <EndGameDialog />
+
+      {effectiveGame && deckPopupOpen && gameHasAnyCards(effectiveGame) ? (
+        <DeckPopup game={effectiveGame} open onClose={() => setDeckPopupOpen(false)} />
+      ) : null}
+
+      {effectiveGame && stockPopupOpen && gameHasAnyCards(effectiveGame) ? (
+        <StockPopup game={effectiveGame} open onClose={() => setStockPopupOpen(false)} />
+      ) : null}
 
       {loadGameConfirmOpen ? (
         <div
@@ -778,6 +1093,49 @@ export function GameShell() {
                 data-testid="load-game-confirm"
               >
                 Load
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {saveGameConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-[55] flex cursor-default items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="save-game-confirm-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSaveGameConfirmOpen(false);
+          }}
+        >
+          <div
+            className="w-full max-w-md cursor-default rounded-xl border border-white/15 bg-zinc-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="save-game-confirm-title" className="text-lg font-semibold text-zinc-100">
+              Save game to server?
+            </h2>
+            <p className="mt-3 text-sm text-zinc-400">
+              This overwrites the single in-progress save stored for your account with your current game (including
+              full history). You can turn this confirmation off in Settings.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                data-save-game-confirm-cancel
+                onClick={() => setSaveGameConfirmOpen(false)}
+                className="cursor-pointer rounded border border-white/20 px-4 py-2 text-sm text-zinc-300 hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmSaveFromDialog()}
+                className="cursor-pointer rounded bg-emerald-800 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                data-testid="save-game-confirm"
+              >
+                Save
               </button>
             </div>
           </div>
@@ -822,46 +1180,7 @@ export function GameShell() {
         </div>
       ) : null}
 
-      {navOpen ? (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-50 cursor-default bg-black/50"
-            aria-label="Close navigation menu"
-            onClick={() => setNavOpen(false)}
-          />
-          <nav
-            id="app-nav-drawer"
-            className="fixed left-0 top-0 z-[60] flex h-full w-[min(18rem,88vw)] flex-col gap-1 border-r border-white/10 bg-zinc-950 py-4 pl-4 pr-3 shadow-2xl"
-          >
-            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Navigate</p>
-            <ul className="mt-2 flex flex-col gap-0.5 text-sm">
-              {(
-                [
-                  { href: "/", label: "Game" },
-                  { href: "/achievements", label: "Achievements" },
-                  { href: "/decks", label: "Decks" },
-                  { href: "/hof", label: "Hall of Fame" },
-                  { href: "/settings", label: "Settings" },
-                ] as const
-              ).map(({ href, label }) => {
-                const active = pathname === href;
-                return (
-                  <li key={href}>
-                    <Link
-                      href={href}
-                      className={`block rounded px-3 py-2 hover:bg-white/10 ${active ? "bg-white/10 text-emerald-100" : "text-zinc-200"}`}
-                      onClick={() => setNavOpen(false)}
-                    >
-                      {label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-        </>
-      ) : null}
+      <NavDrawer open={navOpen} onRequestClose={() => setNavOpen(false)} />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { createShelfJokerEntry } from "./powers";
 import { tableauDealColumnOrder } from "./tableauDealLayout";
 import type { GameState, InitialDealEntry, PlacedCard } from "./types";
 
@@ -129,7 +130,7 @@ export function applyInitialDealEntriesProgress(
       if (e.card.kind !== "joker") {
         throw new Error("applyInitialDealEntriesProgress: shelf flight requires a joker card");
       }
-      shelf.push({ card: e.card });
+      shelf.push(createShelfJokerEntry(base.config.deckPairId, e.card));
     }
   }
 

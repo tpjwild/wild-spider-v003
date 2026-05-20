@@ -8,7 +8,7 @@ Wild Spider loads optional MP3 clips from `public/sounds/<effect>.mp3`:
 - `powerTriggered`
 - `powerTargeted`
 
-If a file is missing, the app uses a small built-in synthesizer fallback (no network required).
+Only effects listed in `src/constants/soundManifest.ts` (`SOUND_MP3_SHIPPED`) are fetched; others use a built-in synthesizer fallback with no network request. After adding an MP3, set that effect to `true` in the manifest.
 
 ---
 

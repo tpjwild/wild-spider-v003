@@ -24,9 +24,25 @@ export type PlacedCard = {
   faceUp: boolean;
 };
 
+/** Card effect ids applied by powers (Stage 5). */
+export type EffectId = "transparent";
+
+/** Stable key for {@link GameState.cardEffects} (regular id or joker id). */
+export type CardEffectKey = string;
+
+/** Joker portrait slot 1–4 within a deck (red = 1–2, black = 3–4). */
+export type JokerPortraitSlot = 1 | 2 | 3 | 4;
+
+/** Registry power ids for the Stage 5 joker slice. */
+export type PowerId = "jokerAllKingsTransparent" | "jokerSelectedCardTransparent";
+
 /** One joker sitting on the shelf after being dealt from stock */
 export type ShelfJoker = {
   card: JokerCard;
+  /** Portrait slot 1–4 when placed (drives art and {@link powerId}). */
+  slot: JokerPortraitSlot;
+  powerId: PowerId;
+  chargesRemaining: number;
 };
 
 export type FoundationIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -60,6 +76,14 @@ export type HistoryEntry =
       type: "deal";
       /** Each stock pop in order; tableauColumn null means joker went to shelf */
       entries: { card: Card; tableauColumn: number | null }[];
+    }
+  | {
+      type: "power_trigger";
+      shelfIndex: number;
+      chargesBefore: number;
+      /** Effects added by this trigger (for undo). */
+      cardEffectsAdded: { key: CardEffectKey; effect: EffectId }[];
+      columnEffectsAdded: { columnIndex: number; effect: EffectId }[];
     };
 
 export type GameConfig = {
@@ -80,6 +104,10 @@ export type GameState = {
   /** Bottom = index 0, top = last; dealing pops from top */
   stock: Card[];
   shelf: ShelfJoker[];
+  /** Per-card effects keyed by {@link cardEffectKey}. */
+  cardEffects: Record<CardEffectKey, EffectId[]>;
+  /** Per-tableau-column effects (column index → effect list). */
+  columnEffects: Record<number, EffectId[]>;
   /** Number of times undo was invoked (each costs -1 score) */
   undoCount: number;
   /** Player actions only (used for undo); does not include implicit system events */

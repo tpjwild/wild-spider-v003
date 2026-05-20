@@ -4,7 +4,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { motion } from "framer-motion";
 import { CardView } from "@/components/game/CardView";
 import { dimensions } from "@/constants/dimensions";
-import { layoutSpring } from "@/constants/timings";
+import { layoutIdCardMotionProps } from "@/constants/timings";
 import { cardLayoutId } from "@/lib/cardLayoutId";
 import type { FoundationIndex, GameState } from "@/engine/types";
 import { useGameStore } from "@/state/gameStore";
@@ -57,7 +57,7 @@ export function FoundationSlot({
         <motion.div
           key={cardLayoutId(top.card)}
           layoutId={cardLayoutId(top.card)}
-          transition={layoutSpring}
+          {...layoutIdCardMotionProps(cardLayoutId(top.card))}
           className="relative z-[1] inline-block"
         >
           <CardView placed={top} />

@@ -1,8 +1,14 @@
 import { dealFromStock } from "./deal";
 import { undoLastEntry } from "./history";
+import {
+  triggerImmediatePower as applyImmediatePower,
+  triggerTargetedPower as applyTargetedPower,
+  type BlackJokerTargetContext,
+} from "./powers";
 import { applyMoveTableau, applyMoveToFoundation } from "./moves";
 import { createInitialState } from "./setup";
 import type {
+  Card,
   GameConfig,
   GameState,
   HistoryEntry,
@@ -45,6 +51,28 @@ function appendHistory(state: GameState, entry: HistoryEntry): GameState {
 export function undo(state: GameState): GameState | null {
   return undoLastEntry(state);
 }
+
+export function triggerImmediatePower(
+  state: GameState,
+  shelfIndex: number,
+): GameState | null {
+  const r = applyImmediatePower(state, shelfIndex);
+  if (!r) return null;
+  return appendHistory(r.state, r.history);
+}
+
+export function triggerTargetedPower(
+  state: GameState,
+  shelfIndex: number,
+  card: Card,
+  targetContext: BlackJokerTargetContext,
+): GameState | null {
+  const r = applyTargetedPower(state, shelfIndex, card, targetContext);
+  if (!r) return null;
+  return appendHistory(r.state, r.history);
+}
+
+export type { BlackJokerTargetContext };
 
 export { createInitialState } from "./setup";
 export type { GameConfig, GameState } from "./types";

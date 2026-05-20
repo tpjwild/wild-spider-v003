@@ -1,4 +1,5 @@
 import { isJoker } from "./cards";
+import { createShelfJokerEntry } from "./powers";
 import type { Card, GameState, HistoryEntry, JokerCard, PlacedCard, ShelfJoker } from "./types";
 
 function totalTableauCards(state: GameState): number {
@@ -16,6 +17,7 @@ export type DealFlightEntry = { card: Card; tableauColumn: number | null };
  * then any jokers now on top of the stock are moved to the shelf so they are not stranded under dealt cards.
  */
 function runDealRound(
+  deckPairId: string,
   columns: PlacedCard[][],
   stock: Card[],
   shelf: ShelfJoker[],
@@ -31,7 +33,7 @@ function runDealRound(
       const card = st.pop();
       if (card === undefined) return null;
       if (isJoker(card)) {
-        sh.push({ card });
+        sh.push(createShelfJokerEntry(deckPairId, card));
         entries.push({ card, tableauColumn: null });
         continue;
       }
@@ -44,7 +46,7 @@ function runDealRound(
   while (st.length > 0 && isJoker(st[st.length - 1]!)) {
     const card = st.pop()!;
     if (!isJoker(card)) break;
-    sh.push({ card });
+    sh.push(createShelfJokerEntry(deckPairId, card));
     entries.push({ card, tableauColumn: null });
   }
 
@@ -59,6 +61,7 @@ export function canDealFromStock(state: GameState): boolean {
   }
   return (
     runDealRound(
+      state.config.deckPairId,
       state.columns.map((c) => [...c]),
       [...state.stock],
       [...state.shelf],
@@ -75,18 +78,20 @@ export type DealFromStockResult = {
  * Indices into `stock` of the first card popped for each upcoming deal, using the same
  * pop order and joker handling as {@link dealFromStock}. Used so each visible stock back
  * stays tied to a fixed upcoming “deal start” card instead of sliding a contiguous window.
+ *
+ * @param maxDeals — maximum number of lead cards to compute (UI cap, typically min(rules deals, visible cap)).
  */
 export function leadStockIndicesForUpcomingDeals(
   stock: readonly Card[],
   columns: number,
-  maxLayers: number,
+  maxDeals: number,
 ): number[] {
-  if (columns < 1 || stock.length === 0 || maxLayers < 1) return [];
+  if (columns < 1 || stock.length === 0 || maxDeals < 1) return [];
 
   let stack = stock.map((card, idx) => ({ card, idx }));
   const leads: number[] = [];
 
-  while (stack.length > 0 && leads.length < maxLayers) {
+  while (stack.length > 0 && leads.length < maxDeals) {
     const topIdx = stack[stack.length - 1]!.idx;
     const trial = stack.map((x) => ({ ...x }));
 
@@ -117,6 +122,7 @@ export function dealFromStock(state: GameState): DealFromStockResult | null {
   }
 
   const r = runDealRound(
+    state.config.deckPairId,
     state.columns.map((c) => [...c]),
     [...state.stock],
     [...state.shelf],
@@ -166,7 +172,7 @@ export function applyDealEntriesProgress(
     }
     if (e.tableauColumn === null) {
       if (popped.kind !== "joker") throw new Error("applyDealEntriesProgress: expected joker to shelf");
-      shelf.push({ card: popped as JokerCard });
+      shelf.push(createShelfJokerEntry(state.config.deckPairId, popped as JokerCard));
     } else {
       columns[e.tableauColumn]!.push({ card: popped, faceUp: true });
     }

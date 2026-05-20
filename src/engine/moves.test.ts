@@ -45,7 +45,7 @@ describe("canMoveTableau / foundation", () => {
     config: {
       columns: 3,
       deals: 5,
-      deckPairId: "t",
+      deckPairId: "mathematics",
       seed: "s",
       jokerCount: 0,
     },
@@ -53,6 +53,8 @@ describe("canMoveTableau / foundation", () => {
     foundation: [[], [], [], [], [], [], [], []],
     stock: [],
     shelf: [],
+    cardEffects: {},
+    columnEffects: {},
     undoCount: 0,
     history: [],
   };
@@ -128,11 +130,13 @@ describe("applyMoveTableau flips exposed card", () => {
     const k = d.find((c) => c.suit === "C" && c.rank === 13)!;
     const q = d.find((c) => c.suit === "C" && c.rank === 12 && c.id !== k.id)!;
     const state: GameState = {
-      config: { columns: 2, deals: 10, deckPairId: "t", seed: "s", jokerCount: 0 },
+      config: { columns: 2, deals: 10, deckPairId: "mathematics", seed: "s", jokerCount: 0 },
       columns: [[], [{ card: k, faceUp: false }, { card: q, faceUp: true }]],
       foundation: [[], [], [], [], [], [], [], []],
       stock: [],
       shelf: [],
+      cardEffects: {},
+      columnEffects: {},
       undoCount: 0,
       history: [],
     };

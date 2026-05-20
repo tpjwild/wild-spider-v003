@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { SOUND_CANDIDATES } from "@/constants/soundCandidates";
+import { isSoundMp3Shipped, SOUND_MP3_SHIPPED } from "@/constants/soundManifest";
 import { playSound, type SoundName } from "@/lib/playSound";
 
 const NAMES: SoundName[] = [
@@ -22,7 +23,10 @@ export function DevSoundsClient() {
 
   const play = useCallback((n: SoundName) => {
     playSound(n);
-    setLog(`playSound(${n}) — ${new Date().toLocaleTimeString()} (uses /sounds/${n}.mp3 or synth)`);
+    const shipped = isSoundMp3Shipped(n);
+    setLog(
+      `playSound(${n}) — ${new Date().toLocaleTimeString()} (${shipped ? "fetches /sounds/" + n + ".mp3" : "synth only — not in SOUND_MP3_SHIPPED"})`,
+    );
   }, []);
 
   return (
@@ -57,8 +61,13 @@ export function DevSoundsClient() {
       <section>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Shipped path (MP3 or synth)</h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Calls <code className="text-amber-200">playSound()</code> — same as the game. Without{" "}
-          <code className="text-amber-200">.mp3</code> files you will hear the synthesizer fallback.
+          Calls <code className="text-amber-200">playSound()</code> — same as the game. MP3 fetch runs only
+          for effects listed in{" "}
+          <code className="text-amber-200">src/constants/soundManifest.ts</code>; others use the synth
+          without a network request.
+        </p>
+        <p className="mt-1 font-mono text-xs text-zinc-600">
+          Shipped: {Object.keys(SOUND_MP3_SHIPPED).length ? Object.keys(SOUND_MP3_SHIPPED).join(", ") : "(none)"}
         </p>
         <ul className="mt-4 flex flex-wrap gap-3">
           {NAMES.map((n) => (
@@ -67,6 +76,7 @@ export function DevSoundsClient() {
                 type="button"
                 onClick={() => play(n)}
                 className="cursor-pointer rounded-lg border border-white/20 bg-zinc-900 px-4 py-2 text-sm hover:bg-zinc-800"
+                title={isSoundMp3Shipped(n) ? "MP3 shipped" : "Synth only (add MP3 + manifest entry to fetch)"}
               >
                 Play <span className="font-mono text-amber-200">{n}</span>
               </button>

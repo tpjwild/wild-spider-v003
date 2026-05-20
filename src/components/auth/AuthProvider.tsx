@@ -23,22 +23,17 @@ export function useAuth(): AuthContextValue {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const bypass = !isSupabaseConfigured();
-  const [loading, setLoading] = useState(!bypass);
+  const [loading, setLoading] = useState(() => {
+    if (bypass) return false;
+    return Boolean(getSupabaseBrowserClient());
+  });
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    if (bypass) {
-      setLoading(false);
-      setSession(null);
-      return;
-    }
+    if (bypass) return;
 
     const client = getSupabaseBrowserClient();
-    if (!client) {
-      setLoading(false);
-      setSession(null);
-      return;
-    }
+    if (!client) return;
 
     let cancelled = false;
 

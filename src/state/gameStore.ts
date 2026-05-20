@@ -1,6 +1,15 @@
 import { create } from "zustand";
-import { dimensions } from "@/constants/dimensions";
-import { moveTableau, moveToFoundation, newGame, undo } from "@/engine/game";
+import { stockVisibleDealCapForLayout } from "@/constants/dimensions";
+import {
+  moveTableau,
+  moveToFoundation,
+  newGame,
+  triggerImmediatePower,
+  triggerTargetedPower,
+  undo,
+  type BlackJokerTargetContext,
+} from "@/engine/game";
+import { getPowerDefinition } from "@/content/powerDefinitions";
 import { canDealFromStock, dealFromStock, leadStockIndicesForUpcomingDeals } from "@/engine/deal";
 import {
   buildInitialDealEntries,
@@ -8,12 +17,13 @@ import {
   stripEphemeralGameState,
 } from "@/engine/initialDeal";
 import { isValidSameSuitDescendingRun } from "@/engine/moves";
-import { validateGameConfig } from "@/engine/setup";
+import { createEmptyBoardShell, gameHasAnyCards, validateGameConfig } from "@/engine/setup";
 import type { Card, FoundationIndex, GameConfig, GameState } from "@/engine/types";
 import type { InitialDealEntry } from "@/engine/types";
 import {
   clearGameState,
   loadGameState,
+  resolvedGameConfigForEmptyShell,
   saveGameState,
   saveLastNewGameDefaults,
 } from "@/lib/gameStorage";
@@ -46,14 +56,16 @@ export type InitialDealAnimationState = {
 
 export type DealAnimationState = StockDealAnimationState | InitialDealAnimationState;
 
-export type EndGameStep = "save_prompt" | "confirm";
+/** Black (targeted) joker armed; charge spent only after {@link GameStore.commitTargetedPower}. */
+export type PowerTargetingState = {
+  shelfIndex: number;
+};
 
 export type GameStore = {
   game: GameState | null;
   hydrated: boolean;
   newGameOpen: boolean;
   endGameOpen: boolean;
-  endGameStep: EndGameStep;
   /** True after local moves until a successful cloud save or cloud load. */
   dirtySinceCloudSave: boolean;
   /** From `user_settings.confirm_save` (default true). */
@@ -64,6 +76,8 @@ export type GameStore = {
   dealAnimation: DealAnimationState | null;
   /** Incremented when a stock-deal animation starts; UI schedules flights from this so `landedCount` bumps do not clear timers. */
   dealAnimSession: number;
+  /** Targeted joker power awaiting a card/column/shelf click (no charge consumed yet). */
+  powerTargeting: PowerTargetingState | null;
   hydrateLocalOnly: () => void;
   hydrateFromLocalAfterAuth: () => void;
   applyCloudBootstrap: (game: GameState) => void;
@@ -76,7 +90,6 @@ export type GameStore = {
   restart: () => void;
   openEndGame: () => void;
   cancelEndGame: () => void;
-  continueEndGameWithoutCloudSave: () => void;
   confirmEndGame: () => void;
   undoMove: () => void;
   tryDeal: () => boolean;
@@ -86,8 +99,16 @@ export type GameStore = {
   advanceDealAfterFlight: (landedCountBeforeThisFlight: number) => void;
   tryMoveTableau: (fromColumn: number, startIndex: number, toColumn: number) => boolean;
   tryMoveToFoundation: (fromColumn: number, foundationIndex: FoundationIndex) => boolean;
+  /** Double-click shelf joker / set power: immediate applies now; targeted enters {@link powerTargeting}. */
+  triggerShelfPower: (shelfIndex: number) => boolean;
+  commitTargetedPower: (card: Card, targetContext: BlackJokerTargetContext) => boolean;
+  cancelPowerTargeting: () => void;
   clearError: () => void;
 };
+
+function clearPowerTargeting(): Pick<GameStore, "powerTargeting"> {
+  return { powerTargeting: null };
+}
 
 function maybePlayRevealSound(next: GameState) {
   const h = next.history[next.history.length - 1];
@@ -111,13 +132,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   hydrated: false,
   newGameOpen: false,
   endGameOpen: false,
-  endGameStep: "confirm",
   dirtySinceCloudSave: false,
   confirmSaveEnabled: true,
   sessionKey: 0,
   lastError: null,
   dealAnimation: null,
   dealAnimSession: 0,
+  powerTargeting: null,
 
   clearError: () => set({ lastError: null }),
 
@@ -134,10 +155,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       game: null,
       newGameOpen: false,
       endGameOpen: false,
-      endGameStep: "confirm",
       lastError: null,
       dealAnimation: null,
       dealAnimSession: 0,
+      powerTargeting: null,
       dirtySinceCloudSave: false,
       hydrated: false,
       sessionKey: get().sessionKey + 1,
@@ -147,32 +168,62 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const loaded = loadGameState();
     if (loaded) {
       saveLastNewGameDefaults(loaded.config);
+      set({
+        hydrated: true,
+        game: loaded,
+        newGameOpen: false,
+        lastError: null,
+        dealAnimation: null,
+        dealAnimSession: 0,
+        powerTargeting: null,
+        dirtySinceCloudSave: Boolean(loaded),
+      });
+    } else {
+      const cfg = resolvedGameConfigForEmptyShell();
+      const shell = createEmptyBoardShell(cfg);
+      set({
+        hydrated: true,
+        game: shell,
+        newGameOpen: false,
+        lastError: null,
+        dealAnimation: null,
+        dealAnimSession: 0,
+        powerTargeting: null,
+        dirtySinceCloudSave: false,
+        sessionKey: get().sessionKey + 1,
+      });
     }
-    set({
-      hydrated: true,
-      game: loaded,
-      newGameOpen: !loaded,
-      lastError: null,
-      dealAnimation: null,
-      dealAnimSession: 0,
-      dirtySinceCloudSave: Boolean(loaded),
-    });
   },
 
   hydrateFromLocalAfterAuth: () => {
     const loaded = loadGameState();
     if (loaded) {
       saveLastNewGameDefaults(loaded.config);
+      set({
+        hydrated: true,
+        game: loaded,
+        newGameOpen: false,
+        lastError: null,
+        dealAnimation: null,
+        dealAnimSession: 0,
+        powerTargeting: null,
+        dirtySinceCloudSave: Boolean(loaded),
+      });
+    } else {
+      const cfg = resolvedGameConfigForEmptyShell();
+      const shell = createEmptyBoardShell(cfg);
+      set({
+        hydrated: true,
+        game: shell,
+        newGameOpen: false,
+        lastError: null,
+        dealAnimation: null,
+        dealAnimSession: 0,
+        powerTargeting: null,
+        dirtySinceCloudSave: false,
+        sessionKey: get().sessionKey + 1,
+      });
     }
-    set({
-      hydrated: true,
-      game: loaded,
-      newGameOpen: !loaded,
-      lastError: null,
-      dealAnimation: null,
-      dealAnimSession: 0,
-      dirtySinceCloudSave: Boolean(loaded),
-    });
   },
 
   applyCloudBootstrap: (loaded) => {
@@ -186,6 +237,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastError: null,
       dealAnimation: null,
       dealAnimSession: 0,
+      powerTargeting: null,
       dirtySinceCloudSave: false,
     });
   },
@@ -212,6 +264,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           lastError: null,
           dealAnimation: null,
           dealAnimSession: 0,
+          powerTargeting: null,
         });
         persistGameStateLocal(finalGame);
         playSound("cardDealt");
@@ -223,6 +276,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         newGameOpen: false,
         sessionKey: get().sessionKey + 1,
         lastError: null,
+        powerTargeting: null,
         dealAnimation: {
           kind: "initial",
           entries,
@@ -252,6 +306,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         lastError: null,
         dealAnimation: null,
         dealAnimSession: 0,
+        powerTargeting: null,
       });
       persistGameStateLocal(finalGame);
       playSound("cardDealt");
@@ -262,6 +317,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       game: base,
       sessionKey: get().sessionKey + 1,
       lastError: null,
+      powerTargeting: null,
       dealAnimation: {
         kind: "initial",
         entries,
@@ -274,29 +330,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   openEndGame: () => {
-    const { game, dealAnimation, dirtySinceCloudSave, confirmSaveEnabled } = get();
+    const { game, dealAnimation } = get();
     if (!game || dealAnimation) return;
-    if (dirtySinceCloudSave && confirmSaveEnabled) {
-      set({ endGameOpen: true, endGameStep: "save_prompt" });
-    } else {
-      set({ endGameOpen: true, endGameStep: "confirm" });
-    }
+    if (!gameHasAnyCards(game)) return;
+    set({ endGameOpen: true });
   },
 
-  cancelEndGame: () => set({ endGameOpen: false, endGameStep: "confirm" }),
-
-  continueEndGameWithoutCloudSave: () => set({ endGameStep: "confirm" }),
+  cancelEndGame: () => set({ endGameOpen: false }),
 
   confirmEndGame: () => {
+    const { game } = get();
     set({
-      game: null,
+      game: game ? createEmptyBoardShell(game.config) : null,
       endGameOpen: false,
-      endGameStep: "confirm",
       newGameOpen: false,
       lastError: null,
       dealAnimation: null,
       dealAnimSession: 0,
+      powerTargeting: null,
       dirtySinceCloudSave: false,
+      sessionKey: get().sessionKey + 1,
     });
     clearGameState();
   },
@@ -307,7 +360,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return;
     const next = undo(game);
     if (!next) return;
-    set({ game: next });
+    set({ game: next, ...clearPowerTargeting() });
     persistGameStateLocal(next);
   },
 
@@ -329,7 +382,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const leadIdx = leadStockIndicesForUpcomingDeals(
       preStock,
       game.columns.length,
-      dimensions.stockMaxVisibleLayers,
+      stockVisibleDealCapForLayout(game.config.deals),
     );
     const frozenUpcomingLeadCards = leadIdx.map((idx) => preStock[idx]!);
     set({
@@ -375,7 +428,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return false;
     const next = moveTableau(game, { fromColumn, startIndex, toColumn });
     if (!next) return false;
-    set({ game: next });
+    set({ game: next, ...clearPowerTargeting() });
     persistGameStateLocal(next);
     maybePlayRevealSound(next);
     return true;
@@ -387,10 +440,53 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return false;
     const next = moveToFoundation(game, { fromColumn, foundationIndex });
     if (!next) return false;
-    set({ game: next });
+    set({ game: next, ...clearPowerTargeting() });
     persistGameStateLocal(next);
     maybePlayRevealSound(next);
     return true;
+  },
+
+  triggerShelfPower: (shelfIndex) => {
+    const { game, dealAnimation, powerTargeting } = get();
+    if (dealAnimation || !game) return false;
+    const entry = game.shelf[shelfIndex];
+    if (!entry || entry.chargesRemaining <= 0) return false;
+
+    const def = getPowerDefinition(entry.powerId);
+    if (def.triggerClass === "targeted") {
+      if (powerTargeting?.shelfIndex === shelfIndex) {
+        set(clearPowerTargeting());
+        return true;
+      }
+      set({ powerTargeting: { shelfIndex }, lastError: null });
+      return true;
+    }
+
+    const next = triggerImmediatePower(game, shelfIndex);
+    if (!next) return false;
+    set({ game: next, ...clearPowerTargeting(), lastError: null });
+    persistGameStateLocal(next);
+    return true;
+  },
+
+  commitTargetedPower: (card, targetContext) => {
+    const { game, dealAnimation, powerTargeting } = get();
+    if (dealAnimation || !game || !powerTargeting) return false;
+    const next = triggerTargetedPower(
+      game,
+      powerTargeting.shelfIndex,
+      card,
+      targetContext,
+    );
+    if (!next) return false;
+    set({ game: next, ...clearPowerTargeting(), lastError: null });
+    persistGameStateLocal(next);
+    return true;
+  },
+
+  cancelPowerTargeting: () => {
+    if (!get().powerTargeting) return;
+    set(clearPowerTargeting());
   },
 }));
 

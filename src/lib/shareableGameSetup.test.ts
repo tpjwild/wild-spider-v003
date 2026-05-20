@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_DECK_PAIR_ID } from "@/constants/deckPairs";
+import { DEFAULT_DECK_PAIR_ID } from "@/content/deckPairs";
 import {
   decodeShareableGameSetup,
   encodeShareableGameSetup,
@@ -12,7 +12,7 @@ describe("shareableGameSetup", () => {
       columns: 8,
       deals: 6,
       seed: "my-seed",
-      deckPairId: DEFAULT_DECK_PAIR_ID,
+      deckPairId: "mathematics",
       jokerCount: 2,
     };
     const encoded = encodeShareableGameSetup(cfg);

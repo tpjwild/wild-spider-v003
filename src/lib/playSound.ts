@@ -1,10 +1,11 @@
 /**
- * Play named UI sounds. Tries `/public/sounds/<name>.mp3` once; if missing or unloadable,
- * falls back to a tiny Web Audio synthesizer tone (Stage 2 spec).
+ * Play named UI sounds. Tries `/sounds/<name>.mp3` when listed in `soundManifest` (`SOUND_MP3_SHIPPED`);
+ * otherwise uses the synthesizer without fetching. Unlisted or failed loads also use synth.
  *
  * Per-effect mute toggles: {@link soundFlags} in `src/constants/soundFlags.ts`.
  */
 import { soundFlags, type SoundName } from "@/constants/soundFlags";
+import { isSoundMp3Shipped } from "@/constants/soundManifest";
 
 export type { SoundName };
 
@@ -72,6 +73,10 @@ function getAudioContext(): AudioContext | null {
 function loadBuffer(ctx: AudioContext, name: SoundName): Promise<AudioBuffer | null> {
   const cached = bufferCache.get(name);
   if (cached !== undefined) return Promise.resolve(cached);
+  if (!isSoundMp3Shipped(name)) {
+    bufferCache.set(name, null);
+    return Promise.resolve(null);
+  }
   let p = loadPromises.get(name);
   if (!p) {
     p = (async () => {

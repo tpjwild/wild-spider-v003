@@ -6,8 +6,8 @@ describe("formatted seed: jokers during initial tableau fill → shelf", () => {
     const g = createInitialState({
       columns: 8,
       deals: 6,
-      deckPairId: "placeholder",
-      seed: "08-006-PLH-12345678901234",
+      deckPairId: "mathematics",
+      seed: "08-006-MAT-12345678901234",
       jokerCount: 8,
     });
     const jOnShelf = g.shelf.length;
@@ -24,8 +24,8 @@ describe("formatted seed: jokers during initial tableau fill → shelf", () => {
     const cfg = {
       columns: 4,
       deals: 13,
-      deckPairId: "placeholder" as const,
-      seed: "04-013-PLH-12345678901234",
+      deckPairId: "mathematics" as const,
+      seed: "04-013-MAT-12345678901234",
       jokerCount: 8,
     };
     expect(tableauCardCount(cfg)).toBe(52);
@@ -37,11 +37,11 @@ describe("formatted seed: jokers during initial tableau fill → shelf", () => {
     let found: { shelf: number; stockJ: number } | null = null;
     for (let n = 0; n < 800; n++) {
       const shuffleKey = `1${String(n).padStart(13, "0")}`;
-      const seed = `08-006-PLH-${shuffleKey}`;
+      const seed = `08-006-MAT-${shuffleKey}`;
       const g = createInitialState({
         columns: 8,
         deals: 6,
-        deckPairId: "placeholder",
+        deckPairId: "mathematics",
         seed,
         jokerCount: 8,
       });
