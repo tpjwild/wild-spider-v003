@@ -373,6 +373,7 @@ export function GameShell() {
         return;
       }
       const fromCol = d.fromColumn;
+      const startIndex = d.startIndex;
 
       if (!over) {
         boostLayoutReturnForColumn(fromCol);
@@ -388,7 +389,6 @@ export function GameShell() {
           clearOverlay();
           return;
         }
-        const startIndex = d.startIndex;
         let ok = false;
         batchReactUpdates(() => {
           ok = tryMoveTableau(fromCol, startIndex, toCol);
@@ -415,7 +415,7 @@ export function GameShell() {
         }
         let ok = false;
         batchReactUpdates(() => {
-          ok = tryMoveToFoundation(fromCol, d.startIndex, fi);
+          ok = tryMoveToFoundation(fromCol, startIndex, fi);
           if (ok) clearOverlay();
         });
         if (!ok) {
