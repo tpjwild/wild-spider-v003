@@ -49,6 +49,10 @@ export const colors = {
   popupLightCloseButtonBorder: "#163220",
   /** Close button label colour. */
   popupLightCloseButtonText: "#ecf8ee",
+  /** Shelf panel fill (`ShelfStrip` border box). */
+  shelfPanelBackground: "rgba(0, 0, 0, 0.3)",
+  /** Horizontal scrollbar thumb on the shelf strip. */
+  shelfScrollbarThumb: "#b8e6bc",
 } as const;
 
 export type ColorToken = keyof typeof colors;

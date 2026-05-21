@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CardView } from "@/components/game/CardView";
+import { colors } from "@/constants/colors";
 import { getPowerDefinition } from "@/content/powerDefinitions";
 import {
   dimensions,
@@ -55,13 +56,13 @@ export function ShelfStrip({ game }: { game: GameState }) {
 
   return (
     <div
-      className="flex flex-col justify-start rounded-lg border border-white/20 bg-black/30"
+      className="flex flex-col justify-start overflow-hidden rounded-lg border border-white/20"
       style={{
         width: shelfWidth,
         maxWidth: "100%",
         height: shelfPanelHeightPx,
         boxSizing: "border-box",
-        overflow: "visible",
+        backgroundColor: colors.shelfPanelBackground,
         paddingTop: shelfVerticalPad,
         paddingBottom: shelfVerticalPad,
         paddingLeft: shelfHorizontalPad,
@@ -71,16 +72,16 @@ export function ShelfStrip({ game }: { game: GameState }) {
       data-power-target-cancel-safe="true"
     >
       {/**
-       * Horizontal scroll only; `overflowY: visible` avoids clipping hover scale. Equal margin
-       * and padding keep `[data-shelf-stack]` in the same place for deal-flight measurement.
+       * Horizontal scroll only (`shelf-scroll` in globals.css). Fixed row height; bleed padding
+       * keeps hover scale inside the panel without vertical overflow.
        */}
       <div
-        className="w-full min-w-0"
+        className="shelf-scroll w-full min-w-0"
         style={{
-          overflowX: "auto",
-          overflowY: "visible",
-          margin: -hoverBleed,
-          padding: hoverBleed,
+          height: ch,
+          paddingLeft: hoverBleed,
+          paddingRight: hoverBleed,
+          boxSizing: "content-box",
         }}
       >
         {/** `data-shelf-stack` must exist when empty so deal-flight can measure the first joker slot. */}
