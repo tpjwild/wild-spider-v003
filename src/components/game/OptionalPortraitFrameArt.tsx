@@ -1,10 +1,17 @@
 "use client";
 
-import { forwardRef, useEffect, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useState,
+  type CSSProperties,
+  type HTMLAttributes,
+  type ReactNode,
+  type SyntheticEvent,
+} from "react";
 import { colors } from "@/constants/colors";
 import {
-  getFrameLoadState,
-  getPortraitLoadState,
   rememberFrameLoadState,
   rememberPortraitLoadState,
   type PortraitArtLoadState,
@@ -12,24 +19,27 @@ import {
 
 type LoadState = PortraitArtLoadState;
 
+function imageLoaded(el: HTMLImageElement): boolean {
+  return el.complete && el.naturalWidth > 0;
+}
+
 type OptionalPortraitFrameArtProps = {
   portraitSrc: string;
-  /** When set, portrait and frame must both load before art is shown; when omitted, portrait only (full-bleed pip SVG). */
+  /** When set, portrait shows as soon as it loads; frame fades in separately. Pip faces omit `frameSrc`. */
   frameSrc?: string;
   /** Uniform padding inside the card around the portrait (e.g. pip SVGs); omit for edge-to-edge. */
   portraitInsetPx?: number;
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
-  /** When true, corner `children` (rank/joker indices) hide once portrait art is ready (pip or framed). */
+  /** When true, corner `children` are hidden so rank/joker typography never shows over loading art. */
   hideOverlayWhenReady?: boolean;
 };
 
 /**
- * Portrait + optional frame for face cards and jokers. If required assets fail to load, only `children`
- * remain visible (typography on pip-white or zinc-100 when framed). When both portrait and frame load (when frame is used),
- * images sit under `children`. Pip faces omit `frameSrc` and show the portrait as soon as it is not in error.
- * Frame SVGs are drawn with `object-fit: fill` so the overlay matches the card rectangle (narrower artwork stretches horizontally).
+ * Portrait + optional frame for face cards and jokers. Readiness comes only from each mounted `<img>`
+ * `onLoad` (not from background preload), so face-up cards do not flash empty white while the session
+ * cache thinks assets are ready. Framed cards show the portrait first; the frame appears when it loads.
  */
 export const OptionalPortraitFrameArt = forwardRef<
   HTMLDivElement,
@@ -39,42 +49,85 @@ export const OptionalPortraitFrameArt = forwardRef<
   ref,
 ) {
   const useFrame = Boolean(frameSrc);
-  const [portrait, setPortrait] = useState<LoadState>(() => getPortraitLoadState(portraitSrc));
-  const [frame, setFrame] = useState<LoadState>(() =>
-    frameSrc ? getFrameLoadState(frameSrc) : "ok",
-  );
+  const [portrait, setPortrait] = useState<LoadState>("idle");
+  const [frame, setFrame] = useState<LoadState>(() => (frameSrc ? "idle" : "ok"));
 
   useEffect(() => {
-    setPortrait(getPortraitLoadState(portraitSrc));
-    setFrame(frameSrc ? getFrameLoadState(frameSrc) : "ok");
+    setPortrait("idle");
+    setFrame(frameSrc ? "idle" : "ok");
   }, [portraitSrc, frameSrc]);
 
+  const markPortraitOk = useCallback(() => {
+    rememberPortraitLoadState(portraitSrc, "ok");
+    setPortrait("ok");
+  }, [portraitSrc]);
+
+  const markPortraitFail = useCallback(() => {
+    rememberPortraitLoadState(portraitSrc, "fail");
+    setPortrait("fail");
+  }, [portraitSrc]);
+
+  const markFrameOk = useCallback(() => {
+    if (!frameSrc) return;
+    rememberFrameLoadState(frameSrc, "ok");
+    setFrame("ok");
+  }, [frameSrc]);
+
+  const markFrameFail = useCallback(() => {
+    if (!frameSrc) return;
+    rememberFrameLoadState(frameSrc, "fail");
+    setFrame("fail");
+  }, [frameSrc]);
+
+  const syncPortraitFromImg = useCallback(
+    (el: HTMLImageElement | null) => {
+      if (!el) return;
+      if (imageLoaded(el)) markPortraitOk();
+    },
+    [markPortraitOk],
+  );
+
+  const syncFrameFromImg = useCallback(
+    (el: HTMLImageElement | null) => {
+      if (!el) return;
+      if (imageLoaded(el)) markFrameOk();
+    },
+    [markFrameOk],
+  );
+
+  const onPortraitLoad = useCallback(
+    (_e: SyntheticEvent<HTMLImageElement>) => {
+      markPortraitOk();
+    },
+    [markPortraitOk],
+  );
+
+  const onFrameLoad = useCallback(
+    (_e: SyntheticEvent<HTMLImageElement>) => {
+      markFrameOk();
+    },
+    [markFrameOk],
+  );
+
   const anyFail = portrait === "fail" || (useFrame && frame === "fail");
-  const framedArtReady = portrait === "ok" && frame === "ok";
-  const pipArtReady = !useFrame && portrait === "ok";
-  const showFramedArt = useFrame && framedArtReady;
-  /** Pip mode: show portrait unless it failed (deal-friendly: no wait for opacity fade). */
-  const portraitOpacity = useFrame ? (showFramedArt ? 1 : 0) : portrait === "fail" ? 0 : 1;
-  const hideCorners = Boolean(hideOverlayWhenReady && (useFrame ? framedArtReady : pipArtReady));
+  const portraitReady = portrait === "ok";
+  const portraitOpacity = portrait === "fail" ? 0 : portraitReady ? 1 : 0;
+  const frameOpacity = useFrame ? (frame === "ok" ? 1 : 0) : 0;
+  const hideCorners = Boolean(hideOverlayWhenReady);
   const pipPad = portraitInsetPx && portraitInsetPx > 0 ? portraitInsetPx : 0;
   const pipFace = !useFrame;
 
   const portraitImg = (
     <img
+      ref={syncPortraitFromImg}
       src={portraitSrc}
       alt=""
       className={`z-0 h-full w-full border-0 outline-none ${pipFace ? "object-contain" : "object-cover"} block`}
       style={{ opacity: portraitOpacity }}
       loading="eager"
       decoding="async"
-      onLoad={() => {
-        rememberPortraitLoadState(portraitSrc, "ok");
-        setPortrait("ok");
-      }}
-      onError={() => {
-        rememberPortraitLoadState(portraitSrc, "fail");
-        setPortrait("fail");
-      }}
+      onLoad={onPortraitLoad}
+      onError={markPortraitFail}
       draggable={false}
     />
   );
@@ -105,18 +158,13 @@ export const OptionalPortraitFrameArt = forwardRef<
           )}
           {useFrame ? (
             <img
+              ref={syncFrameFromImg}
               src={frameSrc}
               alt=""
               className="pointer-events-none absolute inset-0 z-[1] h-full w-full object-fill"
-              style={{ opacity: showFramedArt ? 1 : 0 }}
-              onLoad={() => {
-                rememberFrameLoadState(frameSrc!, "ok");
-                setFrame("ok");
-              }}
-              onError={() => {
-                rememberFrameLoadState(frameSrc!, "fail");
-                setFrame("fail");
-              }}
+              style={{ opacity: frameOpacity }}
+              onLoad={onFrameLoad}
+              onError={markFrameFail}
               draggable={false}
             />
           ) : null}

@@ -1,17 +1,9 @@
 import { DEFAULT_DECK_PAIR_ID, getDeckPairById } from "@/content/deckPairs";
 import { sharedDeckLightCardFacePath } from "@/constants/sharedDeckAssets";
-import {
-  rememberFrameLoadState,
-  rememberPortraitLoadState,
-} from "@/lib/portraitArtLoadCache";
 import type { Rank, Suit } from "@/engine/types";
 
 const PIP_RANKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const satisfies readonly Rank[];
 const PIP_SUITS = ["S", "C", "D", "H"] as const satisfies readonly Suit[];
-
-function isFrameAssetUrl(src: string): boolean {
-  return src.includes("/frames/");
-}
 
 /** Portrait thumb + frame SVGs for one deck pair, plus shared A–10 pip faces (all pairs). */
 export function collectTableauPortraitPreloadUrls(deckPairId: string): string[] {
@@ -42,33 +34,22 @@ export function collectTableauPortraitPreloadUrls(deckPairId: string): string[] 
   return [...urls];
 }
 
-function preloadOneUrl(src: string): void {
+/** Warm the browser HTTP cache only; does not update {@link portraitArtLoadCache}. */
+function warmImageUrl(src: string): void {
   if (!src) return;
   const img = new Image();
   img.decoding = "async";
-  const onSuccess = () => {
-    if (isFrameAssetUrl(src)) rememberFrameLoadState(src, "ok");
-    else rememberPortraitLoadState(src, "ok");
-  };
-  const onFailure = () => {
-    if (isFrameAssetUrl(src)) rememberFrameLoadState(src, "fail");
-    else rememberPortraitLoadState(src, "fail");
-  };
-  img.onload = onSuccess;
-  img.onerror = onFailure;
   img.src = src;
-  if (img.complete && img.naturalWidth > 0) onSuccess();
-  else if (img.complete) onFailure();
 }
 
 /**
- * Warm browser cache and {@link portraitArtLoadCache} for tableau/foundation/shelf faces.
- * Safe to call repeatedly; dedupes URLs per call.
+ * Warm browser HTTP cache for tableau/foundation/shelf faces. Face-up cards still become visible
+ * only after their mounted `<img>` loads in `OptionalPortraitFrameArt`.
  */
 export function preloadTableauPortraitArt(deckPairId: string): void {
   if (typeof window === "undefined") return;
   for (const src of collectTableauPortraitPreloadUrls(deckPairId)) {
-    preloadOneUrl(src);
+    warmImageUrl(src);
   }
 }
 
