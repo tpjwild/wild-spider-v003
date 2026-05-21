@@ -84,6 +84,6 @@ If large PNGs still live only under `public/gameArt/portraits/`:
 - [x] **Phase 1** — `art-source/` gitignored, `docs/ART_PIPELINE.md`, `art-source.example/`
 - [x] **Phase 2** — `sharp` + `scripts/generate-portrait-derivatives.mjs` + `pnpm run generate:portraits`
 - [x] **Phase 3** — Migrate `public/` to generated WebP; drop huge PNGs from git
-- [ ] **Phase 4** — `portraitThumbPath` / `gameArtPortraitThumbUrl` in code; CardView vs CardDetails paths
+- [x] **Phase 4** — `portraitThumbPath` / `gameArtPortraitThumbUrl` in code; CardView vs CardDetails paths
 - [ ] **Phase 5** — Optional non-blocking thumb preload at game start
 - [ ] **Phase 6** — CI/manifest check (optional)

@@ -148,7 +148,7 @@ export const CardView = forwardRef<
         {...rest}
       >
         <OptionalPortraitFrameArt
-          portraitSrc={art.portraitPath}
+          portraitSrc={art.portraitThumbPath}
           frameSrc={art.framePath}
           portraitInsetPx={dimensions.courtJokerPortraitPaddingPx}
           hideOverlayWhenReady
@@ -211,7 +211,7 @@ export const CardView = forwardRef<
           {...rest}
         >
           <OptionalPortraitFrameArt
-            portraitSrc={art.portraitPath}
+            portraitSrc={art.portraitThumbPath}
             frameSrc={art.framePath}
             portraitInsetPx={
               pip ? dimensions.cardPipFacePaddingPx : dimensions.courtJokerPortraitPaddingPx

@@ -1,5 +1,5 @@
 /**
- * Deck pair registry. **Face** portraits: `public/gameArt/portraits/<pairId>/deck{n}/` when shipped.
+ * Deck pair registry. **Face** portraits: medium `public/gameArt/portraits/`, small `public/gameArt/portraits-small/`.
  * **Shared** backs and pip faces: `public/gameArt/shared/` — see `sharedDeckAssets.ts` and `gameArtPaths.ts`.
  * Missing files are handled in the UI (gradient / typography fallbacks); assets are optional in the repo.
  *
@@ -7,6 +7,7 @@
  */
 import {
   baseCourtPortraitBasename,
+  gameArtPortraitThumbUrl,
   gameArtPortraitUrl,
   sharedCourtFramePath,
   sharedJokerFramePathFromPortraitBasename,
@@ -29,7 +30,10 @@ export type DeckFaceCard = {
   rank: DeckFaceRank;
   name: string;
   bio: string;
+  /** Medium WebP/SVG — card details popup. */
   portraitPath: string;
+  /** Small WebP/SVG — in-game card faces (tableau, foundation, shelf, deck popup). */
+  portraitThumbPath: string;
   framePath: string;
 };
 
@@ -43,6 +47,7 @@ export type DeckJokerCard = {
   name: string;
   bio: string;
   portraitPath: string;
+  portraitThumbPath: string;
   framePath: string;
 };
 
@@ -154,6 +159,7 @@ function themedFaces({ pairId, deck, faces: bySuit }: ThemedFacesArgs): readonly
         name: m.name,
         bio,
         portraitPath: gameArtPortraitUrl(pairId, deck, m.file),
+        portraitThumbPath: gameArtPortraitThumbUrl(pairId, deck, m.file),
         framePath: sharedCourtFramePath(rank, suit),
       });
     }
@@ -181,6 +187,7 @@ function baseFaces(
         name,
         bio,
         portraitPath: gameArtPortraitUrl("base", deckNum, basename),
+        portraitThumbPath: gameArtPortraitThumbUrl("base", deckNum, basename),
         framePath: sharedCourtFramePath(rank, suit),
       });
     }
@@ -216,6 +223,7 @@ function themedJokers({ pairId, deck, jokers: defs }: ThemedJokersArgs): readonl
       name: portrait.name,
       bio: def.bio,
       portraitPath: gameArtPortraitUrl(pairId, deck, portrait.file),
+      portraitThumbPath: gameArtPortraitThumbUrl(pairId, deck, portrait.file),
       framePath: sharedJokerFramePathFromPortraitBasename(portrait.file),
     });
   }

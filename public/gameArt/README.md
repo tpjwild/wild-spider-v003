@@ -16,7 +16,7 @@ Paths are defined in `src/constants/sharedDeckAssets.ts` and `src/constants/game
 
 ## Per pair (courts and jokers)
 
-Shipped portrait files live under `public/gameArt/portraits/<pairId>/deck1/` and `deck2/` (medium — card details). Small tableau assets will live under `public/gameArt/portraits-small/` once the portrait pipeline is fully wired (see below).
+Shipped portrait files live under `public/gameArt/portraits/<pairId>/deck1/` and `deck2/` (**medium** — card details popup). **Small** assets under `public/gameArt/portraits-small/` are used for in-game card faces (tableau, foundation, shelf, deck popup).
 
 Filenames and display names are listed in `src/content/portraitManifest.ts` for themed pairs; **Base** uses `base01-jack-clubs-jack.svg` style names (SVG courts, no jokers).
 

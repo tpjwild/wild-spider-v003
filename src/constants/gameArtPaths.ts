@@ -7,9 +7,14 @@ export const GAME_ART_ROOT = "/gameArt";
 
 export const SHARED_GAME_ART_DIR = `${GAME_ART_ROOT}/shared`;
 
-/** Court / joker portrait assets under `public/gameArt/portraits/`. */
+/** Medium court/joker portraits (card details popup) under `public/gameArt/portraits/`. */
 export function gameArtPortraitUrl(deckPairId: string, deckNum: 1 | 2, basename: string): string {
   return `${GAME_ART_ROOT}/portraits/${deckPairId}/deck${deckNum}/${basename}`;
+}
+
+/** Small court/joker portraits (tableau, foundation, shelf, deck popup) under `public/gameArt/portraits-small/`. */
+export function gameArtPortraitThumbUrl(deckPairId: string, deckNum: 1 | 2, basename: string): string {
+  return `${GAME_ART_ROOT}/portraits-small/${deckPairId}/deck${deckNum}/${basename}`;
 }
 
 const SUIT_WORD: Record<Suit, string> = {

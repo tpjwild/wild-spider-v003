@@ -9,14 +9,20 @@ describe("deckCardArt", () => {
       suit: "S",
       rank: 1,
     });
-    expect(ace).toEqual({ portraitPath: "/gameArt/shared/cards/AS.svg" });
+    expect(ace).toEqual({
+      portraitPath: "/gameArt/shared/cards/AS.svg",
+      portraitThumbPath: "/gameArt/shared/cards/AS.svg",
+    });
     const tenH = faceArtForRegularCard("westernPhilosophy", {
       kind: "regular",
       id: 51,
       suit: "H",
       rank: 10,
     });
-    expect(tenH).toEqual({ portraitPath: "/gameArt/shared/cards/10H.svg" });
+    expect(tenH).toEqual({
+      portraitPath: "/gameArt/shared/cards/10H.svg",
+      portraitThumbPath: "/gameArt/shared/cards/10H.svg",
+    });
   });
 
   it("faceArtForRegularCard uses deck pair court portraits for J/Q/K", () => {
@@ -28,6 +34,9 @@ describe("deckCardArt", () => {
     });
     expect(king?.portraitPath).toBe(
       "/gameArt/portraits/mathematics/deck1/math01-king-diamonds-carl-friedrich-gauss.webp",
+    );
+    expect(king?.portraitThumbPath).toBe(
+      "/gameArt/portraits-small/mathematics/deck1/math01-king-diamonds-carl-friedrich-gauss.webp",
     );
     expect(king?.framePath).toBe("/gameArt/shared/frames/king-diamonds-frame.svg");
   });
@@ -42,10 +51,15 @@ describe("deckCardArt", () => {
   it("jokerArtForCard uses pair joker list (mathematics)", () => {
     const art = jokerArtForCard("mathematics", 0);
     expect(art.portraitPath).toContain("/gameArt/portraits/mathematics/deck1/");
+    expect(art.portraitThumbPath).toContain("/gameArt/portraits-small/mathematics/deck1/");
     expect(art.framePath).toContain("/gameArt/shared/frames/joker-");
   });
 
   it("jokerArtForCard returns empty paths when pair defines no jokers (Base)", () => {
-    expect(jokerArtForCard("base", 0)).toEqual({ portraitPath: "", framePath: "" });
+    expect(jokerArtForCard("base", 0)).toEqual({
+      portraitPath: "",
+      portraitThumbPath: "",
+      framePath: "",
+    });
   });
 });
