@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, type CSSProperties, type HTMLAttributes } from "react";
+import { forwardRef, useCallback, useState, type CSSProperties, type HTMLAttributes } from "react";
 import { OptionalCardBackImage } from "@/components/game/OptionalCardBackImage";
 import { OptionalPortraitFrameArt } from "@/components/game/OptionalPortraitFrameArt";
 import { colors } from "@/constants/colors";
@@ -30,6 +30,30 @@ const SUIT_GLYPH: Record<Suit, string> = {
   H: "♥",
   S: "♠",
 };
+
+/** In-game face-up: show the card back until portrait art is decoded (avoids white/zinc flash). */
+function FaceUpBackUntilPortraitReady({
+  card,
+  portraitReady,
+}: {
+  card: Card;
+  portraitReady: boolean;
+}) {
+  if (portraitReady) return null;
+  const backSrc = faceDownBackPathForCard(card);
+  const backGradient =
+    cardDeckIndexForBack(card) === 0 ? colors.cardBackDeckOne : colors.cardBackDeckTwo;
+  return (
+    <div className="pointer-events-none absolute inset-0 z-[30] overflow-hidden rounded-md" aria-hidden>
+      <div className="absolute inset-0" style={{ background: backGradient }} />
+      <OptionalCardBackImage
+        src={backSrc}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+    </div>
+  );
+}
 
 /** Face-down cell: full face with the standard card-back bitmap at the given opacity (0–1). */
 function DeckPopupFaceDownBackOverlay({
@@ -76,6 +100,69 @@ function modeFor(placed: PlacedCard, displayMode?: CardDisplayMode): CardDisplay
   if (!placed.faceUp) return "faceDown";
   return "faceUp";
 }
+
+type FaceUpPortraitCardShellProps = {
+  card: Card;
+  mode: CardDisplayMode;
+  faceDownBackOpacity: number;
+  portraitSrc: string;
+  frameSrc?: string;
+  portraitInsetPx: number;
+  className: string;
+  style?: CSSProperties;
+  children: React.ReactNode;
+} & Omit<HTMLAttributes<HTMLDivElement>, "children" | "className" | "style">;
+
+const FaceUpPortraitCardShell = forwardRef<HTMLDivElement, FaceUpPortraitCardShellProps>(
+  function FaceUpPortraitCardShell(
+    {
+      card,
+      mode,
+      faceDownBackOpacity,
+      portraitSrc,
+      frameSrc,
+      portraitInsetPx,
+      className,
+      style,
+      children,
+      ...rest
+    },
+    ref,
+  ) {
+    const [portraitReady, setPortraitReady] = useState(false);
+    const onPortraitReadyChange = useCallback((ready: boolean) => setPortraitReady(ready), []);
+
+    const w = dimensions.cardWidth;
+    const h = dimensions.cardHeight;
+
+    return (
+      <div
+        ref={ref}
+        className={`relative overflow-hidden select-none rounded-md border border-zinc-600 shadow-sm ${className}`}
+        style={{ width: w, height: h, ...style }}
+        {...rest}
+      >
+        <OptionalPortraitFrameArt
+          portraitSrc={portraitSrc}
+          frameSrc={frameSrc}
+          portraitInsetPx={portraitInsetPx}
+          hideOverlayWhenReady
+          onPortraitReadyChange={onPortraitReadyChange}
+          className="h-full w-full rounded-md border-0 shadow-none"
+          style={{ width: "100%", height: "100%" }}
+        >
+          {children}
+        </OptionalPortraitFrameArt>
+        {mode === "faceUp" ? (
+          <FaceUpBackUntilPortraitReady card={card} portraitReady={portraitReady} />
+        ) : null}
+        {mode === "deckPopupFaceDown" ? (
+          <DeckPopupFaceDownBackOverlay card={card} opacity={faceDownBackOpacity} />
+        ) : null}
+      </div>
+    );
+  },
+);
 
 export const CardView = forwardRef<
   HTMLDivElement,
@@ -136,58 +223,49 @@ export const CardView = forwardRef<
     const jokerInk = jokerCornerColor(c);
     const art = jokerArtForCard(deckPairId, c.id);
     return (
-      <div
+      <FaceUpPortraitCardShell
+        key={`${c.id}:${art.portraitThumbPath}:${art.framePath}`}
         ref={ref}
-        className={`relative overflow-hidden select-none rounded-md border border-zinc-600 shadow-sm ${className}`}
-        style={{
-          width: w,
-          height: h,
-          ...(style as CSSProperties),
-        }}
+        card={c}
+        mode={mode}
+        faceDownBackOpacity={faceDownBackOpacity}
+        portraitSrc={art.portraitThumbPath}
+        frameSrc={art.framePath}
+        portraitInsetPx={dimensions.courtJokerPortraitPaddingPx}
+        className={className}
+        style={style as CSSProperties}
         aria-label="Joker"
         {...rest}
       >
-        <OptionalPortraitFrameArt
-          portraitSrc={art.portraitThumbPath}
-          frameSrc={art.framePath}
-          portraitInsetPx={dimensions.courtJokerPortraitPaddingPx}
-          hideOverlayWhenReady
-          className="h-full w-full rounded-md border-0 shadow-none"
-          style={{ width: "100%", height: "100%" }}
-        >
-          <>
-            <div
-              className="absolute left-[4px] top-[5px] flex flex-col items-center gap-0.5 text-[9px] font-bold leading-none"
-              style={{ color: jokerInk }}
-              aria-hidden
-            >
-              {"JOKER".split("").map((letter, i) => (
-                <span key={i} className="block">
-                  {letter}
-                </span>
-              ))}
-            </div>
-            <div
-              className="absolute right-[4px] bottom-[5px] flex flex-col items-center gap-0.5 text-[9px] font-bold leading-none"
-              style={{
-                color: jokerInk,
-                transform: "rotate(180deg)",
-                transformOrigin: "center",
-              }}
-              aria-hidden
-            >
-              {"JOKER".split("").map((letter, i) => (
-                <span key={i} className="block">
-                  {letter}
-                </span>
-              ))}
-            </div>
-          </>
-        </OptionalPortraitFrameArt>
-        {mode === "deckPopupFaceDown" ? (
-          <DeckPopupFaceDownBackOverlay card={c} opacity={faceDownBackOpacity} />
-        ) : null}
-      </div>
+        <>
+          <div
+            className="absolute left-[4px] top-[5px] flex flex-col items-center gap-0.5 text-[9px] font-bold leading-none"
+            style={{ color: jokerInk }}
+            aria-hidden
+          >
+            {"JOKER".split("").map((letter, i) => (
+              <span key={i} className="block">
+                {letter}
+              </span>
+            ))}
+          </div>
+          <div
+            className="absolute right-[4px] bottom-[5px] flex flex-col items-center gap-0.5 text-[9px] font-bold leading-none"
+            style={{
+              color: jokerInk,
+              transform: "rotate(180deg)",
+              transformOrigin: "center",
+            }}
+            aria-hidden
+          >
+            {"JOKER".split("").map((letter, i) => (
+              <span key={i} className="block">
+                {letter}
+              </span>
+            ))}
+          </div>
+        </>
+      </FaceUpPortraitCardShell>
     );
   }
 
@@ -200,49 +278,40 @@ export const CardView = forwardRef<
     if (art) {
       const pip = !art.framePath;
       return (
-        <div
+        <FaceUpPortraitCardShell
+          key={`${c.id}:${art.portraitThumbPath}:${art.framePath ?? ""}`}
           ref={ref}
-          className={`relative overflow-hidden select-none rounded-md border border-zinc-600 shadow-sm ${className}`}
-          style={{
-            width: w,
-            height: h,
-            ...(style as CSSProperties),
-          }}
+          card={c}
+          mode={mode}
+          faceDownBackOpacity={faceDownBackOpacity}
+          portraitSrc={art.portraitThumbPath}
+          frameSrc={art.framePath}
+          portraitInsetPx={
+            pip ? dimensions.cardPipFacePaddingPx : dimensions.courtJokerPortraitPaddingPx
+          }
+          className={className}
+          style={style as CSSProperties}
           {...rest}
         >
-          <OptionalPortraitFrameArt
-            portraitSrc={art.portraitThumbPath}
-            frameSrc={art.framePath}
-            portraitInsetPx={
-              pip ? dimensions.cardPipFacePaddingPx : dimensions.courtJokerPortraitPaddingPx
-            }
-            hideOverlayWhenReady
-            className="h-full w-full rounded-md border-0 shadow-none"
-            style={{ width: "100%", height: "100%" }}
-          >
-            <>
-              <span
-                className="absolute left-[4px] top-[5px] text-[20px] font-bold leading-none tracking-tight"
-                style={{ color }}
-              >
+          <>
+            <span
+              className="absolute left-[4px] top-[5px] text-[20px] font-bold leading-none tracking-tight"
+              style={{ color }}
+            >
+              {r}
+              <span className="ml-0.5 font-serif">{g}</span>
+            </span>
+            <div
+              className="absolute right-[4px] bottom-[5px] text-[20px] font-bold leading-none tracking-tight"
+              style={{ color, transform: "rotate(180deg)", transformOrigin: "center" }}
+            >
+              <span>
                 {r}
-                <span className="ml-0.5 font-serif">{g}</span>
+                <span className="ml-px font-serif">{g}</span>
               </span>
-              <div
-                className="absolute right-[4px] bottom-[5px] text-[20px] font-bold leading-none tracking-tight"
-                style={{ color, transform: "rotate(180deg)", transformOrigin: "center" }}
-              >
-                <span>
-                  {r}
-                  <span className="ml-px font-serif">{g}</span>
-                </span>
-              </div>
-            </>
-          </OptionalPortraitFrameArt>
-          {mode === "deckPopupFaceDown" ? (
-            <DeckPopupFaceDownBackOverlay card={c} opacity={faceDownBackOpacity} />
-          ) : null}
-        </div>
+            </div>
+          </>
+        </FaceUpPortraitCardShell>
       );
     }
   }

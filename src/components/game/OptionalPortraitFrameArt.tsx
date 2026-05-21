@@ -11,6 +11,7 @@ import {
   type SyntheticEvent,
 } from "react";
 import { colors } from "@/constants/colors";
+import { decodeLoadedImage } from "@/lib/decodeCardImage";
 import {
   rememberFrameLoadState,
   rememberPortraitLoadState,
@@ -34,18 +35,30 @@ type OptionalPortraitFrameArtProps = {
   style?: CSSProperties;
   /** When true, corner `children` are hidden so rank/joker typography never shows over loading art. */
   hideOverlayWhenReady?: boolean;
+  /** Fired when portrait decode/display readiness changes (for card-back cover in `CardView`). */
+  onPortraitReadyChange?: (ready: boolean) => void;
 };
 
 /**
- * Portrait + optional frame for face cards and jokers. Readiness comes only from each mounted `<img>`
- * `onLoad` (not from background preload), so face-up cards do not flash empty white while the session
- * cache thinks assets are ready. Framed cards show the portrait first; the frame appears when it loads.
+ * Portrait + optional frame for face cards and jokers. Portrait readiness requires mounted
+ * `onLoad` plus `decode()` so pixels are ready before opacity goes to 1. Framed cards show
+ * the portrait first; the frame appears when it loads.
  */
 export const OptionalPortraitFrameArt = forwardRef<
   HTMLDivElement,
   OptionalPortraitFrameArtProps & Omit<HTMLAttributes<HTMLDivElement>, "children">
 >(function OptionalPortraitFrameArt(
-  { portraitSrc, frameSrc, portraitInsetPx, children, className = "", style, hideOverlayWhenReady, ...rest },
+  {
+    portraitSrc,
+    frameSrc,
+    portraitInsetPx,
+    children,
+    className = "",
+    style,
+    hideOverlayWhenReady,
+    onPortraitReadyChange,
+    ...rest
+  },
   ref,
 ) {
   const useFrame = Boolean(frameSrc);
@@ -55,7 +68,12 @@ export const OptionalPortraitFrameArt = forwardRef<
   useEffect(() => {
     setPortrait("idle");
     setFrame(frameSrc ? "idle" : "ok");
-  }, [portraitSrc, frameSrc]);
+    onPortraitReadyChange?.(false);
+  }, [portraitSrc, frameSrc, onPortraitReadyChange]);
+
+  useEffect(() => {
+    if (portrait === "ok") onPortraitReadyChange?.(true);
+  }, [portrait, onPortraitReadyChange]);
 
   const markPortraitOk = useCallback(() => {
     rememberPortraitLoadState(portraitSrc, "ok");
@@ -79,12 +97,22 @@ export const OptionalPortraitFrameArt = forwardRef<
     setFrame("fail");
   }, [frameSrc]);
 
-  const syncPortraitFromImg = useCallback(
-    (el: HTMLImageElement | null) => {
-      if (!el) return;
-      if (imageLoaded(el)) markPortraitOk();
+  const commitPortraitFromImg = useCallback(
+    (el: HTMLImageElement) => {
+      void (async () => {
+        await decodeLoadedImage(el);
+        markPortraitOk();
+      })();
     },
     [markPortraitOk],
+  );
+
+  const syncPortraitFromImg = useCallback(
+    (el: HTMLImageElement | null) => {
+      if (!el || !imageLoaded(el)) return;
+      commitPortraitFromImg(el);
+    },
+    [commitPortraitFromImg],
   );
 
   const syncFrameFromImg = useCallback(
@@ -96,17 +124,10 @@ export const OptionalPortraitFrameArt = forwardRef<
   );
 
   const onPortraitLoad = useCallback(
-    (_e: SyntheticEvent<HTMLImageElement>) => {
-      markPortraitOk();
+    (e: SyntheticEvent<HTMLImageElement>) => {
+      commitPortraitFromImg(e.currentTarget);
     },
-    [markPortraitOk],
-  );
-
-  const onFrameLoad = useCallback(
-    (_e: SyntheticEvent<HTMLImageElement>) => {
-      markFrameOk();
-    },
-    [markFrameOk],
+    [commitPortraitFromImg],
   );
 
   const anyFail = portrait === "fail" || (useFrame && frame === "fail");
@@ -116,6 +137,7 @@ export const OptionalPortraitFrameArt = forwardRef<
   const hideCorners = Boolean(hideOverlayWhenReady);
   const pipPad = portraitInsetPx && portraitInsetPx > 0 ? portraitInsetPx : 0;
   const pipFace = !useFrame;
+  const showFaceBackground = portraitReady;
 
   const portraitImg = (
     <img
@@ -135,10 +157,10 @@ export const OptionalPortraitFrameArt = forwardRef<
   return (
     <div
       ref={ref}
-      className={`relative overflow-hidden ${useFrame ? "bg-zinc-100" : ""} ${className}`}
+      className={`relative overflow-hidden ${useFrame && showFaceBackground ? "bg-zinc-100" : ""} ${className}`}
       style={{
         ...style,
-        ...(pipFace ? { backgroundColor: colors.cardFacePip } : {}),
+        ...(pipFace && showFaceBackground ? { backgroundColor: colors.cardFacePip } : {}),
       }}
       {...rest}
     >
@@ -147,12 +169,18 @@ export const OptionalPortraitFrameArt = forwardRef<
           {pipPad > 0 ? (
             <div
               className="absolute inset-0 z-0 box-border"
-              style={{ padding: pipPad, backgroundColor: pipFace ? colors.cardFacePip : undefined }}
+              style={{
+                padding: pipPad,
+                backgroundColor: pipFace && showFaceBackground ? colors.cardFacePip : undefined,
+              }}
             >
               {portraitImg}
             </div>
           ) : (
-            <div className="absolute inset-0 z-0" style={pipFace ? { backgroundColor: colors.cardFacePip } : undefined}>
+            <div
+              className="absolute inset-0 z-0"
+              style={{ backgroundColor: pipFace && showFaceBackground ? colors.cardFacePip : undefined }}
+            >
               {portraitImg}
             </div>
           )}
@@ -163,7 +191,7 @@ export const OptionalPortraitFrameArt = forwardRef<
               alt=""
               className="pointer-events-none absolute inset-0 z-[1] h-full w-full object-fill"
               style={{ opacity: frameOpacity }}
-              onLoad={onFrameLoad}
+              onLoad={() => markFrameOk()}
               onError={markFrameFail}
               draggable={false}
             />
