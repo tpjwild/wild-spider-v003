@@ -79,11 +79,24 @@ If large PNGs still live only under `public/gameArt/portraits/`:
 
 ---
 
+## Phase 5 — Tableau preload (runtime)
+
+After **New Game**, **Restart**, or **hydrate** (local/cloud saved game), the client schedules a non-blocking preload so buried cards do not wait on first reveal:
+
+- **`src/lib/preloadPortraitArt.ts`** — `scheduleTableauPortraitPreload(deckPairId)` runs on the next microtask (does not block deal animation).
+- Collects unique URLs for the active deck pair: every court/joker **`portraitThumbPath`**, shared **`framePath`** values, and all **40 pip SVGs** under `shared/cards/`.
+- Uses `new Image()`; on load/error calls **`rememberPortraitLoadState`** / **`rememberFrameLoadState`** so `OptionalPortraitFrameArt` mounts with `"ok"` when art is already warm.
+- Does **not** preload medium portraits (details popup only).
+
+Wired from **`gameStore`**: `startGame`, `restart`, `hydrateLocalOnly`, `hydrateFromLocalAfterAuth`, `applyCloudBootstrap`.
+
+---
+
 ## Phase checklist
 
 - [x] **Phase 1** — `art-source/` gitignored, `docs/ART_PIPELINE.md`, `art-source.example/`
 - [x] **Phase 2** — `sharp` + `scripts/generate-portrait-derivatives.mjs` + `pnpm run generate:portraits`
 - [x] **Phase 3** — Migrate `public/` to generated WebP; drop huge PNGs from git
 - [x] **Phase 4** — `portraitThumbPath` / `gameArtPortraitThumbUrl` in code; CardView vs CardDetails paths
-- [ ] **Phase 5** — Optional non-blocking thumb preload at game start
+- [x] **Phase 5** — Non-blocking thumb + frame + pip preload at game start / hydrate
 - [ ] **Phase 6** — CI/manifest check (optional)

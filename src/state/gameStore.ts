@@ -28,6 +28,7 @@ import {
   saveLastNewGameDefaults,
 } from "@/lib/gameStorage";
 import { playSound } from "@/lib/playSound";
+import { scheduleTableauPortraitPreload } from "@/lib/preloadPortraitArt";
 
 export type StockDealAnimationState = {
   kind: "stock";
@@ -178,6 +179,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         powerTargeting: null,
         dirtySinceCloudSave: Boolean(loaded),
       });
+      scheduleTableauPortraitPreload(loaded.config.deckPairId);
     } else {
       const cfg = resolvedGameConfigForEmptyShell();
       const shell = createEmptyBoardShell(cfg);
@@ -209,6 +211,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         powerTargeting: null,
         dirtySinceCloudSave: Boolean(loaded),
       });
+      scheduleTableauPortraitPreload(loaded.config.deckPairId);
     } else {
       const cfg = resolvedGameConfigForEmptyShell();
       const shell = createEmptyBoardShell(cfg);
@@ -240,6 +243,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       powerTargeting: null,
       dirtySinceCloudSave: false,
     });
+    scheduleTableauPortraitPreload(loaded.config.deckPairId);
   },
 
   openNewGame: () => set({ newGameOpen: true, lastError: null }),
@@ -268,6 +272,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         });
         persistGameStateLocal(finalGame);
         playSound("cardDealt");
+        scheduleTableauPortraitPreload(config.deckPairId);
         return;
       }
       const base = initialDealAnimationBase(finalGame, entries);
@@ -286,6 +291,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         },
         dealAnimSession: get().dealAnimSession + 1,
       });
+      scheduleTableauPortraitPreload(config.deckPairId);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Invalid configuration";
       set({ lastError: msg });
@@ -310,6 +316,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       });
       persistGameStateLocal(finalGame);
       playSound("cardDealt");
+      scheduleTableauPortraitPreload(game.config.deckPairId);
       return;
     }
     const base = initialDealAnimationBase(finalGame, entries);
@@ -327,6 +334,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
       dealAnimSession: get().dealAnimSession + 1,
     });
+    scheduleTableauPortraitPreload(game.config.deckPairId);
   },
 
   openEndGame: () => {
