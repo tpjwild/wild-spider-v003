@@ -51,6 +51,35 @@ export function canPlaceOnTableau(
   return destTop.rank === movingBottom.rank + 1;
 }
 
+function canPlaceRegularOnFoundationPile(
+  card: Card & { kind: "regular" },
+  pile: PlacedCard[],
+): boolean {
+  if (pile.length === 0) return card.rank === 1;
+  const top = pile[pile.length - 1]!.card;
+  if (!isRegular(top)) return false;
+  return top.suit === card.suit && card.rank === top.rank + 1;
+}
+
+/**
+ * Tableau run is stored bottom → top (high rank toward bottom). Foundation builds upward, so cards
+ * are placed from the run top (lowest rank) first — iterate the run tail-to-head.
+ */
+export function canPlaceRunOnFoundationPile(
+  run: readonly PlacedCard[],
+  pile: readonly PlacedCard[],
+): boolean {
+  const simulated = [...pile];
+  for (let i = run.length - 1; i >= 0; i--) {
+    const placed = run[i]!;
+    const card = placed.card;
+    if (!isRegular(card)) return false;
+    if (!canPlaceRegularOnFoundationPile(card, simulated)) return false;
+    simulated.push(placed);
+  }
+  return true;
+}
+
 export function canMoveTableau(
   state: GameState,
   args: MoveTableauArgs,
@@ -76,23 +105,16 @@ export function canMoveToFoundation(
   state: GameState,
   args: MoveToFoundationArgs,
 ): boolean {
-  const { fromColumn, foundationIndex } = args;
+  const { fromColumn, startIndex, foundationIndex } = args;
   if (fromColumn < 0 || fromColumn >= state.columns.length) return false;
   if (foundationIndex < 0 || foundationIndex > 7) return false;
   const src = state.columns[fromColumn]!;
-  if (src.length === 0) return false;
-  const topIdx = src.length - 1;
-  if (!src[topIdx]!.faceUp) return false;
-  const card = src[topIdx]!.card;
-  if (!isRegular(card)) return false;
+  if (startIndex < 0 || startIndex >= src.length) return false;
+  if (!isValidSameSuitDescendingRun(src, startIndex)) return false;
 
+  const run = src.slice(startIndex);
   const pile = state.foundation[foundationIndex]!;
-  if (pile.length === 0) {
-    return card.rank === 1;
-  }
-  const top = pile[pile.length - 1]!.card;
-  if (!isRegular(top)) return false;
-  return top.suit === card.suit && card.rank === top.rank + 1;
+  return canPlaceRunOnFoundationPile(run, pile);
 }
 
 export type MoveTableauResult = {
@@ -149,21 +171,24 @@ export function applyMoveToFoundation(
   args: MoveToFoundationArgs,
 ): MoveFoundationResult | null {
   if (!canMoveToFoundation(state, args)) return null;
-  const { fromColumn, foundationIndex } = args;
+  const { fromColumn, startIndex, foundationIndex } = args;
   const columns = state.columns.map((c) => [...c]);
   const foundation = state.foundation.map((p) => [...p]);
   const src = columns[fromColumn]!;
   let revealedWasFaceUp = true;
-  if (src.length >= 2) {
-    revealedWasFaceUp = src[src.length - 2]!.faceUp;
+  if (startIndex > 0) {
+    revealedWasFaceUp = src[startIndex - 1]!.faceUp;
   }
-  const top = src.pop()!;
-  if (src.length > 0) {
-    const newTop = src[src.length - 1]!;
-    if (!newTop.faceUp) newTop.faceUp = true;
+  const moved = src.splice(startIndex);
+  if (startIndex > 0) {
+    const below = src[startIndex - 1]!;
+    if (!below.faceUp) below.faceUp = true;
   }
 
-  foundation[foundationIndex]!.push(top);
+  const pile = foundation[foundationIndex]!;
+  for (let i = moved.length - 1; i >= 0; i--) {
+    pile.push(moved[i]!);
+  }
 
   return {
     state: {
@@ -174,6 +199,8 @@ export function applyMoveToFoundation(
     history: {
       type: "move_to_foundation",
       fromCol: fromColumn,
+      startIndex,
+      count: moved.length,
       foundationIndex: foundationIndex as FoundationIndex,
       revealedWasFaceUp,
     },

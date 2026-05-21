@@ -102,7 +102,11 @@ export type GameStore = {
   /** Called when a deal flight motion completes (bumps landed or commits `finalGame`; `cardFlipped` for deals is timed in `DealAnimationLayer`). */
   advanceDealAfterFlight: (landedCountBeforeThisFlight: number) => void;
   tryMoveTableau: (fromColumn: number, startIndex: number, toColumn: number) => boolean;
-  tryMoveToFoundation: (fromColumn: number, foundationIndex: FoundationIndex) => boolean;
+  tryMoveToFoundation: (
+    fromColumn: number,
+    startIndex: number,
+    foundationIndex: FoundationIndex,
+  ) => boolean;
   /** Double-click shelf joker / set power: immediate applies now; targeted enters {@link powerTargeting}. */
   triggerShelfPower: (shelfIndex: number) => boolean;
   commitTargetedPower: (card: Card, targetContext: BlackJokerTargetContext) => boolean;
@@ -121,7 +125,7 @@ function maybePlayRevealSound(next: GameState) {
     playSound("cardFlipped");
     return;
   }
-  if (h.type === "move_to_foundation" && !h.revealedWasFaceUp) {
+  if (h.type === "move_to_foundation" && h.startIndex > 0 && !h.revealedWasFaceUp) {
     playSound("cardFlipped");
   }
 }
@@ -446,11 +450,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true;
   },
 
-  tryMoveToFoundation: (fromColumn, foundationIndex) => {
+  tryMoveToFoundation: (fromColumn, startIndex, foundationIndex) => {
     const { game, dealAnimation } = get();
     if (dealAnimation) return false;
     if (!game) return false;
-    const next = moveToFoundation(game, { fromColumn, foundationIndex });
+    const next = moveToFoundation(game, { fromColumn, startIndex, foundationIndex });
     if (!next) return false;
     set({ game: next, ...clearPowerTargeting() });
     persistGameStateLocal(next);

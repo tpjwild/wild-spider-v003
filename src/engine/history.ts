@@ -27,11 +27,11 @@ function undoMoveToFoundation(
   const columns = state.columns.map((c) => [...c]);
   const foundation = state.foundation.map((p) => [...p]);
   const pile = foundation[entry.foundationIndex]!;
-  const placed = pile.pop()!;
+  const moved = pile.splice(pile.length - entry.count, entry.count);
   const src = columns[entry.fromCol]!;
-  src.push(placed);
-  if (src.length >= 2) {
-    src[src.length - 2]!.faceUp = entry.revealedWasFaceUp;
+  src.splice(entry.startIndex, 0, ...moved);
+  if (entry.startIndex > 0) {
+    src[entry.startIndex - 1]!.faceUp = entry.revealedWasFaceUp;
   }
   return { ...state, columns, foundation };
 }

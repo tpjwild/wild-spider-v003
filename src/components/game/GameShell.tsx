@@ -407,12 +407,6 @@ export function GameShell() {
           clearOverlay();
           return;
         }
-        const col = g.columns[fromCol]!;
-        if (d.startIndex !== col.length - 1) {
-          boostLayoutReturnForColumn(fromCol);
-          clearOverlay();
-          return;
-        }
         const fi = Number(overId.slice("foundation-".length)) as FoundationIndex;
         if (fi < 0 || fi > 7) {
           boostLayoutReturnForColumn(fromCol);
@@ -421,7 +415,7 @@ export function GameShell() {
         }
         let ok = false;
         batchReactUpdates(() => {
-          ok = tryMoveToFoundation(fromCol, fi);
+          ok = tryMoveToFoundation(fromCol, d.startIndex, fi);
           if (ok) clearOverlay();
         });
         if (!ok) {

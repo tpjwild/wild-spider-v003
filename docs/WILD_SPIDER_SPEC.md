@@ -48,7 +48,9 @@ Within the tableau the user can place a card on another card that is one rank hi
 
 A card can be moved from the tableau to the foundation if it is an ace being placed in an empty foundation slot or a card that is one rank above and of the same suit as the topmost card in the foundation slot.
 
-Cards can be moved as a group if both the rank sequence and the suits match.
+The same **valid same-suit descending run** that may be dragged on the tableau (one or more face-up cards) may be moved to a foundation slot in **one action** when each card in the run, in order from the bottom of the run upward, can be placed on that slot’s pile under the rules above.
+
+Cards can be moved as a group on the tableau if both the rank sequence and the suits match.
 
 ### Turning Face‑Down Cards
 

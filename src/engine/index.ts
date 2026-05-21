@@ -61,6 +61,7 @@ export {
   bottomFaceUpIndex,
   canMoveTableau,
   canMoveToFoundation,
+  canPlaceRunOnFoundationPile,
   canPlaceOnTableau,
   isValidSameSuitDescendingRun,
 } from "./moves";

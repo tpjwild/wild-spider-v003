@@ -68,8 +68,11 @@ export type HistoryEntry =
   | {
       type: "move_to_foundation";
       fromCol: number;
+      /** Index in fromCol where the moved run started (same as tableau). */
+      startIndex: number;
+      count: number;
       foundationIndex: FoundationIndex;
-      /** If source column had a newly flipped card after pickup */
+      /** Face-up state of card at startIndex-1 before the forward move (before flip) */
       revealedWasFaceUp: boolean;
     }
   | {
@@ -128,5 +131,7 @@ export type MoveTableauArgs = {
 
 export type MoveToFoundationArgs = {
   fromColumn: number;
+  /** Index in column of the highest face-up card in the run being moved (top of selection). */
+  startIndex: number;
   foundationIndex: FoundationIndex;
 };
