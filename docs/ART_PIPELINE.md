@@ -90,6 +90,11 @@ After **New Game**, **Restart**, or **hydrate** (local/cloud saved game), the cl
 
 Wired from **`gameStore`**: `startGame`, `restart`, `hydrateLocalOnly`, `hydrateFromLocalAfterAuth`, `applyCloudBootstrap`.
 
+**Targeted preload (step 3):**
+
+- **Tableau drag** — `GameShell` `onDragStart` warms art for the face-down card at `startIndex - 1` when a completed move would flip it (tableau or foundation drop).
+- **Stock deal** — `tryDeal` calls `schedulePreloadStockDealFaces` for each card in that round’s `entries` before flights run.
+
 ---
 
 ## Phase checklist

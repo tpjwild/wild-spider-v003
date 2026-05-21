@@ -46,6 +46,7 @@ import { clearGameState } from "@/lib/gameStorage";
 import { recordLogoutHadInProgressGame } from "@/lib/authSessionGameBootstrap";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { fetchSavedGame, upsertSavedGame } from "@/lib/savedGamesRemote";
+import { cardRevealedByTableauDrag, scheduleWarmCardFaceArt } from "@/lib/preloadPortraitArt";
 import { POWER_TARGET_CURSOR_CLASS } from "@/lib/powerTargetUi";
 import { useGameStore } from "@/state/gameStore";
 
@@ -350,6 +351,8 @@ export function GameShell() {
       setActiveTableauDragId(String(e.active.id));
       setOverlayApplyDragHoverScale(true);
       setOverlayCards(col.slice(d.startIndex));
+      const reveal = cardRevealedByTableauDrag(g.columns, d.fromColumn, d.startIndex);
+      if (reveal) scheduleWarmCardFaceArt(g.config.deckPairId, reveal);
     },
     [clearTableauDragSession],
   );

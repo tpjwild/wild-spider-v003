@@ -28,7 +28,10 @@ import {
   saveLastNewGameDefaults,
 } from "@/lib/gameStorage";
 import { playSound } from "@/lib/playSound";
-import { scheduleTableauPortraitPreload } from "@/lib/preloadPortraitArt";
+import {
+  schedulePreloadStockDealFaces,
+  scheduleTableauPortraitPreload,
+} from "@/lib/preloadPortraitArt";
 
 export type StockDealAnimationState = {
   kind: "stock";
@@ -403,6 +406,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
       dealAnimSession: get().dealAnimSession + 1,
     });
+    schedulePreloadStockDealFaces(game.config.deckPairId, entries);
     return true;
   },
 

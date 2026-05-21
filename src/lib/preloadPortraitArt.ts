@@ -1,6 +1,9 @@
 import { DEFAULT_DECK_PAIR_ID, getDeckPairById } from "@/content/deckPairs";
 import { sharedDeckLightCardFacePath } from "@/constants/sharedDeckAssets";
-import type { Rank, Suit } from "@/engine/types";
+import type { DealFlightEntry } from "@/engine/deal";
+import { isJoker, isRegular } from "@/engine/cards";
+import type { Card, PlacedCard, Rank, Suit } from "@/engine/types";
+import { faceArtForRegularCard, jokerArtForCard } from "@/lib/deckCardArt";
 
 const PIP_RANKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const satisfies readonly Rank[];
 const PIP_SUITS = ["S", "C", "D", "H"] as const satisfies readonly Suit[];
@@ -34,12 +37,79 @@ export function collectTableauPortraitPreloadUrls(deckPairId: string): string[] 
   return [...urls];
 }
 
+/** Thumb + frame URLs for one card (tableau / shelf face). */
+export function collectCardFacePreloadUrls(deckPairId: string, card: Card): string[] {
+  const urls: string[] = [];
+  if (isRegular(card)) {
+    const art = faceArtForRegularCard(deckPairId, card);
+    if (!art) return urls;
+    if (art.portraitThumbPath) urls.push(art.portraitThumbPath);
+    if (art.framePath) urls.push(art.framePath);
+  } else if (isJoker(card)) {
+    const art = jokerArtForCard(deckPairId, card.id);
+    if (art.portraitThumbPath) urls.push(art.portraitThumbPath);
+    if (art.framePath) urls.push(art.framePath);
+  }
+  return urls;
+}
+
+/**
+ * Card flipped face-up when a tableau run is removed from `startIndex` (any legal drop that
+ * completes the move, including foundation).
+ */
+export function cardRevealedByTableauDrag(
+  columns: readonly PlacedCard[][],
+  fromColumn: number,
+  startIndex: number,
+): Card | null {
+  if (startIndex <= 0) return null;
+  const col = columns[fromColumn];
+  if (!col) return null;
+  const below = col[startIndex - 1];
+  if (!below || below.faceUp) return null;
+  return below.card;
+}
+
 /** Warm the browser HTTP cache only; does not update {@link portraitArtLoadCache}. */
 function warmImageUrl(src: string): void {
   if (!src) return;
   const img = new Image();
   img.decoding = "async";
   img.src = src;
+}
+
+export function warmCardFaceArt(deckPairId: string, card: Card): void {
+  if (typeof window === "undefined") return;
+  for (const src of collectCardFacePreloadUrls(deckPairId, card)) {
+    warmImageUrl(src);
+  }
+}
+
+export function warmCardsFaceArt(deckPairId: string, cards: readonly Card[]): void {
+  if (typeof window === "undefined") return;
+  const urls = new Set<string>();
+  for (const card of cards) {
+    for (const src of collectCardFacePreloadUrls(deckPairId, card)) {
+      urls.add(src);
+    }
+  }
+  for (const src of urls) {
+    warmImageUrl(src);
+  }
+}
+
+export function scheduleWarmCardFaceArt(deckPairId: string, card: Card): void {
+  if (typeof window === "undefined") return;
+  queueMicrotask(() => warmCardFaceArt(deckPairId, card));
+}
+
+/** Preload face art for each card in a stock-deal flight plan (non-blocking). */
+export function schedulePreloadStockDealFaces(
+  deckPairId: string,
+  entries: readonly DealFlightEntry[],
+): void {
+  if (typeof window === "undefined") return;
+  queueMicrotask(() => warmCardsFaceArt(deckPairId, entries.map((e) => e.card)));
 }
 
 /**
