@@ -28,7 +28,7 @@ export const dimensions = {
    */
   stockMaxVisibleDeals: 8,
   /** Shelf/stock panel width; flank regions in the top row are at least this wide each (see GameShell grid). */
-  shelfWidth: 240,
+  shelfWidth: 260,
   /**
    * Intended horizontal overlap in px between each shelf card and the one to its **left**.
    * Layout uses step `max(0, cardWidth − shelfOverlap)` so the first card stays flush left; if this value is
@@ -42,7 +42,7 @@ export const dimensions = {
   /** Vertical gap between the badge holder and the card stack below (px). */
   tableauColumnBadgeHolderGapPx: 10,
   /** Inner vertical padding of the shelf panel; foundation and stock use the same top inset so card tops align with jokers. */
-  shelfVerticalPad: 8,
+  shelfVerticalPad: 16,
   /** Inner horizontal padding of the shelf panel (joker strip inset from the shelf border). */
   shelfHorizontalPad: 8,
   /**
