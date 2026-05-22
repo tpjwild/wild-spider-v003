@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { getDeckCardDetailsModel, isDeckPopupDetailsClickableCard } from "@/lib/deckCardDetails";
+import { EFFECT_TRANSPARENT } from "@/content/powerDefinitions";
+import type { GameState } from "@/engine/types";
+import {
+  getDeckCardDetailsModel,
+  isDeckPopupDetailsClickableCard,
+  isInGameCardDetailsClickable,
+} from "@/lib/deckCardDetails";
+import { cardEffectKey } from "@/engine/effects";
 
 describe("deckCardDetails", () => {
   it("isDeckPopupDetailsClickableCard is true for joker, ace, and face ranks only", () => {
@@ -63,5 +70,23 @@ describe("deckCardDetails", () => {
     expect(m?.primaryHeading.length).toBeGreaterThan(0);
     expect(m?.body.length).toBeGreaterThan(0);
     expect(m?.portraitSrc).toContain("/gameArt/portraits/mathematics/");
+  });
+
+  it("isInGameCardDetailsClickable is true for face-up courts and transparent face-down courts", () => {
+    const king = { kind: "regular" as const, id: 12, suit: "S" as const, rank: 13 as const };
+    const emptyEffects = { cardEffects: {} } as unknown as GameState;
+    expect(isInGameCardDetailsClickable(emptyEffects, { card: king, faceUp: true })).toBe(true);
+    expect(isInGameCardDetailsClickable(emptyEffects, { card: king, faceUp: false })).toBe(false);
+
+    const transparentKing = {
+      cardEffects: { [cardEffectKey(king)]: [EFFECT_TRANSPARENT] },
+    } as unknown as GameState;
+    expect(isInGameCardDetailsClickable(transparentKing, { card: king, faceUp: false })).toBe(true);
+    expect(
+      isInGameCardDetailsClickable(transparentKing, {
+        card: { kind: "regular", id: 5, suit: "S", rank: 6 as const },
+        faceUp: false,
+      }),
+    ).toBe(false);
   });
 });

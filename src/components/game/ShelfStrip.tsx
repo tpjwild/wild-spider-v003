@@ -1,17 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CardView } from "@/components/game/CardView";
 import { colors } from "@/constants/colors";
 import { getPowerDefinition } from "@/content/powerDefinitions";
 import {
   dimensions,
   SHELF_CARD_HOVER_SCALE,
+  SHELF_CARD_INVESTIGATE_SCALE,
   shelfHorizontalStepPx,
   shelfHoverScaleBleedPx,
   shelfPanelHeightPx,
 } from "@/constants/dimensions";
-import type { GameState } from "@/engine/types";
+import { CARD_INSPECT_HIGHLIGHT_CLASS } from "@/lib/cardInspectUi";
+import type { Card, GameState } from "@/engine/types";
 import { useGameStore } from "@/state/gameStore";
 
 const {
@@ -43,11 +45,59 @@ function ShelfChargeBadge({ chargesRemaining }: { chargesRemaining: number }) {
   );
 }
 
-export function ShelfStrip({ game }: { game: GameState }) {
+function pointerIsOverRect(x: number, y: number, rect: DOMRect): boolean {
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+export function ShelfStrip({
+  game,
+  shiftInspectMode,
+  onOpenCardDetails,
+  detailsCard,
+}: {
+  game: GameState;
+  shiftInspectMode: boolean;
+  onOpenCardDetails?: (card: Card) => void;
+  /** While set to a shelf joker, that joker stays scaled and in front until this clears. */
+  detailsCard?: Card | null;
+}) {
   const [hoveredJokerId, setHoveredJokerId] = useState<number | null>(null);
+  const jokerElRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const lastPointerRef = useRef({ x: 0, y: 0 });
+  const prevDetailsCardRef = useRef<Card | null>(null);
   const dealLocked = useGameStore((s) => s.dealAnimation != null);
   const powerTargeting = useGameStore((s) => s.powerTargeting);
   const triggerShelfPower = useGameStore((s) => s.triggerShelfPower);
+
+  const pinnedShelfJokerId =
+    detailsCard?.kind === "joker" && game.shelf.some((sj) => sj.card.id === detailsCard.id)
+      ? detailsCard.id
+      : null;
+
+  useEffect(() => {
+    const onPointerMove = (e: PointerEvent) => {
+      lastPointerRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onPointerMove);
+  }, []);
+
+  useEffect(() => {
+    const prev = prevDetailsCardRef.current;
+    prevDetailsCardRef.current = detailsCard ?? null;
+
+    const prevPinned =
+      prev?.kind === "joker" && game.shelf.some((sj) => sj.card.id === prev.id) ? prev.id : null;
+    if (prevPinned == null || pinnedShelfJokerId != null) return;
+
+    const el = jokerElRefs.current.get(prevPinned);
+    const { x, y } = lastPointerRef.current;
+    const stillOver = el != null && pointerIsOverRect(x, y, el.getBoundingClientRect());
+    setHoveredJokerId((id) => {
+      if (stillOver) return prevPinned;
+      return id === prevPinned ? null : id;
+    });
+  }, [detailsCard, game.shelf, pinnedShelfJokerId]);
 
   const n = game.shelf.length;
   const step = shelfHorizontalStepPx();
@@ -71,10 +121,6 @@ export function ShelfStrip({ game }: { game: GameState }) {
       data-testid="shelf"
       data-power-target-cancel-safe="true"
     >
-      {/**
-       * Horizontal scroll only (`shelf-scroll` in globals.css). Fixed row height; bleed padding
-       * keeps hover scale inside the panel without vertical overflow.
-       */}
       <div
         className="shelf-scroll w-full min-w-0"
         style={{
@@ -84,7 +130,6 @@ export function ShelfStrip({ game }: { game: GameState }) {
           boxSizing: "content-box",
         }}
       >
-        {/** `data-shelf-stack` must exist when empty so deal-flight can measure the first joker slot. */}
         <div className="flex min-w-full justify-start">
           <div
             className="relative shrink-0 isolate"
@@ -99,12 +144,27 @@ export function ShelfStrip({ game }: { game: GameState }) {
               <div className="absolute left-0 top-0 shrink-0" style={{ width: cw, height: ch }} aria-hidden />
             ) : (
               game.shelf.map((sj, i) => {
-                const isHovered = hoveredJokerId === sj.card.id;
-                const canTrigger = sj.chargesRemaining > 0 && !dealLocked;
+                const isDetailsPinned = pinnedShelfJokerId === sj.card.id;
+                const isPointerOver = hoveredJokerId === sj.card.id;
+                const depleted = sj.chargesRemaining <= 0;
+                const canTrigger = !depleted && !dealLocked;
                 const isTargeting = powerTargeting?.shelfIndex === i;
+                const inspectable =
+                  shiftInspectMode && Boolean(onOpenCardDetails) && powerTargeting == null;
+                const showHoverScale = (isPointerOver || isDetailsPinned) && !shiftInspectMode;
+                const showInspectHighlight = inspectable && isPointerOver;
+                const showInvestigateScale = inspectable && isPointerOver;
+                const isRaised = showHoverScale || isDetailsPinned || isTargeting || showInvestigateScale;
+                const cardScale =
+                  showHoverScale || isDetailsPinned || isTargeting
+                    ? SHELF_CARD_HOVER_SCALE
+                    : showInvestigateScale
+                      ? SHELF_CARD_INVESTIGATE_SCALE
+                      : 1;
+
                 const zIndex = isTargeting
                   ? SHELF_POWER_TARGETING_Z
-                  : isHovered
+                  : isRaised
                     ? SHELF_HOVER_Z
                     : 100 + i;
                 const def = getPowerDefinition(sj.powerId);
@@ -112,36 +172,56 @@ export function ShelfStrip({ game }: { game: GameState }) {
                   def.triggerClass === "immediate"
                     ? "Immediate power — double-click to trigger"
                     : "Targeted power — double-click to choose a target";
+                const inspectHint = "Hold Shift and click to view card details";
 
                 return (
                   <div
                     key={`joker-${sj.card.id}`}
-                    className={`absolute left-0 top-0 ${canTrigger ? "cursor-pointer" : "cursor-default"}`}
+                    ref={(node) => {
+                      if (node) jokerElRefs.current.set(sj.card.id, node);
+                      else jokerElRefs.current.delete(sj.card.id);
+                    }}
+                    className={`absolute left-0 top-0 ${
+                      shiftInspectMode
+                        ? "cursor-help"
+                        : canTrigger
+                          ? "cursor-pointer"
+                          : "cursor-default"
+                    }`}
                     style={{
                       left: i * step,
                       width: cw,
                       height: ch,
                       zIndex,
-                      transform:
-                        isHovered || isTargeting
-                          ? `scale(${SHELF_CARD_HOVER_SCALE})`
-                          : "scale(1)",
+                      transform: cardScale === 1 ? "scale(1)" : `scale(${cardScale})`,
                       transformOrigin: "center",
                       transition: "transform 0.12s ease-out",
-                      opacity: sj.chargesRemaining <= 0 ? 0.45 : 1,
                     }}
                     data-testid={`shelf-joker-${i}`}
                     data-power-targeting={isTargeting ? "true" : "false"}
                     data-charges={sj.chargesRemaining}
+                    data-inspect-highlight={showInspectHighlight ? "true" : undefined}
                     title={
-                      sj.chargesRemaining <= 0
-                        ? "No charges remaining"
+                      depleted
+                        ? inspectable
+                          ? `${inspectHint} (no charges)`
+                          : "No charges remaining"
                         : isTargeting
                           ? `${powerLabel} (select a target, or double-click to cancel)`
-                          : powerLabel
+                          : inspectable
+                            ? `${powerLabel}. ${inspectHint}.`
+                            : powerLabel
                     }
                     onPointerEnter={() => setHoveredJokerId(sj.card.id)}
-                    onPointerLeave={() => setHoveredJokerId((id) => (id === sj.card.id ? null : id))}
+                    onPointerLeave={() => {
+                      if (isDetailsPinned) return;
+                      setHoveredJokerId((id) => (id === sj.card.id ? null : id));
+                    }}
+                    onClick={(e) => {
+                      if (!inspectable || !e.shiftKey) return;
+                      e.stopPropagation();
+                      onOpenCardDetails?.(sj.card);
+                    }}
                     onDoubleClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -152,9 +232,24 @@ export function ShelfStrip({ game }: { game: GameState }) {
                     <div
                       className={`relative h-full w-full rounded-md ${
                         isTargeting ? "ring-2 ring-amber-400 ring-offset-1 ring-offset-black/40" : ""
-                      }`}
+                      } ${showInspectHighlight ? CARD_INSPECT_HIGHLIGHT_CLASS : ""}`}
                     >
-                      <CardView placed={{ card: sj.card, faceUp: true }} />
+                      <div
+                        className={
+                          depleted
+                            ? "relative h-full w-full saturate-[0.45] brightness-[0.88]"
+                            : "h-full w-full"
+                        }
+                      >
+                        <CardView placed={{ card: sj.card, faceUp: true }} />
+                      </div>
+                      {depleted ? (
+                        <div
+                          className="pointer-events-none absolute inset-0 z-[15] rounded-md"
+                          style={{ backgroundColor: colors.shelfDepletedCardWash }}
+                          aria-hidden
+                        />
+                      ) : null}
                       <ShelfChargeBadge chargesRemaining={sj.chargesRemaining} />
                     </div>
                   </div>

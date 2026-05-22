@@ -20,7 +20,7 @@ import { LayoutGroup, motion } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { NavDrawer } from "@/components/layout/NavDrawer";
 import { CloudBusyOverlay } from "@/components/game/CloudBusyOverlay";
-import { CardView } from "@/components/game/CardView";
+import { CardDetailsPopup } from "@/components/game/CardDetailsPopup";
 import { DealAnimationLayer } from "@/components/game/DealAnimationLayer";
 import { DeckPopup } from "@/components/game/DeckPopup";
 import { EndGameDialog } from "@/components/game/EndGameDialog";
@@ -31,23 +31,30 @@ import { NewGameDialog } from "@/components/game/NewGameDialog";
 import { ShelfStrip } from "@/components/game/ShelfStrip";
 import { StockPile } from "@/components/game/StockPile";
 import { TableauColumn } from "@/components/game/TableauColumn";
+import { TableauDragReturnLayer } from "@/components/game/TableauDragReturnLayer";
+import { TableauDragStackPreview } from "@/components/game/TableauDragStackPreview";
 import {
   TableauDragOverlayContext,
   type TableauDragOverlayContextValue,
 } from "@/components/game/TableauDragOverlayContext";
 import { colors } from "@/constants/colors";
-import { dimensions, shelfFoundationStockStripMinHeightPx, tableauColumnStackHeightPx, tableauColumnStackTopPx, TABLEAU_DRAGGABLE_HOVER_SCALE } from "@/constants/dimensions";
+import { dimensions, shelfFoundationStockStripMinHeightPx } from "@/constants/dimensions";
 import { timings } from "@/constants/timings";
 import { applyDealEntriesProgress, canDealFromStock } from "@/engine/deal";
 import { gameHasAnyCards } from "@/engine/setup";
 import { applyInitialDealEntriesProgress } from "@/engine/initialDeal";
-import type { FoundationIndex, PlacedCard } from "@/engine/types";
+import type { Card, FoundationIndex, PlacedCard } from "@/engine/types";
 import { clearGameState } from "@/lib/gameStorage";
+import {
+  measureTableauOverlayReturnFlight,
+  type TableauOverlayReturnFlight,
+} from "@/lib/tableauDragReturnFlight";
 import { recordLogoutHadInProgressGame } from "@/lib/authSessionGameBootstrap";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { fetchSavedGame, upsertSavedGame } from "@/lib/savedGamesRemote";
 import { cardRevealedByTableauDrag, scheduleWarmCardFaceArt } from "@/lib/preloadPortraitArt";
 import { POWER_TARGET_CURSOR_CLASS } from "@/lib/powerTargetUi";
+import { useShiftInspectMode } from "@/lib/useShiftInspectMode";
 import { useGameStore } from "@/state/gameStore";
 
 const collision: CollisionDetection = (args) => {
@@ -118,10 +125,22 @@ export function GameShell() {
   const powerTargeting = useGameStore((s) => s.powerTargeting);
   const cancelPowerTargeting = useGameStore((s) => s.cancelPowerTargeting);
 
+  const cancelTargetingOnShiftInspect = useCallback(() => {
+    if (useGameStore.getState().powerTargeting) cancelPowerTargeting();
+  }, [cancelPowerTargeting]);
+  const shiftInspectMode = useShiftInspectMode(cancelTargetingOnShiftInspect);
+
   const [overlayCards, setOverlayCards] = useState<readonly PlacedCard[] | null>(null);
   /** While set, only this draggable id keeps `useDraggable` during the drag (see `TableauColumn`). */
   const [activeTableauDragId, setActiveTableauDragId] = useState<string | null>(null);
   const [overlayApplyDragHoverScale, setOverlayApplyDragHoverScale] = useState(true);
+  const [overlayReturnFlight, setOverlayReturnFlight] = useState<TableauOverlayReturnFlight | null>(
+    null,
+  );
+  const [tableauReturnHide, setTableauReturnHide] = useState<{
+    column: number;
+    startIndex: number;
+  } | null>(null);
   const [layoutBoostColumn, setLayoutBoostColumn] = useState<number | null>(null);
   const layoutBoostClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tableauScrollPaneRef = useRef<HTMLDivElement>(null);
@@ -158,7 +177,18 @@ export function GameShell() {
   const [saveCompleteDialogOpen, setSaveCompleteDialogOpen] = useState(false);
   const [deckPopupOpen, setDeckPopupOpen] = useState(false);
   const [stockPopupOpen, setStockPopupOpen] = useState(false);
+  const [inGameDetailsCard, setInGameDetailsCard] = useState<Card | null>(null);
   const actionsMenuRef = useRef<HTMLDetailsElement>(null);
+
+  const openInGameCardDetails = useCallback((card: Card) => {
+    setInGameDetailsCard(card);
+  }, []);
+
+  const closeInGameCardDetails = useCallback(() => {
+    setInGameDetailsCard(null);
+    const el = document.activeElement;
+    if (el instanceof HTMLElement) el.blur();
+  }, []);
 
   const closeActionsMenu = useCallback(() => {
     const el = actionsMenuRef.current;
@@ -171,14 +201,20 @@ export function GameShell() {
   const openNewGameFromShell = useCallback(() => {
     closeDeckPopup();
     closeStockPopup();
+    closeInGameCardDetails();
     openNewGame();
-  }, [closeDeckPopup, closeStockPopup, openNewGame]);
+  }, [closeDeckPopup, closeStockPopup, closeInGameCardDetails, openNewGame]);
 
   const openEndGameFromShell = useCallback(() => {
     closeDeckPopup();
     closeStockPopup();
+    closeInGameCardDetails();
     openEndGame();
-  }, [closeDeckPopup, closeStockPopup, openEndGame]);
+  }, [closeDeckPopup, closeStockPopup, closeInGameCardDetails, openEndGame]);
+
+  useEffect(() => {
+    closeInGameCardDetails();
+  }, [sessionKey, closeInGameCardDetails]);
 
   useEffect(() => {
     if (!actionsMenuOpen) return;
@@ -219,6 +255,25 @@ export function GameShell() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [navOpen]);
+
+  /** Escape dismisses in-game Card details (above the board); cancels targeting first if armed. */
+  useEffect(() => {
+    if (!inGameDetailsCard) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.repeat) return;
+      const t = e.target;
+      if (t instanceof HTMLElement && isTextEntryElement(t)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (useGameStore.getState().powerTargeting) {
+        cancelPowerTargeting();
+        return;
+      }
+      closeInGameCardDetails();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [inGameDetailsCard, cancelPowerTargeting, closeInGameCardDetails]);
 
   /** Escape cancels armed targeted power (no charge); popups handle their own Escape first. */
   useEffect(() => {
@@ -322,8 +377,36 @@ export function GameShell() {
   const clearTableauDragSession = useCallback(() => {
     setActiveTableauDragId(null);
     setOverlayCards(null);
+    setOverlayReturnFlight(null);
+    setTableauReturnHide(null);
     setOverlayApplyDragHoverScale(true);
   }, []);
+
+  const finishTableauReturnFlight = useCallback(() => {
+    setOverlayReturnFlight(null);
+    setTableauReturnHide(null);
+    setOverlayApplyDragHoverScale(true);
+  }, []);
+
+  const beginTableauReturnFlight = useCallback(
+    (fromCol: number, startIndex: number, column: readonly PlacedCard[]) => {
+      const run = column.slice(startIndex);
+      const flight = measureTableauOverlayReturnFlight(fromCol, startIndex, column, run);
+      boostLayoutReturnForColumn(fromCol);
+      if (!flight) {
+        clearTableauDragSession();
+        return;
+      }
+      batchReactUpdates(() => {
+        setOverlayReturnFlight(flight);
+        setTableauReturnHide({ column: fromCol, startIndex });
+        setActiveTableauDragId(null);
+        setOverlayCards(null);
+        setOverlayApplyDragHoverScale(false);
+      });
+    },
+    [boostLayoutReturnForColumn, clearTableauDragSession],
+  );
 
   const onDragStart = useCallback(
     (e: DragStartEvent) => {
@@ -348,6 +431,8 @@ export function GameShell() {
         clearTableauDragSession();
         return;
       }
+      setOverlayReturnFlight(null);
+      setTableauReturnHide(null);
       setActiveTableauDragId(String(e.active.id));
       setOverlayApplyDragHoverScale(true);
       setOverlayCards(col.slice(d.startIndex));
@@ -375,9 +460,12 @@ export function GameShell() {
       const fromCol = d.fromColumn;
       const startIndex = d.startIndex;
 
+      const g = useGameStore.getState().game;
+      const column = g?.columns[fromCol];
+
       if (!over) {
-        boostLayoutReturnForColumn(fromCol);
-        clearOverlay();
+        if (column) beginTableauReturnFlight(fromCol, startIndex, column);
+        else clearOverlay();
         return;
       }
 
@@ -385,8 +473,8 @@ export function GameShell() {
       if (overId.startsWith("col-")) {
         const toCol = Number(overId.slice(4));
         if (Number.isNaN(toCol)) {
-          boostLayoutReturnForColumn(fromCol);
-          clearOverlay();
+          if (column) beginTableauReturnFlight(fromCol, startIndex, column);
+          else clearOverlay();
           return;
         }
         let ok = false;
@@ -395,22 +483,21 @@ export function GameShell() {
           if (ok) clearOverlay();
         });
         if (!ok) {
-          boostLayoutReturnForColumn(fromCol);
-          clearOverlay();
+          if (column) beginTableauReturnFlight(fromCol, startIndex, column);
+          else clearOverlay();
         }
         return;
       }
       if (overId.startsWith("foundation-")) {
-        const g = useGameStore.getState().game;
         if (!g) {
-          boostLayoutReturnForColumn(fromCol);
-          clearOverlay();
+          if (column) beginTableauReturnFlight(fromCol, startIndex, column);
+          else clearOverlay();
           return;
         }
         const fi = Number(overId.slice("foundation-".length)) as FoundationIndex;
         if (fi < 0 || fi > 7) {
-          boostLayoutReturnForColumn(fromCol);
-          clearOverlay();
+          if (column) beginTableauReturnFlight(fromCol, startIndex, column);
+          else clearOverlay();
           return;
         }
         let ok = false;
@@ -419,25 +506,40 @@ export function GameShell() {
           if (ok) clearOverlay();
         });
         if (!ok) {
-          boostLayoutReturnForColumn(fromCol);
-          clearOverlay();
+          if (column) beginTableauReturnFlight(fromCol, startIndex, column);
+          else clearOverlay();
         }
         return;
       }
-      boostLayoutReturnForColumn(fromCol);
-      clearOverlay();
+      if (column) beginTableauReturnFlight(fromCol, startIndex, column);
+      else clearOverlay();
     },
-    [tryMoveTableau, tryMoveToFoundation, boostLayoutReturnForColumn, clearTableauDragSession],
+    [
+      tryMoveTableau,
+      tryMoveToFoundation,
+      beginTableauReturnFlight,
+      clearTableauDragSession,
+    ],
   );
 
   const onDragCancel = useCallback(
     (e: DragCancelEvent) => {
-      const id = String(e.active.id);
-      const m = /^t-(\d+)-\d+$/.exec(id);
-      if (m) boostLayoutReturnForColumn(Number(m[1]));
+      const d = e.active.data.current as
+        | { type?: string; fromColumn?: number; startIndex?: number }
+        | undefined;
+      const g = useGameStore.getState().game;
+      if (
+        d?.type === "tableau" &&
+        d.fromColumn !== undefined &&
+        d.startIndex !== undefined &&
+        g?.columns[d.fromColumn]
+      ) {
+        beginTableauReturnFlight(d.fromColumn, d.startIndex, g.columns[d.fromColumn]!);
+        return;
+      }
       clearTableauDragSession();
     },
-    [boostLayoutReturnForColumn, clearTableauDragSession],
+    [beginTableauReturnFlight, clearTableauDragSession],
   );
 
   const canDeal = Boolean(game && canDealFromStock(game) && !dealAnimation && !powerTargeting);
@@ -450,6 +552,11 @@ export function GameShell() {
     }
     return applyInitialDealEntriesProgress(game, dealAnimation.entries, dealAnimation.landedCount);
   }, [game, dealAnimation]);
+
+  useEffect(() => {
+    if (effectiveGame) return;
+    closeInGameCardDetails();
+  }, [effectiveGame, closeInGameCardDetails]);
 
   /** Stretch tableau column droppables to the bottom of the tableau scroll pane while a game is shown. */
   const applyTableauDropViewportFloorMinHeight = Boolean(effectiveGame);
@@ -489,12 +596,14 @@ export function GameShell() {
     (): TableauDragOverlayContextValue => ({
       activeTableauDragId,
       layoutBoostColumn,
+      tableauReturnHide,
       applyTableauDropViewportFloorMinHeight,
       tableauDropFloorBottomPx,
     }),
     [
       activeTableauDragId,
       layoutBoostColumn,
+      tableauReturnHide,
       applyTableauDropViewportFloorMinHeight,
       tableauDropFloorBottomPx,
     ],
@@ -613,6 +722,7 @@ export function GameShell() {
     setNavOpen(false);
     setDeckPopupOpen(false);
     setStockPopupOpen(false);
+    closeInGameCardDetails();
     const { game: g } = useGameStore.getState();
     recordLogoutHadInProgressGame(Boolean(g && gameHasAnyCards(g)));
     clearGameState();
@@ -621,7 +731,7 @@ export function GameShell() {
       await signOut();
       router.replace("/login");
     }
-  }, [bypass, signOut, router, closeActionsMenu, resetForLogout]);
+  }, [bypass, signOut, router, closeActionsMenu, closeInGameCardDetails, resetForLogout]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -913,7 +1023,7 @@ export function GameShell() {
 
           {effectiveGame ? (
             <div
-              className="px-3 pb-3 pt-1"
+              className={`px-3 pb-3 pt-1 ${shiftInspectMode ? "cursor-help" : ""}`}
               style={{ minHeight: shelfFoundationStockStripMinHeightPx(effectiveGame.config.deals) }}
             >
               <div
@@ -924,7 +1034,12 @@ export function GameShell() {
                 }}
               >
                 <div className="flex min-w-0 justify-center">
-                  <ShelfStrip game={effectiveGame} />
+                  <ShelfStrip
+                    game={effectiveGame}
+                    shiftInspectMode={shiftInspectMode}
+                    onOpenCardDetails={openInGameCardDetails}
+                    detailsCard={inGameDetailsCard}
+                  />
                 </div>
                 <motion.div
                   className="flex min-w-0 justify-center"
@@ -981,17 +1096,28 @@ export function GameShell() {
         ) : null}
 
         {effectiveGame ? (
-          <div className="relative z-0 isolate flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-3">
+          <div
+            className={`relative z-0 isolate flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-3 ${
+              shiftInspectMode ? "cursor-help" : ""
+            }`}
+          >
             <div
               className={`flex min-h-0 min-w-0 flex-1 flex-wrap content-start justify-center ${
-                powerTargeting ? POWER_TARGET_CURSOR_CLASS : ""
+                powerTargeting ? POWER_TARGET_CURSOR_CLASS : shiftInspectMode ? "cursor-help" : ""
               }`}
               style={{ gap: dimensions.columnSpacing }}
               data-testid="tableau-root"
               data-power-target-mode={powerTargeting ? "true" : undefined}
             >
               {effectiveGame.columns.map((_, colIndex) => (
-                <TableauColumn key={colIndex} game={effectiveGame} columnIndex={colIndex} />
+                <TableauColumn
+                  key={colIndex}
+                  game={effectiveGame}
+                  columnIndex={colIndex}
+                  shiftInspectMode={shiftInspectMode}
+                  onOpenCardDetails={openInGameCardDetails}
+                  detailsCard={inGameDetailsCard}
+                />
               ))}
             </div>
           </div>
@@ -1005,38 +1131,21 @@ export function GameShell() {
 
         <DragOverlay dropAnimation={null}>
           {overlayCards && overlayCards.length > 0 ? (
-            <div
-              className="relative cursor-grabbing shadow-xl"
-              style={{
-                width: dimensions.cardWidth,
-                height: tableauColumnStackHeightPx(overlayCards),
-                willChange: "transform",
-              }}
-            >
-              {overlayCards.map((placed, i) => (
-                <div
-                  key={`${placed.card.kind}-${placed.card.id}-${i}`}
-                  className="absolute left-0 inline-block"
-                  style={{ top: tableauColumnStackTopPx(overlayCards, i), zIndex: i + 1 }}
-                >
-                  <div
-                    className="inline-block"
-                    style={
-                      overlayApplyDragHoverScale
-                        ? {
-                            transform: `scale(${TABLEAU_DRAGGABLE_HOVER_SCALE})`,
-                            transformOrigin: "center center",
-                          }
-                        : undefined
-                    }
-                  >
-                    <CardView placed={placed} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TableauDragStackPreview
+              cards={overlayCards}
+              applyHoverScale={overlayApplyDragHoverScale}
+              rootProps={{ "data-tableau-drag-overlay": true }}
+            />
           ) : null}
         </DragOverlay>
+
+        {overlayReturnFlight ? (
+          <TableauDragReturnLayer
+            flight={overlayReturnFlight}
+            applyHoverScale={overlayApplyDragHoverScale}
+            onComplete={finishTableauReturnFlight}
+          />
+        ) : null}
         </div>
       </DndContext>
       </div>
@@ -1052,6 +1161,14 @@ export function GameShell() {
 
       {effectiveGame && stockPopupOpen && gameHasAnyCards(effectiveGame) ? (
         <StockPopup game={effectiveGame} open onClose={() => setStockPopupOpen(false)} />
+      ) : null}
+
+      {effectiveGame && inGameDetailsCard ? (
+        <CardDetailsPopup
+          deckPairId={effectiveGame.config.deckPairId}
+          card={inGameDetailsCard}
+          onClose={closeInGameCardDetails}
+        />
       ) : null}
 
       {loadGameConfirmOpen ? (

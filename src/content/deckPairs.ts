@@ -18,7 +18,7 @@ import {
 } from "@/content/powerDefinitions";
 import { THEMED_COURT_PORTRAITS, THEMED_JOKER_PORTRAITS } from "@/content/portraitManifest";
 import type { PowerId, Suit } from "@/engine/types";
-import { sharedDeckCardBackPath, sharedDeckFramePath } from "@/constants/sharedDeckAssets";
+import { sharedDeckCardBackPath } from "@/constants/sharedDeckAssets";
 
 export type DeckPairId = string;
 
@@ -91,35 +91,6 @@ const SUITS_ORDER: readonly Suit[] = ["S", "C", "D", "H"];
 export function rankSuitImageStem(rank: DeckFaceRank, suit: Suit): string {
   const rankLetter = rank === 11 ? "J" : rank === 12 ? "Q" : "K";
   return `${rankLetter}${suit}`;
-}
-
-/** @deprecated Legacy path pattern; courts use {@link gameArtPortraitUrl} + manifest basenames. */
-export function deckFacePortraitPath(
-  deckPairId: string,
-  deckNum: 1 | 2,
-  rank: DeckFaceRank,
-  suit: Suit,
-): string {
-  return gameArtPortraitUrl(deckPairId, deckNum, `${rankSuitImageStem(rank, suit)}.webp`);
-}
-
-/** @deprecated Pair id ignored — use {@link sharedDeckCardBackPath} from `sharedDeckAssets`. */
-export function deckCardBackPath(_deckPairId: string, deckNum: 1 | 2): string {
-  return sharedDeckCardBackPath(deckNum);
-}
-
-/** @deprecated Use per-card frames from `gameArtPaths.sharedCourtFramePath`. */
-export function deckFramePath(_deckPairId: string, _deckNum: 1 | 2): string {
-  return sharedDeckFramePath();
-}
-
-/** @deprecated Joker art is per pair under `gameArt/portraits/`. */
-export function deckJokerPortraitPath(
-  _deckPairId: string,
-  _deckNum: 1 | 2,
-  _jokerIndex: 1 | 2 | 3 | 4,
-): string {
-  return "";
 }
 
 type ThemedPairId = "computerScience" | "mathematics" | "westernPhilosophy";

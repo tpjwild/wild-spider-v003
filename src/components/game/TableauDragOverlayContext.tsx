@@ -14,6 +14,11 @@ export type TableauDragOverlayContextValue = {
    */
   layoutBoostColumn: number | null;
   /**
+   * While an invalid-drop return flight runs, hide the matching run in the source column
+   * so cards are not shown twice under the fixed overlay.
+   */
+  tableauReturnHide: { column: number; startIndex: number } | null;
+  /**
    * When true, tableau column droppables stretch to the bottom of `[data-tableau-scroll-pane]`;
    * when false, min-height follows the card stack only.
    */
@@ -28,6 +33,7 @@ export type TableauDragOverlayContextValue = {
 const defaultValue: TableauDragOverlayContextValue = {
   activeTableauDragId: null,
   layoutBoostColumn: null,
+  tableauReturnHide: null,
   applyTableauDropViewportFloorMinHeight: false,
   tableauDropFloorBottomPx: null,
 };
@@ -48,4 +54,8 @@ export function useApplyTableauDropViewportFloorMinHeight(): boolean {
 
 export function useTableauDropFloorBottomPx(): number | null {
   return useContext(TableauDragOverlayContext).tableauDropFloorBottomPx;
+}
+
+export function useTableauReturnHide(): { column: number; startIndex: number } | null {
+  return useContext(TableauDragOverlayContext).tableauReturnHide;
 }

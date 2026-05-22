@@ -128,6 +128,12 @@ export const SHELF_CARD_HOVER_SCALE = 1.1;
 /** Pointer-hover scale on a tableau **draggable same-suit descending run** when hovering a legal grab anchor. */
 export const TABLEAU_DRAGGABLE_HOVER_SCALE = 1.1;
 
+/** Scale while **Shift** inspect mode highlights an inspectable shelf joker under the pointer. */
+export const SHELF_CARD_INVESTIGATE_SCALE = 1.1;
+
+/** Scale while **Shift** inspect mode highlights an inspectable tableau card under the pointer. */
+export const TABLEAU_CARD_INVESTIGATE_SCALE = 1.1;
+
 /**
  * Safe bleed (px) around the shelf strip so hover {@link SHELF_CARD_HOVER_SCALE} from the card centre
  * is not clipped by scroll/padding edges (half of surplus on the longer axis at 110%).

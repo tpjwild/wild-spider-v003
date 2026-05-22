@@ -42,6 +42,7 @@ This repo does not run lint/tests on `git commit` automatically. Before committi
 ```bash
 pnpm lint
 pnpm test
+pnpm run check:portraits   # shipped portrait files vs portraitManifest.ts
 ```
 
 Optional, slower:

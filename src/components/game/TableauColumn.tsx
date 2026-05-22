@@ -3,7 +3,7 @@
 import { useDraggable, useDndMonitor, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { motion } from "framer-motion";
-import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CardEffectBadges } from "@/components/game/CardEffectBadges";
 import { CardView } from "@/components/game/CardView";
 import { TableauColumnBadgeHolder } from "@/components/game/TableauColumnBadgeHolder";
@@ -12,9 +12,11 @@ import {
   useApplyTableauDropViewportFloorMinHeight,
   useTableauDropFloorBottomPx,
   useTableauLayoutBoostColumn,
+  useTableauReturnHide,
 } from "@/components/game/TableauDragOverlayContext";
 import {
   dimensions,
+  TABLEAU_CARD_INVESTIGATE_SCALE,
   TABLEAU_DRAGGABLE_HOVER_SCALE,
   tableauColumnStackHeightPx,
   tableauColumnStackTopPx,
@@ -33,10 +35,34 @@ import {
   POWER_TARGET_CURSOR_CLASS,
   POWER_TARGET_VALID_CURSOR_CLASS,
 } from "@/lib/powerTargetUi";
-import type { GameState, PlacedCard } from "@/engine/types";
+import { CARD_INSPECT_HIGHLIGHT_CLASS } from "@/lib/cardInspectUi";
+import { isInGameCardDetailsClickable } from "@/lib/deckCardDetails";
+import { useSuppressClickAfterDrag } from "@/lib/useSuppressClickAfterDrag";
+import type { Card, GameState, PlacedCard } from "@/engine/types";
 import { canDragFromTableau, useGameStore } from "@/state/gameStore";
 
 const { cardWidth: cw, cardHeight: ch, tableauColumnBadgeHolderGapPx } = dimensions;
+
+/** Max pointer movement (px) still treated as a tap to open Card details (not a drag). */
+const TABLEAU_DETAILS_TAP_MAX_MOVE_PX = 5;
+
+function pointerTapWithinSlop(
+  down: { x: number; y: number },
+  up: { x: number; y: number },
+): boolean {
+  const dx = up.x - down.x;
+  const dy = up.y - down.y;
+  const slop = TABLEAU_DETAILS_TAP_MAX_MOVE_PX;
+  return dx * dx + dy * dy <= slop * slop;
+}
+
+function tableauCardIdentity(card: Card): string {
+  return `${card.kind}:${card.id}`;
+}
+
+function pointerIsOverRect(x: number, y: number, rect: DOMRect): boolean {
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
 
 type TableauCardSharedProps = {
   game: GameState;
@@ -46,7 +72,10 @@ type TableauCardSharedProps = {
   dealLocked: boolean;
   hideInTableau: boolean;
   hoveredDragRunStart: number | null;
+  detailsPinned: boolean;
+  shiftInspectMode: boolean;
   onArmHover: () => void;
+  onOpenCardDetails?: (card: Card) => void;
 };
 
 function tableauCardStyles(
@@ -57,12 +86,20 @@ function tableauCardStyles(
   hoveredDragRunStart: number | null,
   dealLocked: boolean,
   translatePart: string,
+  detailsPinned: boolean,
+  inspectScaled: boolean,
 ): { style: React.CSSProperties; scaleShellStyle: React.CSSProperties } {
   const inScaledRun =
-    hoveredDragRunStart !== null &&
-    cardIndex >= hoveredDragRunStart &&
-    !hideInTableau &&
-    !dealLocked;
+    detailsPinned ||
+    (hoveredDragRunStart !== null &&
+      cardIndex >= hoveredDragRunStart &&
+      !hideInTableau &&
+      !dealLocked);
+  const scale = inScaledRun
+    ? TABLEAU_DRAGGABLE_HOVER_SCALE
+    : inspectScaled
+      ? TABLEAU_CARD_INVESTIGATE_SCALE
+      : 1;
 
   return {
     style: {
@@ -76,94 +113,12 @@ function tableauCardStyles(
       touchAction: "none",
     },
     scaleShellStyle: {
-      transform: inScaledRun ? `scale(${TABLEAU_DRAGGABLE_HOVER_SCALE})` : "scale(1)",
+      transform: scale === 1 ? "scale(1)" : `scale(${scale})`,
       transformOrigin: "center center",
-      transition: inScaledRun && !translatePart ? "transform 0.12s ease-out" : "none",
+      transition: scale !== 1 && !translatePart ? "transform 0.12s ease-out" : "none",
     },
   };
 }
-
-const TableauStackCard = memo(function TableauStackCard({
-  game,
-  columnIndex,
-  cardIndex,
-  placed,
-  dealLocked,
-  hideInTableau,
-  hoveredDragRunStart,
-  onArmHover,
-}: TableauCardSharedProps) {
-  const powerTargeting = useGameStore((s) => s.powerTargeting);
-  const commitTargetedPower = useGameStore((s) => s.commitTargetedPower);
-  const isPowerTargetMode = powerTargeting != null;
-  const isValidPowerTarget =
-    isPowerTargetMode &&
-    powerTargeting != null &&
-    isTableauFaceDownPowerTarget(game, placed.card, placed.faceUp, powerTargeting.shelfIndex);
-  const [hoverValidTarget, setHoverValidTarget] = useState(false);
-
-  const canDrag = canDragFromTableau(game, columnIndex, cardIndex);
-  const layoutId = hideInTableau ? undefined : cardLayoutId(placed.card);
-  const { style, scaleShellStyle } = tableauCardStyles(
-    game,
-    columnIndex,
-    cardIndex,
-    hideInTableau,
-    hoveredDragRunStart,
-    dealLocked,
-    "",
-  );
-
-  const cursorClass = isPowerTargetMode
-    ? isValidPowerTarget
-      ? hoverValidTarget
-        ? POWER_TARGET_VALID_CURSOR_CLASS
-        : POWER_TARGET_CURSOR_CLASS
-      : POWER_TARGET_CURSOR_CLASS
-    : canDrag && !dealLocked
-      ? "cursor-grab active:cursor-grabbing"
-      : "cursor-default";
-
-  const targetRingClass =
-    isPowerTargetMode && isValidPowerTarget && hoverValidTarget
-      ? "ring-2 ring-amber-400 ring-offset-1 ring-offset-black/30"
-      : "";
-
-  return (
-    <div
-      className={cursorClass}
-      style={style}
-      data-power-target-valid={isValidPowerTarget ? "true" : undefined}
-      onPointerEnter={() => {
-        if (isPowerTargetMode && isValidPowerTarget) setHoverValidTarget(true);
-        if (canDrag && !dealLocked && !isPowerTargetMode) onArmHover();
-      }}
-      onPointerLeave={() => {
-        if (hoverValidTarget) setHoverValidTarget(false);
-      }}
-      onClick={(e) => {
-        if (!isPowerTargetMode || !isValidPowerTarget) return;
-        e.stopPropagation();
-        commitTargetedPower(placed.card, { tableauFaceDown: true });
-      }}
-    >
-      <motion.div layoutId={layoutId} {...layoutIdCardMotionProps(layoutId)} className="inline-block">
-        <motion.div className={`relative inline-block rounded-md ${targetRingClass}`} style={scaleShellStyle}>
-          <CardView
-            placed={placed}
-            displayMode={tableauCardDisplayMode(game, placed)}
-            faceDownBackOpacity={
-              cardHasTransparentEffect(game, placed.card)
-                ? transparentEffectBackOpacity()
-                : undefined
-            }
-          />
-          <CardEffectBadges effectCount={tableauCardEffectBadgeCount(game, placed)} />
-        </motion.div>
-      </motion.div>
-    </div>
-  );
-});
 
 const TableauDraggableCard = memo(function TableauDraggableCard({
   game,
@@ -173,7 +128,10 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
   dealLocked,
   hideInTableau,
   hoveredDragRunStart,
+  detailsPinned,
+  shiftInspectMode,
   onArmHover,
+  onOpenCardDetails,
 }: TableauCardSharedProps) {
   const powerTargeting = useGameStore((s) => s.powerTargeting);
   const commitTargetedPower = useGameStore((s) => s.commitTargetedPower);
@@ -183,13 +141,26 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
     powerTargeting != null &&
     isTableauFaceDownPowerTarget(game, placed.card, placed.faceUp, powerTargeting.shelfIndex);
   const [hoverValidTarget, setHoverValidTarget] = useState(false);
+  const [inspectHover, setInspectHover] = useState(false);
 
   const id = `t-${columnIndex}-${cardIndex}`;
+  const activeTableauDragId = useActiveTableauDragId();
+  const tableauDragInProgress = activeTableauDragId !== null;
+  const isActiveDrag = activeTableauDragId === id;
   const canDrag = canDragFromTableau(game, columnIndex, cardIndex);
+  const shouldHandleDetailsClick = useSuppressClickAfterDrag(id);
+  const detailsClickable =
+    shiftInspectMode &&
+    Boolean(onOpenCardDetails) &&
+    !isPowerTargetMode &&
+    !tableauDragInProgress &&
+    isInGameCardDetailsClickable(game, placed);
+  const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
 
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id,
-    disabled: !canDrag || dealLocked || isPowerTargetMode,
+    disabled:
+      !canDrag || dealLocked || isPowerTargetMode || (tableauDragInProgress && !isActiveDrag),
     data: { type: "tableau", fromColumn: columnIndex, startIndex: cardIndex },
   });
 
@@ -204,6 +175,7 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
       ? translateRaw
       : "";
 
+  const inspectScaled = detailsClickable && inspectHover;
   const { style, scaleShellStyle } = tableauCardStyles(
     game,
     columnIndex,
@@ -212,6 +184,8 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
     hoveredDragRunStart,
     dealLocked,
     translatePart,
+    detailsPinned,
+    inspectScaled,
   );
 
   const cursorClass = isPowerTargetMode
@@ -220,37 +194,82 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
         ? POWER_TARGET_VALID_CURSOR_CLASS
         : POWER_TARGET_CURSOR_CLASS
       : POWER_TARGET_CURSOR_CLASS
-    : canDrag && !dealLocked
-      ? "cursor-grab active:cursor-grabbing"
-      : "cursor-default";
+    : shiftInspectMode
+      ? "cursor-help"
+      : canDrag && !dealLocked
+        ? "cursor-grab active:cursor-grabbing"
+        : "cursor-default";
 
-  const targetRingClass =
+  const cardRingClass =
     isPowerTargetMode && isValidPowerTarget && hoverValidTarget
       ? "ring-2 ring-amber-400 ring-offset-1 ring-offset-black/30"
-      : "";
+      : detailsClickable && inspectHover
+        ? CARD_INSPECT_HIGHLIGHT_CLASS
+        : "";
+
+  const dragListenersActive = !isPowerTargetMode && (!tableauDragInProgress || isActiveDrag);
+  const {
+    onPointerDown: dragOnPointerDown,
+    onPointerUp: dragOnPointerUp,
+    ...restDragListeners
+  } = dragListenersActive ? (listeners ?? {}) : {};
 
   return (
     <div
       ref={setNodeRef}
-      className={cursorClass}
+      className={`${cursorClass} outline-none focus:outline-none`}
       style={style}
       data-power-target-valid={isValidPowerTarget ? "true" : undefined}
+      data-in-game-details-clickable={detailsClickable ? "true" : undefined}
+      data-inspect-highlight={detailsClickable && inspectHover ? "true" : undefined}
+      data-tableau-card-key={tableauCardIdentity(placed.card)}
+      title={detailsClickable ? "Hold Shift and click to view card details" : undefined}
       onPointerEnter={() => {
+        if (tableauDragInProgress) return;
         if (isPowerTargetMode && isValidPowerTarget) setHoverValidTarget(true);
-        if (canDrag && !dealLocked && !isPowerTargetMode) onArmHover();
+        if (detailsClickable) setInspectHover(true);
+        if (canDrag && !dealLocked && !isPowerTargetMode && !shiftInspectMode) onArmHover();
       }}
       onPointerLeave={() => {
         if (hoverValidTarget) setHoverValidTarget(false);
+        if (inspectHover) setInspectHover(false);
       }}
       onClick={(e) => {
-        if (!isPowerTargetMode || !isValidPowerTarget) return;
-        e.stopPropagation();
-        commitTargetedPower(placed.card, { tableauFaceDown: true });
+        if (isPowerTargetMode && isValidPowerTarget) {
+          e.stopPropagation();
+          commitTargetedPower(placed.card, { tableauFaceDown: true });
+        }
       }}
-      {...(isPowerTargetMode ? {} : { ...listeners, ...attributes })}
+      onPointerDown={(e) => {
+        if (detailsClickable) {
+          pointerDownRef.current = { x: e.clientX, y: e.clientY };
+        }
+        dragOnPointerDown?.(e);
+      }}
+      onPointerUp={(e) => {
+        if (isPowerTargetMode && isValidPowerTarget) {
+          dragOnPointerUp?.(e);
+          return;
+        }
+        const down = pointerDownRef.current;
+        pointerDownRef.current = null;
+        if (
+          detailsClickable &&
+          e.shiftKey &&
+          onOpenCardDetails &&
+          down &&
+          pointerTapWithinSlop(down, { x: e.clientX, y: e.clientY }) &&
+          shouldHandleDetailsClick()
+        ) {
+          e.stopPropagation();
+          onOpenCardDetails(placed.card);
+        }
+        dragOnPointerUp?.(e);
+      }}
+      {...(dragListenersActive ? { ...restDragListeners, ...attributes } : {})}
     >
       <motion.div layoutId={layoutId} {...layoutIdCardMotionProps(layoutId)} className="inline-block">
-        <div className={`relative inline-block rounded-md ${targetRingClass}`} style={scaleShellStyle}>
+        <div className={`relative inline-block rounded-md ${cardRingClass}`} style={scaleShellStyle}>
           <CardView
             placed={placed}
             displayMode={tableauCardDisplayMode(game, placed)}
@@ -274,47 +293,97 @@ function TableauCardSlot({
   placed,
   dealLocked,
   columnDragRunStart,
+  tableauReturnHide,
   hoveredDragRunStart,
+  detailsPinned,
+  shiftInspectMode,
   onArmHover,
-}: Omit<TableauCardSharedProps, "hideInTableau"> & { columnDragRunStart: number | null }) {
-  const activeTableauDragId = useActiveTableauDragId();
-  const id = `t-${columnIndex}-${cardIndex}`;
-  const hideInTableau = columnDragRunStart !== null && cardIndex >= columnDragRunStart;
-  const shared: TableauCardSharedProps = {
-    game,
-    columnIndex,
-    cardIndex,
-    placed,
-    dealLocked,
-    hideInTableau,
-    hoveredDragRunStart,
-    onArmHover,
-  };
+  onOpenCardDetails,
+}: Omit<TableauCardSharedProps, "hideInTableau"> & {
+  columnDragRunStart: number | null;
+  tableauReturnHide: { column: number; startIndex: number } | null;
+}) {
+  const hideInTableau =
+    (columnDragRunStart !== null && cardIndex >= columnDragRunStart) ||
+    (tableauReturnHide !== null &&
+      tableauReturnHide.column === columnIndex &&
+      cardIndex >= tableauReturnHide.startIndex);
 
-  if (activeTableauDragId !== null && activeTableauDragId !== id) {
-    return <TableauStackCard {...shared} />;
-  }
-  return <TableauDraggableCard {...shared} />;
+  return (
+    <TableauDraggableCard
+      game={game}
+      columnIndex={columnIndex}
+      cardIndex={cardIndex}
+      placed={placed}
+      dealLocked={dealLocked}
+      hideInTableau={hideInTableau}
+      hoveredDragRunStart={hoveredDragRunStart}
+      detailsPinned={detailsPinned}
+      shiftInspectMode={shiftInspectMode}
+      onArmHover={onArmHover}
+      onOpenCardDetails={onOpenCardDetails}
+    />
+  );
 }
 
 export function TableauColumn({
   game,
   columnIndex,
+  shiftInspectMode,
+  onOpenCardDetails,
+  detailsCard,
 }: {
   game: GameState;
   columnIndex: number;
+  shiftInspectMode: boolean;
+  onOpenCardDetails?: (card: Card) => void;
+  detailsCard?: Card | null;
 }) {
   const col = useMemo(() => game.columns[columnIndex] ?? [], [game.columns, columnIndex]);
   const dealLocked = useGameStore((s) => s.dealAnimation != null);
   const powerTargeting = useGameStore((s) => s.powerTargeting);
   const layoutBoostColumn = useTableauLayoutBoostColumn();
+  const tableauReturnHide = useTableauReturnHide();
   const applyViewportFloor = useApplyTableauDropViewportFloorMinHeight();
   const tableauDropFloorBottomPx = useTableauDropFloorBottomPx();
+  const activeTableauDragId = useActiveTableauDragId();
 
   const [hoveredDragRunStart, setHoveredDragRunStart] = useState<number | null>(null);
   const [columnDragRunStart, setColumnDragRunStart] = useState<number | null>(null);
   /** After drop/cancel, `visibility: hidden` → visible can re-fire `pointerenter` while the pointer is still; block re-arm on this column only. */
   const hoverArmBlockedUntilRef = useRef(0);
+  const lastPointerRef = useRef({ x: 0, y: 0 });
+  const prevDetailsCardRef = useRef<Card | null>(null);
+  const stackElRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onPointerMove = (e: PointerEvent) => {
+      lastPointerRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onPointerMove);
+  }, []);
+
+  useEffect(() => {
+    const prev = prevDetailsCardRef.current;
+    prevDetailsCardRef.current = detailsCard ?? null;
+    if (!prev || detailsCard) return;
+
+    const cardIndex = col.findIndex((p) => tableauCardIdentity(p.card) === tableauCardIdentity(prev));
+    if (cardIndex < 0) return;
+
+    const el = stackElRef.current?.querySelector<HTMLElement>(
+      `[data-tableau-card-key="${tableauCardIdentity(prev)}"]`,
+    );
+    const { x, y } = lastPointerRef.current;
+    const stillOver =
+      el != null && pointerIsOverRect(x, y, el.getBoundingClientRect());
+    if (stillOver && canDragFromTableau(game, columnIndex, cardIndex) && !dealLocked) {
+      setHoveredDragRunStart(cardIndex);
+    } else {
+      setHoveredDragRunStart((start) => (start === cardIndex ? null : start));
+    }
+  }, [col, columnIndex, dealLocked, detailsCard, game]);
 
   const tryArmHover = useCallback(
     (idx: number) => {
@@ -333,6 +402,7 @@ export function TableauColumn({
     useMemo(
       () => ({
         onDragStart(event) {
+          setHoveredDragRunStart(null);
           const d = event.active.data.current as
             | { type?: string; fromColumn?: number; startIndex?: number }
             | undefined;
@@ -372,7 +442,8 @@ export function TableauColumn({
     setHoveredDragRunStart(null);
   }, []);
 
-  const hoveredDragRunStartActive = dealLocked ? null : hoveredDragRunStart;
+  const hoveredDragRunStartActive =
+    dealLocked || activeTableauDragId != null ? null : hoveredDragRunStart;
 
   const { setNodeRef, isOver } = useDroppable({
     id: `col-${columnIndex}`,
@@ -443,6 +514,7 @@ export function TableauColumn({
         effectCount={columnEffectCount(game, columnIndex)}
       />
       <div
+        ref={stackElRef}
         className="relative shrink-0 overflow-visible self-start"
         style={{ width: cw, height: Math.max(ch, stackH) }}
         data-tableau-stack={columnIndex}
@@ -455,19 +527,30 @@ export function TableauColumn({
             aria-hidden
           />
         ) : null}
-        {col.map((placed, cardIndex) => (
-          <TableauCardSlot
-            key={`${columnIndex}-${placed.card.kind}-${placed.card.id}`}
-            game={game}
-            columnIndex={columnIndex}
-            cardIndex={cardIndex}
-            placed={placed}
-            dealLocked={dealLocked}
-            columnDragRunStart={columnDragRunStart}
-            hoveredDragRunStart={hoveredDragRunStartActive}
-            onArmHover={armHoverCallbacks[cardIndex]!}
-          />
-        ))}
+        {col.map((placed, cardIndex) => {
+          const detailsPinned =
+            detailsCard != null &&
+            tableauCardIdentity(placed.card) === tableauCardIdentity(detailsCard) &&
+            isInGameCardDetailsClickable(game, placed);
+
+          return (
+            <TableauCardSlot
+              key={`${columnIndex}-${placed.card.kind}-${placed.card.id}`}
+              game={game}
+              columnIndex={columnIndex}
+              cardIndex={cardIndex}
+              placed={placed}
+              dealLocked={dealLocked}
+              columnDragRunStart={columnDragRunStart}
+              tableauReturnHide={tableauReturnHide}
+              hoveredDragRunStart={hoveredDragRunStartActive}
+              detailsPinned={detailsPinned}
+              shiftInspectMode={shiftInspectMode}
+              onArmHover={armHoverCallbacks[cardIndex]!}
+              onOpenCardDetails={onOpenCardDetails}
+            />
+          );
+        })}
       </div>
     </div>
   );

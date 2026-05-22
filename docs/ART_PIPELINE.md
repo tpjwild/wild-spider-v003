@@ -104,4 +104,21 @@ Wired from **`gameStore`**: `startGame`, `restart`, `hydrateLocalOnly`, `hydrate
 - [x] **Phase 3** — Migrate `public/` to generated WebP; drop huge PNGs from git
 - [x] **Phase 4** — `portraitThumbPath` / `gameArtPortraitThumbUrl` in code; CardView vs CardDetails paths
 - [x] **Phase 5** — Non-blocking thumb + frame + pip preload at game start / hydrate
-- [ ] **Phase 6** — CI/manifest check (optional)
+- [x] **Phase 6** — CI/manifest check (optional)
+
+---
+
+## Phase 6 — Manifest check (CI)
+
+Ensures every basename in **`portraitManifest.ts`** (plus generated **base** court SVG names) exists in **both** shipped trees and that legacy PNG/JPEG files were not left next to WebP siblings.
+
+| Command | What it runs |
+|---------|----------------|
+| **`pnpm run check:portraits`** | `src/lib/portraitArtManifestCheck.test.ts` via vitest |
+| **`pnpm test`** | Includes the same check (full unit suite) |
+
+Implementation: **`src/lib/portraitArtManifestCheck.ts`** — walks `public/gameArt/portraits/` and `portraits-small/`, reports missing files, orphan files not referenced by the manifest, and legacy rasters when a `.webp` exists.
+
+**GitHub Actions:** **`.github/workflows/ci.yml`** runs `pnpm lint`, `pnpm test`, and `pnpm run check:portraits` on push/PR to `main`.
+
+After changing the manifest or adding masters, run **`pnpm run generate:portraits`** before commit so this check passes.

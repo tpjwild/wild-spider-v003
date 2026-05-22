@@ -2,7 +2,7 @@ export { achievements } from "./achievements";
 export { colors } from "./colors";
 export { GAME_CONTENT, type GameContent } from "@/content/gameContent";
 export { deckPairs } from "@/content/deckPairs";
-export { sharedDeckCardBackPath, sharedDeckFramePath, sharedJokerPortraitPath } from "./sharedDeckAssets";
+export { sharedDeckCardBackPath } from "./sharedDeckAssets";
 export { FORMATTED_JOKER_INSERT_BACK_FRACTION } from "./formattedJokerDeal";
 export {
   dimensions,

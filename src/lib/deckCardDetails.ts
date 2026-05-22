@@ -1,7 +1,8 @@
 import { DEFAULT_DECK_PAIR_ID, getDeckPairById } from "@/content/deckPairs";
+import { cardHasTransparentEffect, tableauCardDisplayMode } from "@/lib/cardEffectsUi";
 import { deckNumFromRegularCardId, faceArtForRegularCard, jokerArtForCard } from "@/lib/deckCardArt";
 import { isJoker, isRegular } from "@/engine/cards";
-import type { Card, Suit } from "@/engine/types";
+import type { Card, GameState, PlacedCard, Suit } from "@/engine/types";
 
 const SUIT_PLURAL_NAME: Record<Suit, string> = {
   S: "Spades",
@@ -23,6 +24,16 @@ export function isDeckPopupDetailsClickableCard(card: Card): boolean {
   if (isJoker(card)) return true;
   if (!isRegular(card)) return false;
   return card.rank === 1 || (card.rank >= 11 && card.rank <= 13);
+}
+
+/** Face-up courts/aces on the tableau, or the same ranks shown via transparent face+back while face-down. */
+export function isInGameCardDetailsClickable(state: GameState, placed: PlacedCard): boolean {
+  if (!isDeckPopupDetailsClickableCard(placed.card)) return false;
+  if (placed.faceUp) return true;
+  return (
+    cardHasTransparentEffect(state, placed.card) &&
+    tableauCardDisplayMode(state, placed) === "deckPopupFaceDown"
+  );
 }
 
 export type DeckCardDetailsModel = {

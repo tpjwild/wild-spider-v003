@@ -48,8 +48,8 @@ export const tableauStackReflowTransition = {
 
 /**
  * Tableau + foundation cards: **position** layout for stack reflow; shared **`layoutId`** uses
- * {@link layoutIdDropTransition}. The **`DragOverlay`** preview is plain DOM (no Framer) so it tracks
- * the pointer without layout-projection overhead.
+ * {@link layoutIdDropTransition}. Invalid tableau drops use {@link layoutIdDropTransition} on a fixed
+ * return flight layer (`TableauDragReturnLayer`), not **`layoutId`** on the drag follow layer.
  */
 export function layoutIdCardMotionProps(layoutId: string | undefined) {
   return {
