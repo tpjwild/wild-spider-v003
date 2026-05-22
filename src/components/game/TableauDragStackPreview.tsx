@@ -1,6 +1,5 @@
 "use client";
 
-import type { HTMLAttributes } from "react";
 import { CardView } from "@/components/game/CardView";
 import {
   dimensions,
@@ -14,11 +13,12 @@ import type { PlacedCard } from "@/engine/types";
 export function TableauDragStackPreview({
   cards,
   applyHoverScale,
-  rootProps,
+  /** Set on {@link DragOverlay} root so invalid-drop return can measure screen position. */
+  dragOverlayMeasureMarker = false,
 }: {
   cards: readonly PlacedCard[];
   applyHoverScale: boolean;
-  rootProps?: HTMLAttributes<HTMLDivElement>;
+  dragOverlayMeasureMarker?: boolean;
 }) {
   return (
     <div
@@ -27,7 +27,7 @@ export function TableauDragStackPreview({
         width: dimensions.cardWidth,
         height: tableauColumnStackHeightPx(cards),
       }}
-      {...rootProps}
+      {...(dragOverlayMeasureMarker ? { "data-tableau-drag-overlay": "" } : {})}
     >
       {cards.map((placed, i) => (
         <div

@@ -1134,7 +1134,7 @@ export function GameShell() {
             <TableauDragStackPreview
               cards={overlayCards}
               applyHoverScale={overlayApplyDragHoverScale}
-              rootProps={{ "data-tableau-drag-overlay": true }}
+              dragOverlayMeasureMarker
             />
           ) : null}
         </DragOverlay>
