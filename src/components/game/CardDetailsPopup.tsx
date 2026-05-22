@@ -9,7 +9,7 @@ import {
 } from "@/constants/dimensions";
 import type { Card } from "@/engine/types";
 import { getDeckCardDetailsModel } from "@/lib/deckCardDetails";
-import { OptionalPortraitFrameArt } from "@/components/game/OptionalPortraitFrameArt";
+import { CardDetailsPortraitFrame } from "@/components/game/CardDetailsPortraitFrame";
 
 type CardDetailsPopupProps = {
   deckPairId: string;
@@ -75,16 +75,12 @@ export function CardDetailsPopup({ deckPairId, card, onClose }: CardDetailsPopup
                 />
               </div>
             ) : (
-              <OptionalPortraitFrameArt
+              <CardDetailsPortraitFrame
                 portraitSrc={model.portraitSrc}
+                portraitThumbSrc={model.portraitThumbSrc}
                 frameSrc={model.frameSrc}
                 portraitInsetPx={cardDetailsPortraitInsetPx()}
-                hideOverlayWhenReady
-                className="h-full w-full"
-                style={{ width: "100%", height: "100%" }}
-              >
-                <></>
-              </OptionalPortraitFrameArt>
+              />
             )}
           </div>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto pr-1 text-left">

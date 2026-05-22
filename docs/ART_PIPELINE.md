@@ -86,7 +86,7 @@ After **New Game**, **Restart**, or **hydrate** (local/cloud saved game), the cl
 - **`src/lib/preloadPortraitArt.ts`** — `scheduleTableauPortraitPreload(deckPairId)` runs on the next microtask (does not block deal animation).
 - Collects unique URLs for the active deck pair: every court/joker **`portraitThumbPath`**, shared **`framePath`** values, and all **40 pip SVGs** under `shared/cards/`.
 - Uses `new Image()` to warm the **browser HTTP cache only** (does not mark `portraitArtLoadCache` as ready). Face-up tableau cards keep the **card back** visible until the portrait `decode()` completes, then show portrait (frame follows).
-- Does **not** preload medium portraits (details popup only).
+- Does **not** preload medium portraits at game start. The **Card details** dialog shows the in-game **thumb** immediately, then crossfades to the medium portrait when it has loaded and decoded (`CardDetailsPortraitFrame`).
 
 Wired from **`gameStore`**: `startGame`, `restart`, `hydrateLocalOnly`, `hydrateFromLocalAfterAuth`, `applyCloudBootstrap`.
 

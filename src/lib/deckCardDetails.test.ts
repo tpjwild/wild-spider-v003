@@ -63,6 +63,8 @@ describe("deckCardDetails", () => {
     expect(m?.primaryHeading).toBe("King of Spades");
     expect(m?.body).toContain("Face-card slot");
     expect(m?.frameSrc).toBeDefined();
+    expect(m?.portraitThumbSrc).toBeDefined();
+    expect(m?.portraitThumbSrc).not.toBe(m?.portraitSrc);
   });
 
   it("getDeckCardDetailsModel for joker uses portrait and deck label", () => {

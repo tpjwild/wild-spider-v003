@@ -37,7 +37,10 @@ export function isInGameCardDetailsClickable(state: GameState, placed: PlacedCar
 }
 
 export type DeckCardDetailsModel = {
+  /** Medium portrait for the details dialog. */
   portraitSrc: string;
+  /** In-game thumb; shown immediately while {@link portraitSrc} loads (courts/jokers). */
+  portraitThumbSrc?: string;
   frameSrc?: string;
   isPipAce: boolean;
   primaryHeading: string;
@@ -65,6 +68,7 @@ export function getDeckCardDetailsModel(
     const art = jokerArtForCard(deckPairId, card.id);
     return {
       portraitSrc: art.portraitPath,
+      portraitThumbSrc: art.portraitThumbPath,
       frameSrc: art.framePath,
       isPipAce: false,
       primaryHeading: j.name,
@@ -97,6 +101,7 @@ export function getDeckCardDetailsModel(
     if (!row) return null;
     return {
       portraitSrc: row.portraitPath,
+      portraitThumbSrc: row.portraitThumbPath,
       frameSrc: row.framePath,
       isPipAce: false,
       primaryHeading: row.name,
