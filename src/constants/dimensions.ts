@@ -41,6 +41,12 @@ export const dimensions = {
   tableauColumnBadgeHolderHeight: 30,
   /** Vertical gap between the badge holder and the card stack below (px). */
   tableauColumnBadgeHolderGapPx: 10,
+  /** Show up to this many effect icons individually; above that, one numeric count badge. */
+  maxEffectBadgesShownIndividually: 3,
+  /** Glyph size (px) inside each effect badge chip on cards and column holders. */
+  effectBadgeIconSizePx: 10,
+  /** Padding (px) between the glyph and the dark chip edge on each side. */
+  effectBadgeChipPaddingPx: 2,
   /** Inner vertical padding of the shelf panel; foundation and stock use the same top inset so card tops align with jokers. */
   shelfVerticalPad: 16,
   /** Inner horizontal padding of the shelf panel (joker strip inset from the shelf border). */

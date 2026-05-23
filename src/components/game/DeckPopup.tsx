@@ -13,7 +13,7 @@ import type { Card, GameState, Suit } from "@/engine/types";
 import { isDeckPopupDetailsClickableCard } from "@/lib/deckCardDetails";
 import {
   cardHasTransparentEffect,
-  deckPopupCardEffectBadgeCount,
+  deckPopupEffectBadgeEntries,
   transparentEffectBackOpacity,
 } from "@/lib/cardEffectsUi";
 import { cardKey, deckPopupSnapshot, shouldDeckPopupFaceDown } from "@/lib/deckPopupLayout";
@@ -61,7 +61,7 @@ function ScaledCardCell({
   const commitTargetedPower = useGameStore((s) => s.commitTargetedPower);
 
   const faceDownInPopup = shouldDeckPopupFaceDown(game, card);
-  const effectCount = deckPopupCardEffectBadgeCount(game, card, faceDownInPopup);
+  const effectBadgeEntries = deckPopupEffectBadgeEntries(game, card);
   const mode = faceDownInPopup ? "deckPopupFaceDown" : "faceUp";
   const isPowerTargetMode = powerTargeting != null;
   const isValidPowerTarget =
@@ -157,7 +157,7 @@ function ScaledCardCell({
       ) : (
         scaled
       )}
-      <CardEffectBadges effectCount={effectCount} />
+      <CardEffectBadges entries={effectBadgeEntries} />
     </div>
   );
 }

@@ -13,6 +13,7 @@ Paths are defined in `src/constants/sharedDeckAssets.ts` and `src/constants/game
 - `shared/backs/back-deck1.png`, `shared/backs/back-deck2.png` — card backs  
 - `shared/cards/AS.svg` … `shared/cards/10H.svg` — pip card faces (rank letter + suit letter `S` `C` `D` `H`). Vector-playing-cards exports often include a border group `Layer_x0020_1`; the repo script `scripts/remove-pip-border-layer.cjs` removes it from those filenames if you re-import art.
 - `shared/frames/jack-spades-frame.svg`, … `king-hearts-frame.svg`, `joker-red-frame.svg`, `joker-black-frame.svg` — overlay on face cards and jokers (one SVG per rank/suit or joker colour variant).
+- `shared/effect-badges/{effectId}.svg` — effect badge icons on cards and column badge holders (`transparent`, `wild`, `halfWild`, `skip1`, `skip2`; see `effectBadgeIconPath` in `src/constants/gameArtPaths.ts`).
 
 ## Per pair (courts and jokers)
 

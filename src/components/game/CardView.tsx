@@ -17,7 +17,8 @@ import { useGameStore } from "@/state/gameStore";
 
 export type CardDisplayMode = "faceUp" | "faceDown" | "deckPopupFaceDown";
 
-const suitColor = (s: string) => (s === "H" || s === "D" ? "#c44" : "#111");
+const suitColor = (s: string) =>
+  s === "H" || s === "D" ? colors.cardSuitRed : colors.cardSuitBlack;
 
 /** Matches {@link cardDeckIndexForBack}: deck 0 → black ink, deck 1 → red ink (with red card backs). */
 function jokerCornerColor(card: JokerCard): string {

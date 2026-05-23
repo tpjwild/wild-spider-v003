@@ -24,9 +24,9 @@ import {
 import { layoutIdCardMotionProps, timings } from "@/constants/timings";
 import {
   cardHasTransparentEffectInColumn,
-  columnEffectCount,
+  columnHolderEffectBadgeEntries,
   tableauCardDisplayMode,
-  tableauCardEffectBadgeCount,
+  tableauEffectBadgeEntries,
   transparentEffectBackOpacity,
 } from "@/lib/cardEffectsUi";
 import { cardLayoutId } from "@/lib/cardLayoutId";
@@ -294,7 +294,9 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
                 : undefined
             }
           />
-          <CardEffectBadges effectCount={tableauCardEffectBadgeCount(game, columnIndex, placed)} />
+          <CardEffectBadges
+            entries={tableauEffectBadgeEntries(game, columnIndex, placed.card)}
+          />
         </div>
       </motion.div>
     </div>
@@ -534,7 +536,7 @@ export function TableauColumn({
     >
       <TableauColumnBadgeHolder
         columnIndex={columnIndex}
-        effectCount={columnEffectCount(game, columnIndex)}
+        entries={columnHolderEffectBadgeEntries(game, columnIndex)}
         isColumnPowerTargetMode={columnTargetMode}
         isValidColumnPowerTarget={isValidColumnTarget}
         onCommitColumnPowerTarget={

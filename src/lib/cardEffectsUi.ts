@@ -9,6 +9,24 @@ import {
   hasEffectOnCardInColumn,
 } from "@/engine/effects";
 import type { Card, EffectId, GameState, PlacedCard } from "@/engine/types";
+import {
+  columnHolderEffectBadgeEntries,
+  deckPopupEffectBadgeEntries,
+  sortEffectsForBadgeDisplay,
+  stockPopupEffectBadgeEntries,
+  tableauEffectBadgeEntries,
+  type EffectBadgeEntry,
+} from "@/lib/effectBadgeEntries";
+
+export {
+  columnHolderEffectBadgeEntries,
+  deckPopupEffectBadgeEntries,
+  sortEffectsForBadgeDisplay,
+  stockPopupEffectBadgeEntries,
+  tableauEffectBadgeEntries,
+  type EffectBadgeEntry,
+  type EffectBadgeScope,
+} from "@/lib/effectBadgeEntries";
 
 export { hasCardEffect, hasEffectOnCardInColumn };
 
@@ -78,16 +96,37 @@ export function stockPopupCardDisplayMode(state: GameState, card: Card): CardDis
   return "faceDown";
 }
 
-/** Per spec: card effect badges on the tableau only when the card is face up. */
-export function tableauCardEffectBadgeCount(state: GameState, columnIndex: number, placed: PlacedCard): number {
-  return placed.faceUp ? cardEffectCountInColumn(state, columnIndex, placed.card) : 0;
+/** @deprecated Use {@link tableauEffectBadgeEntries}. */
+export function tableauCardEffectIdsForBadges(
+  state: GameState,
+  columnIndex: number,
+  placed: PlacedCard,
+): EffectId[] {
+  return tableauEffectBadgeEntries(state, columnIndex, placed.card).map((e) => e.effectId);
 }
 
-/** Deck popup: badges on face-up cells only; face-down transparent uses overlay. */
+/** @deprecated Use {@link deckPopupEffectBadgeEntries}. */
+export function deckPopupCardEffectIdsForBadges(
+  state: GameState,
+  card: Card,
+  _faceDownInPopup?: boolean,
+): EffectId[] {
+  return deckPopupEffectBadgeEntries(state, card).map((e) => e.effectId);
+}
+
+/** @deprecated Use {@link columnHolderEffectBadgeEntries}. */
+export function columnEffectIdsForBadges(state: GameState, columnIndex: number): EffectId[] {
+  return columnHolderEffectBadgeEntries(state, columnIndex).map((e) => e.effectId);
+}
+
+export function tableauCardEffectBadgeCount(state: GameState, columnIndex: number, placed: PlacedCard): number {
+  return tableauEffectBadgeEntries(state, columnIndex, placed.card).length;
+}
+
 export function deckPopupCardEffectBadgeCount(
   state: GameState,
   card: Card,
   faceDownInPopup: boolean,
 ): number {
-  return faceDownInPopup ? 0 : cardEffectCount(state, card);
+  return deckPopupEffectBadgeEntries(state, card).length;
 }

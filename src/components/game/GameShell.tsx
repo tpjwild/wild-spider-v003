@@ -37,7 +37,7 @@ import {
   TableauDragOverlayContext,
   type TableauDragOverlayContextValue,
 } from "@/components/game/TableauDragOverlayContext";
-import { colors } from "@/constants/colors";
+import { colors, gameShellColorStyle } from "@/constants/colors";
 import { dimensions, shelfFoundationStockStripMinHeightPx } from "@/constants/dimensions";
 import { timings } from "@/constants/timings";
 import { applyDealEntriesProgress, canDealFromStock } from "@/engine/deal";
@@ -841,7 +841,7 @@ export function GameShell() {
   return (
     <div
       className="flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--bg)] text-[var(--fg)]"
-      style={{ ["--bg" as string]: colors.background, ["--fg" as string]: colors.text }}
+      style={gameShellColorStyle()}
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <DndContext
@@ -856,8 +856,11 @@ export function GameShell() {
           <TableauDragOverlayContext.Provider value={tableauDragOverlayValue}>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div
-            className="sticky top-0 z-40 shrink-0 border-b border-black/25 shadow-[0_6px_16px_rgba(0,0,0,0.28)]"
-            style={{ backgroundColor: colors.background }}
+            className="sticky top-0 z-40 shrink-0 border-b border-black/25"
+            style={{
+              backgroundColor: colors.background,
+              boxShadow: `0 6px 16px ${colors.playAreaHeaderShadow}`,
+            }}
           >
           <header
             className="flex items-center justify-between gap-3 border-b border-black/20 px-2 py-2"

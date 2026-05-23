@@ -25,12 +25,16 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/** Shelf joker strip: horizontal scroll only; thumb/track match shelf chrome. */
+/**
+ * Shelf joker strip: horizontal scroll only.
+ * Thumb/track colours from `gameCssVariables` in `src/constants/colors.ts`
+ * (injected on the game shell via `gameShellColorStyle()`).
+ */
 .shelf-scroll {
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
-  scrollbar-color: #b8e6bc rgba(0, 0, 0, 0.3);
+  scrollbar-color: var(--ws-shelf-scrollbar-thumb) var(--ws-shelf-scrollbar-track);
 }
 
 .shelf-scroll::-webkit-scrollbar {
@@ -44,14 +48,14 @@ body {
 }
 
 .shelf-scroll::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--ws-shelf-scrollbar-track);
 }
 
 .shelf-scroll::-webkit-scrollbar-thumb {
-  background-color: #b8e6bc;
+  background-color: var(--ws-shelf-scrollbar-thumb);
   border-radius: 4px;
 }
 
 .shelf-scroll::-webkit-scrollbar-thumb:hover {
-  background-color: #d8efd9;
+  background-color: var(--ws-shelf-scrollbar-thumb-hover);
 }

@@ -196,12 +196,9 @@ Powers apply **effects** to game entities. An effect is either on a **card** or 
 
 ### Where effects appear (badges)
 
-- **Tableau column:** Each effect on a column adds a badge in that column’s **badge holder** (see Tableau under Game View). If a column has more than two effects, show a single badge with a count; each badge has a tooltip.
-- **Card:** Each effect on a card shows a **badge on the card** in:
-  - the **tableau** (on the card widget),
-  - the **Deck popup**, and
-  - the **Stock popup**.
-  Card effect badges are **not** shown on cards in the **foundation** row or on the **stock pile** widget (face-down backs in the main game view).
+- **Placement:** Effect badges on cards and in tableau **column badge holders** are anchored at the **top-right** of the card face or holder (`CardEffectBadges` in `src/components/game/CardEffectBadges.tsx`).
+- **Tableau column:** Each effect on a column adds a badge in that column’s **badge holder** (see Tableau under Game View), using the **column** ring style on the dark chip. Icons live in `public/gameArt/shared/effect-badges/{effectId}.svg` (see `effectBadgeIconPath` in `src/constants/gameArtPaths.ts`). Up to **`maxEffectBadgesShownIndividually`** (default **3** in `dimensions.ts`) effects show as separate icons; above that, one numeric count badge. Each icon or count badge has a tooltip (effect labels from `effectDefinitions.ts`; column-scoped entries append “(column)”).
+- **Card:** Each badge is a **white** glyph on a **dark chip** (`effectBadgeIconSizePx`, default **10** px glyph; chip padding in `dimensions.ts`). **Card**-scoped effects use the standard dark chip with a **medium amber** ring; **column**-scoped effects use a **lighter chip** and **white** ring (see `effectBadgeColumnChipBackground` / `effectBadgeColumnScopeRing` in `src/constants/colors.ts`). On the **tableau**, badges appear on **face-up and face-down** cards. Card badges also appear in the **Deck popup** (with column inheritance when the card is on the tableau, not when it is still in stock) and the **Stock popup** (**card** effects only — no column inheritance). Card effect badges are **not** shown on cards in the **foundation** row or on the **stock pile** widget (face-down backs in the main game view).
 
 ### Transparent effect (card)
 

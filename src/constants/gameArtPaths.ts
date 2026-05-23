@@ -1,4 +1,4 @@
-import type { Suit } from "@/engine/types";
+import type { EffectId, Suit } from "@/engine/types";
 
 /** Jack, Queen, or King — matches court portrait filenames. */
 export type CourtFaceRank = 11 | 12 | 13;
@@ -6,6 +6,13 @@ export type CourtFaceRank = 11 | 12 | 13;
 export const GAME_ART_ROOT = "/gameArt";
 
 export const SHARED_GAME_ART_DIR = `${GAME_ART_ROOT}/shared`;
+
+const EFFECT_BADGE_ART_DIR = `${SHARED_GAME_ART_DIR}/effect-badges`;
+
+/** Lucide (or custom) SVG per {@link EffectId} under `public/gameArt/shared/effect-badges/`. */
+export function effectBadgeIconPath(effectId: EffectId): string {
+  return `${EFFECT_BADGE_ART_DIR}/${effectId}.svg`;
+}
 
 /** Medium court/joker portraits (card details popup) under `public/gameArt/portraits/`. */
 export function gameArtPortraitUrl(deckPairId: string, deckNum: 1 | 2, basename: string): string {

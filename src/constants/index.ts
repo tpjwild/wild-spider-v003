@@ -1,5 +1,5 @@
 export { achievements } from "./achievements";
-export { colors } from "./colors";
+export { colors, gameCssVariables, gameShellColorStyle, type ColorToken } from "./colors";
 export { GAME_CONTENT, type GameContent } from "@/content/gameContent";
 export { deckPairs } from "@/content/deckPairs";
 export { sharedDeckCardBackPath } from "./sharedDeckAssets";

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { dimensions } from "@/constants/dimensions";
 import { CardEffectBadges } from "@/components/game/CardEffectBadges";
+import { dimensions } from "@/constants/dimensions";
+import type { EffectBadgeEntry } from "@/lib/effectBadgeEntries";
 import {
   POWER_TARGET_CURSOR_CLASS,
   POWER_TARGET_VALID_CURSOR_CLASS,
@@ -12,18 +13,18 @@ const { cardWidth: cw, tableauColumnBadgeHolderHeight: badgeH } = dimensions;
 
 /**
  * Strip above a tableau column for column-level power effects (Stage 5).
- * Effect badges render inside when `effectCount` is greater than zero.
+ * Effect badges render inside when `entries` is non-empty.
  * Column-targeted powers accept clicks only on this holder, not on cards below.
  */
 export function TableauColumnBadgeHolder({
   columnIndex,
-  effectCount = 0,
+  entries = [],
   isColumnPowerTargetMode = false,
   isValidColumnPowerTarget = false,
   onCommitColumnPowerTarget,
 }: {
   columnIndex: number;
-  effectCount?: number;
+  entries?: readonly EffectBadgeEntry[];
   isColumnPowerTargetMode?: boolean;
   isValidColumnPowerTarget?: boolean;
   onCommitColumnPowerTarget?: () => void;
@@ -52,7 +53,7 @@ export function TableauColumnBadgeHolder({
       aria-label={
         isColumnPowerTargetMode && isValidColumnPowerTarget
           ? `Column ${columnIndex + 1} — click to apply power`
-          : effectCount > 0
+          : entries.length > 0
             ? `Column ${columnIndex + 1} effects`
             : `Column ${columnIndex + 1} effect holder`
       }
@@ -66,7 +67,7 @@ export function TableauColumnBadgeHolder({
         onCommitColumnPowerTarget();
       }}
     >
-      <CardEffectBadges effectCount={effectCount} />
+      <CardEffectBadges entries={entries} />
     </div>
   );
 }

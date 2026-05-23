@@ -36,11 +36,16 @@ function ShelfChargeBadge({ chargesRemaining }: { chargesRemaining: number }) {
   const depleted = chargesRemaining <= 0;
   return (
     <div
-      className={`pointer-events-none absolute left-0.5 top-0.5 z-40 flex h-4 min-w-4 items-center justify-center rounded px-0.5 text-[9px] font-bold ring-1 ${
-        depleted
-          ? "bg-zinc-800/90 text-zinc-500 ring-zinc-600/60"
-          : "bg-zinc-900/90 text-amber-100 ring-amber-500/50"
-      }`}
+      className="pointer-events-none absolute left-0.5 top-0.5 z-40 flex h-4 min-w-4 items-center justify-center rounded px-0.5 text-[9px] font-bold"
+      style={{
+        backgroundColor: depleted
+          ? colors.shelfChargeBadgeDepletedBackground
+          : colors.shelfChargeBadgeBackground,
+        color: depleted ? colors.shelfChargeBadgeDepletedText : colors.shelfChargeBadgeText,
+        boxShadow: `0 0 0 1px ${
+          depleted ? colors.shelfChargeBadgeDepletedRing : colors.shelfChargeBadgeRing
+        }`,
+      }}
       aria-hidden
     >
       {chargesRemaining}

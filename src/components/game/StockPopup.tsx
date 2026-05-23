@@ -8,8 +8,8 @@ import { dimensions } from "@/constants/dimensions";
 import { rankChar } from "@/engine/cards";
 import type { Card, GameState } from "@/engine/types";
 import {
-  cardEffectCount,
   stockPopupCardDisplayMode,
+  stockPopupEffectBadgeEntries,
   transparentEffectBackOpacity,
 } from "@/lib/cardEffectsUi";
 import { stockPopupLayout } from "@/lib/stockPopupLayout";
@@ -60,7 +60,7 @@ function StockPopupFaceDownCell({
   const s = Math.min(deckPopupCardWidth / cw, deckPopupCardHeight / ch);
   const displayMode = stockPopupCardDisplayMode(game, card);
   const placed = { card, faceUp: displayMode === "deckPopupFaceDown" };
-  const effectCount = cardEffectCount(game, card);
+  const effectBadgeEntries = stockPopupEffectBadgeEntries(game, card);
   const isPowerTargetMode = powerTargeting != null;
   const isValidPowerTarget =
     isPowerTargetMode &&
@@ -120,7 +120,7 @@ function StockPopupFaceDownCell({
           }
         />
       </div>
-      <CardEffectBadges effectCount={effectCount} />
+      <CardEffectBadges entries={effectBadgeEntries} />
     </div>
   );
 }
