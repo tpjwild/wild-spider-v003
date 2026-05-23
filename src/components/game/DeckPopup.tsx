@@ -6,6 +6,7 @@ import { CardDetailsPopup } from "@/components/game/CardDetailsPopup";
 import { CardView } from "@/components/game/CardView";
 import { CardEffectBadges } from "@/components/game/CardEffectBadges";
 import { getDeckPairById } from "@/content/deckPairs";
+import { shelfPowerChargesForJoker } from "@/lib/deckCardDetails";
 import { dimensions } from "@/constants/dimensions";
 import { rankChar } from "@/engine/cards";
 import type { Card, GameState, Suit } from "@/engine/types";
@@ -374,6 +375,7 @@ export function DeckPopup({
       <CardDetailsPopup
         deckPairId={game.config.deckPairId}
         card={detailsCard}
+        powerCharges={shelfPowerChargesForJoker(game, detailsCard)}
         onClose={() => setDetailsCard(null)}
       />
     ) : null}

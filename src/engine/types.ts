@@ -24,8 +24,15 @@ export type PlacedCard = {
   faceUp: boolean;
 };
 
-/** Card effect ids applied by powers (Stage 5). */
-export type EffectId = "transparent";
+/** Card and column effect ids (applied by powers / set powers). */
+export type EffectId = "transparent" | "wild" | "halfWild" | "skip1" | "skip2";
+
+/** One applied effect instance; {@link movesRemaining} null means permanent. */
+export type AppliedEffect = {
+  effect: EffectId;
+  /** null = permanent; number = moves remaining before expiry (ticks on player moves, not power trigger). */
+  movesRemaining: number | null;
+};
 
 /** Stable key for {@link GameState.cardEffects} (regular id or joker id). */
 export type CardEffectKey = string;
@@ -33,8 +40,20 @@ export type CardEffectKey = string;
 /** Joker portrait slot 1–4 within a deck (red = 1–2, black = 3–4). */
 export type JokerPortraitSlot = 1 | 2 | 3 | 4;
 
-/** Registry power ids for the Stage 5 joker slice. */
-export type PowerId = "jokerAllKingsTransparent" | "jokerSelectedCardTransparent";
+/** Registry power ids for joker / set powers. */
+export type PowerId =
+  | "jokerAllKingsTransparent"
+  | "jokerSelectedCardTransparent"
+  | "jokerSelectedCardWild"
+  | "jokerSelectedCardHalfWild"
+  | "jokerSelectedColumnWild"
+  | "jokerSelectedColumnHalfWild"
+  | "jokerSelectedColumnTransparent"
+  | "jokerSelectedCardSkip1"
+  | "jokerSelectedCardSkip2"
+  | "jokerSelectedColumnSkip1"
+  | "jokerSelectedColumnSkip2"
+  | "jokerTwoKingsTransparent";
 
 /** One joker sitting on the shelf after being dealt from stock */
 export type ShelfJoker = {
@@ -108,9 +127,9 @@ export type GameState = {
   stock: Card[];
   shelf: ShelfJoker[];
   /** Per-card effects keyed by {@link cardEffectKey}. */
-  cardEffects: Record<CardEffectKey, EffectId[]>;
+  cardEffects: Record<CardEffectKey, AppliedEffect[]>;
   /** Per-tableau-column effects (column index → effect list). */
-  columnEffects: Record<number, EffectId[]>;
+  columnEffects: Record<number, AppliedEffect[]>;
   /** Number of times undo was invoked (each costs -1 score) */
   undoCount: number;
   /** Player actions only (used for undo); does not include implicit system events */

@@ -51,6 +51,8 @@ export const colors = {
   popupLightCloseButtonText: "#ecf8ee",
   /** Shelf panel fill (`ShelfStrip` border box). */
   shelfPanelBackground: "rgba(0, 0, 0, 0.3)",
+  /** Name plate below the shelf (joker + power on hover). */
+  shelfNamePlateBackground: "rgba(0, 0, 0, 0.45)",
   /** Light wash over shelf jokers/set powers with zero charges (card face only; badge stays full strength). */
   shelfDepletedCardWash: "rgba(235, 240, 245, 0.62)",
   /** Horizontal scrollbar thumb on the shelf strip. */

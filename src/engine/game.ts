@@ -2,11 +2,13 @@ import { dealFromStock } from "./deal";
 import { undoLastEntry } from "./history";
 import {
   triggerImmediatePower as applyImmediatePower,
+  triggerTargetedColumnPower as applyTargetedColumnPower,
   triggerTargetedPower as applyTargetedPower,
   type BlackJokerTargetContext,
 } from "./powers";
 import { applyMoveTableau, applyMoveToFoundation } from "./moves";
 import { createInitialState } from "./setup";
+import { tickEffectDurations } from "./effects";
 import type {
   Card,
   GameConfig,
@@ -41,11 +43,20 @@ export function dealStock(state: GameState): GameState | null {
   return appendHistory(r.state, r.history);
 }
 
+function shouldTickEffectDurations(entry: HistoryEntry): boolean {
+  return (
+    entry.type === "move_tableau" ||
+    entry.type === "move_to_foundation" ||
+    entry.type === "deal"
+  );
+}
+
 function appendHistory(state: GameState, entry: HistoryEntry): GameState {
-  return {
+  const withHistory = {
     ...state,
     history: [...state.history, entry],
   };
+  return shouldTickEffectDurations(entry) ? tickEffectDurations(withHistory) : withHistory;
 }
 
 export function undo(state: GameState): GameState | null {
@@ -68,6 +79,16 @@ export function triggerTargetedPower(
   targetContext: BlackJokerTargetContext,
 ): GameState | null {
   const r = applyTargetedPower(state, shelfIndex, card, targetContext);
+  if (!r) return null;
+  return appendHistory(r.state, r.history);
+}
+
+export function triggerTargetedColumnPower(
+  state: GameState,
+  shelfIndex: number,
+  columnIndex: number,
+): GameState | null {
+  const r = applyTargetedColumnPower(state, shelfIndex, columnIndex);
   if (!r) return null;
   return appendHistory(r.state, r.history);
 }

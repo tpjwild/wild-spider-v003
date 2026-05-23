@@ -25,7 +25,9 @@ function assertDeckPairShape(p: DeckPairDefinition) {
       expect(jLen).toBe(4);
       for (let j = 0; j < 4; j++) {
         expect(deck.jokers[j]!.index).toBe((j + 1) as 1 | 2 | 3 | 4);
+        expect(deck.jokers[j]!.name.length).toBeGreaterThan(0);
         expect(deck.jokers[j]!.initialCharges).toBeGreaterThan(0);
+        expect(deck.jokers[j]!.initialDuration).toBeNull();
       }
     }
     expect(deck.faces).toHaveLength(12);
@@ -33,6 +35,7 @@ function assertDeckPairShape(p: DeckPairDefinition) {
     for (const f of deck.faces) {
       const key = `${f.suit}-${f.rank}`;
       expect(seen.has(key)).toBe(false);
+      expect(f.name.length).toBeGreaterThan(0);
       seen.add(key);
     }
     for (const s of SUITS) {
@@ -80,6 +83,13 @@ describe("deckPairs registry", () => {
     expect(mat?.defaultUnlocked).toBe(true);
     expect(wph?.defaultUnlocked).toBe(true);
     expect(cps?.defaultUnlocked).toBe(true);
+  });
+
+  it("western philosophy assigns a distinct power to each joker", () => {
+    const wph = deckPairs.find((p) => p.id === "westernPhilosophy");
+    const powerIds = wph?.decks.flatMap((d) => d.jokers.map((j) => j.powerId)) ?? [];
+    expect(powerIds).toHaveLength(8);
+    expect(new Set(powerIds).size).toBe(8);
   });
 });
 

@@ -37,9 +37,18 @@ export {
   cardEffectKey,
   cardEffectsForCard,
   columnEffectsForColumn,
+  effectsForCardInColumn,
   hasCardEffect,
+  hasEffectOnCardInColumn,
   emptyEffectsState,
 } from "./effects";
+export {
+  canPlaceOnTableauWithEffects,
+  effectiveRankChoices,
+  effectiveSuitChoices,
+  isValidStrictSameSuitDescendingRun,
+  isValidTableauRun,
+} from "./tableauEffects";
 export {
   applyMakeAllKingsTransparent,
   applyMakeCardTransparent,

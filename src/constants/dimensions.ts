@@ -45,6 +45,10 @@ export const dimensions = {
   shelfVerticalPad: 16,
   /** Inner horizontal padding of the shelf panel (joker strip inset from the shelf border). */
   shelfHorizontalPad: 8,
+  /** Gap between the shelf panel and the name plate below it. */
+  shelfNamePlateGapPx: 6,
+  /** Fixed height for the shelf name plate (joker + power labels on hover). */
+  shelfNamePlateHeightPx: 40,
   /**
    * When the bottom of the **foundation** column (shelf/foundation/stock row) is **strictly closer**
    * than this many pixels to the viewport bottom, the tableau uses viewport-floor column min-heights

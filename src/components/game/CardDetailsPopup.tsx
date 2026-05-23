@@ -15,10 +15,29 @@ type CardDetailsPopupProps = {
   deckPairId: string;
   card: Card;
   onClose: () => void;
+  /** Live shelf charges when inspecting an in-play joker; omit for catalog-only views. */
+  powerCharges?: { remaining: number; initial: number };
 };
 
-export function CardDetailsPopup({ deckPairId, card, onClose }: CardDetailsPopupProps) {
-  const model = useMemo(() => getDeckCardDetailsModel(deckPairId, card), [deckPairId, card]);
+function formatPowerChargesLine(remaining: number, initial: number): string {
+  const chargeWord = remaining === 1 ? "charge" : "charges";
+  if (remaining <= 0) return "No charges remaining";
+  if (remaining === initial) {
+    return `${remaining} ${chargeWord} remaining`;
+  }
+  return `${remaining} of ${initial} ${chargeWord} remaining`;
+}
+
+export function CardDetailsPopup({
+  deckPairId,
+  card,
+  onClose,
+  powerCharges,
+}: CardDetailsPopupProps) {
+  const model = useMemo(
+    () => getDeckCardDetailsModel(deckPairId, card, powerCharges),
+    [deckPairId, card, powerCharges],
+  );
 
   if (!model) return null;
 
@@ -98,6 +117,49 @@ export function CardDetailsPopup({ deckPairId, card, onClose }: CardDetailsPopup
               >
                 {model.body}
               </p>
+            ) : null}
+            {model.powerName ? (
+              <div
+                className="flex flex-col gap-1 border-t border-solid pt-3"
+                style={{ borderTopColor: colors.popupLightPanelDivider }}
+              >
+                <p
+                  className="text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: colors.popupLightPanelMutedText }}
+                >
+                  Power
+                </p>
+                <h3
+                  className="text-base font-semibold"
+                  style={{ color: colors.popupLightPanelTitleText }}
+                >
+                  {model.powerName}
+                </h3>
+                {model.powerDescription ? (
+                  <p
+                    className="whitespace-pre-wrap text-sm leading-relaxed"
+                    style={{ color: colors.popupLightPanelBodyText }}
+                  >
+                    {model.powerDescription}
+                  </p>
+                ) : null}
+                {model.powerChargesRemaining != null && model.powerChargesInitial != null ? (
+                  <p
+                    className="text-sm font-medium"
+                    style={{
+                      color:
+                        model.powerChargesRemaining <= 0
+                          ? colors.popupLightPanelMutedText
+                          : colors.popupLightPanelTitleText,
+                    }}
+                  >
+                    {formatPowerChargesLine(
+                      model.powerChargesRemaining,
+                      model.powerChargesInitial,
+                    )}
+                  </p>
+                ) : null}
+              </div>
             ) : null}
           </div>
         </div>

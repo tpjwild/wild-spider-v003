@@ -1,4 +1,9 @@
 import { isJoker, isRegular } from "./cards";
+import {
+  canPlaceOnTableauWithEffects,
+  isValidStrictSameSuitDescendingRun,
+  isValidTableauRun,
+} from "./tableauEffects";
 import type {
   Card,
   FoundationIndex,
@@ -20,33 +25,20 @@ export function bottomFaceUpIndex(column: PlacedCard[]): number {
   return i + 1;
 }
 
-/** Cards from startIndex..end inclusive must be face-up, same-suit, strictly descending ranks */
+/** @deprecated Use {@link isValidStrictSameSuitDescendingRun} or {@link isValidTableauRun}. */
 export function isValidSameSuitDescendingRun(
   column: PlacedCard[],
   startIndex: number,
 ): boolean {
-  if (startIndex < 0 || startIndex >= column.length) return false;
-  if (!column[startIndex]!.faceUp) return false;
-  for (let i = startIndex; i < column.length; i++) {
-    if (!column[i]!.faceUp) return false;
-    const c = column[i]!.card;
-    if (!isRegular(c)) return false;
-    if (i > startIndex) {
-      const prev = column[i - 1]!.card;
-      if (!isRegular(prev)) return false;
-      if (prev.suit !== c.suit) return false;
-      if (prev.rank !== c.rank + 1) return false;
-    }
-  }
-  return true;
+  return isValidStrictSameSuitDescendingRun(column, startIndex);
 }
 
-/** Single card or tail run can sit on destTop: dest rank = moving bottom rank + 1; suit any for single? Spec: one rank higher regardless of suit for placement - that's for single card. For group, same suit sequence. */
+/** Physical rank +1 placement (no effects). Prefer {@link canPlaceOnTableauWithEffects} in play. */
 export function canPlaceOnTableau(
   movingBottom: Card,
   destTop: Card | undefined,
 ): boolean {
-  if (destTop === undefined) return true; // empty column
+  if (destTop === undefined) return true;
   if (!isRegular(movingBottom) || !isRegular(destTop)) return false;
   return destTop.rank === movingBottom.rank + 1;
 }
@@ -90,15 +82,22 @@ export function canMoveTableau(
   if (fromColumn === toColumn) return false;
   const src = state.columns[fromColumn]!;
   if (startIndex < 0 || startIndex >= src.length) return false;
-  if (!isValidSameSuitDescendingRun(src, startIndex)) return false;
+  if (!isValidTableauRun(state, fromColumn, src, startIndex)) return false;
 
   const moving = src.slice(startIndex);
   const bottom = moving[0]!.card;
-  if (isJoker(bottom)) return false;
+  if (isJoker(bottom) || !isRegular(bottom)) return false;
 
   const dest = state.columns[toColumn]!;
   const destTop = topPlaced(dest)?.card;
-  return canPlaceOnTableau(bottom, destTop);
+  if (destTop !== undefined && !isRegular(destTop)) return false;
+  return canPlaceOnTableauWithEffects(
+    state,
+    bottom,
+    fromColumn,
+    destTop,
+    toColumn,
+  );
 }
 
 export function canMoveToFoundation(
@@ -110,7 +109,7 @@ export function canMoveToFoundation(
   if (foundationIndex < 0 || foundationIndex > 7) return false;
   const src = state.columns[fromColumn]!;
   if (startIndex < 0 || startIndex >= src.length) return false;
-  if (!isValidSameSuitDescendingRun(src, startIndex)) return false;
+  if (!isValidStrictSameSuitDescendingRun(src, startIndex)) return false;
 
   const run = src.slice(startIndex);
   const pile = state.foundation[foundationIndex]!;

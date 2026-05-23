@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { EFFECT_TRANSPARENT } from "@/content/powerDefinitions";
+import { EFFECT_TRANSPARENT } from "@/content/effectDefinitions";
+import { getPowerDefinition, JOKER_POWER_ALL_KINGS_TRANSPARENT } from "@/content/powerDefinitions";
 import type { GameState } from "@/engine/types";
 import {
   getDeckCardDetailsModel,
   isDeckPopupDetailsClickableCard,
   isInGameCardDetailsClickable,
+  shelfPowerChargesForJoker,
 } from "@/lib/deckCardDetails";
-import { cardEffectKey } from "@/engine/effects";
+import { createShelfJokerEntry } from "@/engine/powers";
+import { appliedEffect, cardEffectKey } from "@/engine/effects";
 
 describe("deckCardDetails", () => {
   it("isDeckPopupDetailsClickableCard is true for joker, ace, and face ranks only", () => {
@@ -67,11 +70,48 @@ describe("deckCardDetails", () => {
     expect(m?.portraitThumbSrc).not.toBe(m?.portraitSrc);
   });
 
-  it("getDeckCardDetailsModel for joker uses portrait and deck label", () => {
+  it("getDeckCardDetailsModel for joker uses portrait, bio, and power name/description", () => {
     const m = getDeckCardDetailsModel("mathematics", { kind: "joker", id: 0 });
     expect(m?.primaryHeading.length).toBeGreaterThan(0);
     expect(m?.body.length).toBeGreaterThan(0);
     expect(m?.portraitSrc).toContain("/gameArt/portraits/mathematics/");
+    const allKings = getPowerDefinition(JOKER_POWER_ALL_KINGS_TRANSPARENT);
+    expect(m?.powerName).toBe(allKings.name);
+    expect(m?.powerDescription).toBe(allKings.description);
+    expect(m?.powerChargesRemaining).toBe(3);
+    expect(m?.powerChargesInitial).toBe(3);
+  });
+
+  it("getDeckCardDetailsModel uses live shelf charges when provided", () => {
+    const joker = { kind: "joker" as const, id: 7 };
+    const m = getDeckCardDetailsModel("westernPhilosophy", joker, {
+      remaining: 1,
+      initial: 3,
+    });
+    expect(m?.powerChargesRemaining).toBe(1);
+    expect(m?.powerChargesInitial).toBe(3);
+  });
+
+  it("shelfPowerChargesForJoker reads charges from game shelf", () => {
+    const entry = createShelfJokerEntry("westernPhilosophy", { kind: "joker", id: 7 });
+    const game = {
+      config: { deckPairId: "westernPhilosophy" },
+      shelf: [{ ...entry, chargesRemaining: 2 }],
+    } as unknown as GameState;
+    const charges = shelfPowerChargesForJoker(game, { kind: "joker", id: 7 });
+    expect(charges?.remaining).toBe(2);
+    expect(charges?.initial).toBe(3);
+  });
+
+  it("getDeckCardDetailsModel for court does not include power fields", () => {
+    const m = getDeckCardDetailsModel("base", {
+      kind: "regular",
+      id: 12,
+      suit: "S",
+      rank: 13,
+    });
+    expect(m?.powerName).toBeUndefined();
+    expect(m?.powerDescription).toBeUndefined();
   });
 
   it("isInGameCardDetailsClickable is true for face-up courts and transparent face-down courts", () => {
@@ -81,7 +121,7 @@ describe("deckCardDetails", () => {
     expect(isInGameCardDetailsClickable(emptyEffects, { card: king, faceUp: false })).toBe(false);
 
     const transparentKing = {
-      cardEffects: { [cardEffectKey(king)]: [EFFECT_TRANSPARENT] },
+      cardEffects: { [cardEffectKey(king)]: [appliedEffect(EFFECT_TRANSPARENT)] },
     } as unknown as GameState;
     expect(isInGameCardDetailsClickable(transparentKing, { card: king, faceUp: false })).toBe(true);
     expect(

@@ -23,7 +23,7 @@ import {
 } from "@/constants/dimensions";
 import { layoutIdCardMotionProps, timings } from "@/constants/timings";
 import {
-  cardHasTransparentEffect,
+  cardHasTransparentEffectInColumn,
   columnEffectCount,
   tableauCardDisplayMode,
   tableauCardEffectBadgeCount,
@@ -31,9 +31,12 @@ import {
 } from "@/lib/cardEffectsUi";
 import { cardLayoutId } from "@/lib/cardLayoutId";
 import {
-  isTableauFaceDownPowerTarget,
+  isColumnTargetingPower,
+  isTableauColumnPowerTarget,
+  isTableauPowerTarget,
   POWER_TARGET_CURSOR_CLASS,
   POWER_TARGET_VALID_CURSOR_CLASS,
+  tableauPowerTargetContextForCommit,
 } from "@/lib/powerTargetUi";
 import { CARD_INSPECT_HIGHLIGHT_CLASS } from "@/lib/cardInspectUi";
 import { isInGameCardDetailsClickable } from "@/lib/deckCardDetails";
@@ -136,10 +139,15 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
   const powerTargeting = useGameStore((s) => s.powerTargeting);
   const commitTargetedPower = useGameStore((s) => s.commitTargetedPower);
   const isPowerTargetMode = powerTargeting != null;
-  const isValidPowerTarget =
+  const columnPowerTargetMode =
     isPowerTargetMode &&
     powerTargeting != null &&
-    isTableauFaceDownPowerTarget(game, placed.card, placed.faceUp, powerTargeting.shelfIndex);
+    isColumnTargetingPower(game, powerTargeting.shelfIndex);
+  const isValidPowerTarget =
+    isPowerTargetMode &&
+    !columnPowerTargetMode &&
+    powerTargeting != null &&
+    isTableauPowerTarget(game, placed.card, placed.faceUp, powerTargeting.shelfIndex);
   const [hoverValidTarget, setHoverValidTarget] = useState(false);
   const [inspectHover, setInspectHover] = useState(false);
 
@@ -154,7 +162,7 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
     Boolean(onOpenCardDetails) &&
     !isPowerTargetMode &&
     !tableauDragInProgress &&
-    isInGameCardDetailsClickable(game, placed);
+    isInGameCardDetailsClickable(game, placed, columnIndex);
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
 
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
@@ -188,13 +196,14 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
     inspectScaled,
   );
 
-  const cursorClass = isPowerTargetMode
-    ? isValidPowerTarget
-      ? hoverValidTarget
-        ? POWER_TARGET_VALID_CURSOR_CLASS
+  const cursorClass =
+    isPowerTargetMode && !columnPowerTargetMode
+      ? isValidPowerTarget
+        ? hoverValidTarget
+          ? POWER_TARGET_VALID_CURSOR_CLASS
+          : POWER_TARGET_CURSOR_CLASS
         : POWER_TARGET_CURSOR_CLASS
-      : POWER_TARGET_CURSOR_CLASS
-    : shiftInspectMode
+      : shiftInspectMode
       ? "cursor-help"
       : canDrag && !dealLocked
         ? "cursor-grab active:cursor-grabbing"
@@ -235,9 +244,15 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
         if (inspectHover) setInspectHover(false);
       }}
       onClick={(e) => {
-        if (isPowerTargetMode && isValidPowerTarget) {
+        if (isPowerTargetMode && isValidPowerTarget && powerTargeting != null) {
           e.stopPropagation();
-          commitTargetedPower(placed.card, { tableauFaceDown: true });
+          const ctx = tableauPowerTargetContextForCommit(
+            game,
+            placed.card,
+            placed.faceUp,
+            powerTargeting.shelfIndex,
+          );
+          if (ctx) commitTargetedPower(placed.card, ctx);
         }
       }}
       onPointerDown={(e) => {
@@ -272,14 +287,14 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
         <div className={`relative inline-block rounded-md ${cardRingClass}`} style={scaleShellStyle}>
           <CardView
             placed={placed}
-            displayMode={tableauCardDisplayMode(game, placed)}
+            displayMode={tableauCardDisplayMode(game, columnIndex, placed)}
             faceDownBackOpacity={
-              cardHasTransparentEffect(game, placed.card)
+              cardHasTransparentEffectInColumn(game, columnIndex, placed.card)
                 ? transparentEffectBackOpacity()
                 : undefined
             }
           />
-          <CardEffectBadges effectCount={tableauCardEffectBadgeCount(game, placed)} />
+          <CardEffectBadges effectCount={tableauCardEffectBadgeCount(game, columnIndex, placed)} />
         </div>
       </motion.div>
     </div>
@@ -342,6 +357,7 @@ export function TableauColumn({
   const col = useMemo(() => game.columns[columnIndex] ?? [], [game.columns, columnIndex]);
   const dealLocked = useGameStore((s) => s.dealAnimation != null);
   const powerTargeting = useGameStore((s) => s.powerTargeting);
+  const commitTargetedColumnPower = useGameStore((s) => s.commitTargetedColumnPower);
   const layoutBoostColumn = useTableauLayoutBoostColumn();
   const tableauReturnHide = useTableauReturnHide();
   const applyViewportFloor = useApplyTableauDropViewportFloorMinHeight();
@@ -495,11 +511,18 @@ export function TableauColumn({
     [col, tryArmHover],
   );
 
+  const columnTargetMode =
+    powerTargeting != null && isColumnTargetingPower(game, powerTargeting.shelfIndex);
+  const isValidColumnTarget =
+    columnTargetMode &&
+    powerTargeting != null &&
+    isTableauColumnPowerTarget(game, columnIndex, powerTargeting.shelfIndex);
+
   return (
     <div
       ref={setDroppableRef}
-      className={`relative flex min-h-0 shrink-0 flex-col rounded-md border-2 border-dashed border-transparent transition-colors ${
-        isOver ? "bg-amber-500/10" : ""
+      className={`relative flex min-h-0 shrink-0 flex-col rounded-md border-2 border-dashed transition-colors ${
+        isOver ? "bg-amber-500/10 border-transparent" : "border-transparent"
       }`}
       style={{
         width: droppableWidth,
@@ -512,13 +535,20 @@ export function TableauColumn({
       <TableauColumnBadgeHolder
         columnIndex={columnIndex}
         effectCount={columnEffectCount(game, columnIndex)}
+        isColumnPowerTargetMode={columnTargetMode}
+        isValidColumnPowerTarget={isValidColumnTarget}
+        onCommitColumnPowerTarget={
+          isValidColumnTarget
+            ? () => commitTargetedColumnPower(columnIndex)
+            : undefined
+        }
       />
       <div
         ref={stackElRef}
-        className="relative shrink-0 overflow-visible self-start"
+        className={`relative shrink-0 overflow-visible self-start ${columnTargetMode ? "pointer-events-none" : ""}`}
         style={{ width: cw, height: Math.max(ch, stackH) }}
         data-tableau-stack={columnIndex}
-        onPointerLeave={handleStackPointerLeave}
+        onPointerLeave={columnTargetMode ? undefined : handleStackPointerLeave}
       >
         {col.length === 0 ? (
           <motion.div
@@ -531,7 +561,7 @@ export function TableauColumn({
           const detailsPinned =
             detailsCard != null &&
             tableauCardIdentity(placed.card) === tableauCardIdentity(detailsCard) &&
-            isInGameCardDetailsClickable(game, placed);
+            isInGameCardDetailsClickable(game, placed, columnIndex);
 
           return (
             <TableauCardSlot

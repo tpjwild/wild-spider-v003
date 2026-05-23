@@ -5,18 +5,21 @@ import {
   moveToFoundation,
   newGame,
   triggerImmediatePower,
+  triggerTargetedColumnPower,
   triggerTargetedPower,
   undo,
   type BlackJokerTargetContext,
 } from "@/engine/game";
-import { getPowerDefinition } from "@/content/powerDefinitions";
+import { syncShelfJokerPowerFromCatalog } from "@/engine/powers";
+import { getPowerDefinition, powerTargetsTableauColumn } from "@/content/powerDefinitions";
+import { armedPowerIdForShelf } from "@/lib/powerTargetUi";
 import { canDealFromStock, dealFromStock, leadStockIndicesForUpcomingDeals } from "@/engine/deal";
 import {
   buildInitialDealEntries,
   initialDealAnimationBase,
   stripEphemeralGameState,
 } from "@/engine/initialDeal";
-import { isValidSameSuitDescendingRun } from "@/engine/moves";
+import { isValidTableauRun } from "@/engine/tableauEffects";
 import { createEmptyBoardShell, gameHasAnyCards, validateGameConfig } from "@/engine/setup";
 import type { Card, FoundationIndex, GameConfig, GameState } from "@/engine/types";
 import type { InitialDealEntry } from "@/engine/types";
@@ -110,6 +113,7 @@ export type GameStore = {
   /** Double-click shelf joker / set power: immediate applies now; targeted enters {@link powerTargeting}. */
   triggerShelfPower: (shelfIndex: number) => boolean;
   commitTargetedPower: (card: Card, targetContext: BlackJokerTargetContext) => boolean;
+  commitTargetedColumnPower: (columnIndex: number) => boolean;
   cancelPowerTargeting: () => void;
   clearError: () => void;
 };
@@ -468,17 +472,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const entry = game.shelf[shelfIndex];
     if (!entry || entry.chargesRemaining <= 0) return false;
 
-    const def = getPowerDefinition(entry.powerId);
+    const syncedEntry = syncShelfJokerPowerFromCatalog(game.config.deckPairId, entry);
+    const syncedGame =
+      syncedEntry === entry ? game : { ...game, shelf: game.shelf.map((sj, i) => (i === shelfIndex ? syncedEntry : sj)) };
+    const armed = armedPowerIdForShelf(syncedGame, shelfIndex) ?? syncedEntry.powerId;
+    const def = getPowerDefinition(armed);
     if (def.triggerClass === "targeted") {
       if (powerTargeting?.shelfIndex === shelfIndex) {
         set(clearPowerTargeting());
         return true;
       }
-      set({ powerTargeting: { shelfIndex }, lastError: null });
+      set({
+        game: syncedGame,
+        powerTargeting: { shelfIndex },
+        lastError: null,
+      });
+      if (syncedGame !== game) persistGameStateLocal(syncedGame);
       return true;
     }
 
-    const next = triggerImmediatePower(game, shelfIndex);
+    const next = triggerImmediatePower(syncedGame, shelfIndex);
     if (!next) return false;
     set({ game: next, ...clearPowerTargeting(), lastError: null });
     persistGameStateLocal(next);
@@ -488,12 +501,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
   commitTargetedPower: (card, targetContext) => {
     const { game, dealAnimation, powerTargeting } = get();
     if (dealAnimation || !game || !powerTargeting) return false;
+    const armed = armedPowerIdForShelf(game, powerTargeting.shelfIndex);
+    if (!armed || powerTargetsTableauColumn(armed)) return false;
     const next = triggerTargetedPower(
       game,
       powerTargeting.shelfIndex,
       card,
       targetContext,
     );
+    if (!next) return false;
+    set({ game: next, ...clearPowerTargeting(), lastError: null });
+    persistGameStateLocal(next);
+    return true;
+  },
+
+  commitTargetedColumnPower: (columnIndex) => {
+    const { game, dealAnimation, powerTargeting } = get();
+    if (dealAnimation || !game || !powerTargeting) return false;
+    const armed = armedPowerIdForShelf(game, powerTargeting.shelfIndex);
+    if (!armed || !powerTargetsTableauColumn(armed)) return false;
+    const next = triggerTargetedColumnPower(game, powerTargeting.shelfIndex, columnIndex);
     if (!next) return false;
     set({ game: next, ...clearPowerTargeting(), lastError: null });
     persistGameStateLocal(next);
@@ -511,5 +538,5 @@ export function canDragFromTableau(state: GameState, columnIndex: number, cardIn
   const col = state.columns[columnIndex];
   if (!col || cardIndex < 0 || cardIndex >= col.length) return false;
   if (!col[cardIndex]!.faceUp) return false;
-  return isValidSameSuitDescendingRun(col, cardIndex);
+  return isValidTableauRun(state, columnIndex, col, cardIndex);
 }

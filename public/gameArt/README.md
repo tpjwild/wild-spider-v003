@@ -18,10 +18,10 @@ Paths are defined in `src/constants/sharedDeckAssets.ts` and `src/constants/game
 
 Shipped portrait files live under `public/gameArt/portraits/<pairId>/deck1/` and `deck2/` (**medium** — card details popup). **Small** assets under `public/gameArt/portraits-small/` are used for in-game card faces (tableau, foundation, shelf, deck popup).
 
-Filenames and display names are listed in `src/content/portraitManifest.ts` for themed pairs; **Base** uses `base01-jack-clubs-jack.svg` style names (SVG courts, no jokers).
+Filenames are listed in `src/content/portraitManifest.ts` for themed pairs; display names are in `src/content/deckPairs/`. **Base** uses `base01-jack-clubs-jack.svg` style names (SVG courts, no jokers).
 
 Current pair ids: `base`, `computerScience`, `westernPhilosophy`, `mathematics`.
 
 **Masters vs shipped art:** Full-resolution exports belong in gitignored **`art-source/portraits/`** at the repo root. Run **`pnpm run generate:portraits`** (Phase 2) to produce committed medium/small files under `public/gameArt/`. Full workflow: **[docs/ART_PIPELINE.md](../../docs/ART_PIPELINE.md)** and **`art-source.example/`**.
 
-Adding a new deck pair is done by editing `deckPairs.ts`, extending the portrait manifest when needed, placing masters in `art-source/`, generating, then committing `public/gameArt/portraits/` (and `portraits-small/` when applicable).
+Adding a new deck pair is done by adding a module under `src/content/deckPairs/`, extending the portrait manifest when needed, placing masters in `art-source/`, generating, then committing `public/gameArt/portraits/` (and `portraits-small/` when applicable).

@@ -53,7 +53,8 @@ import { recordLogoutHadInProgressGame } from "@/lib/authSessionGameBootstrap";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { fetchSavedGame, upsertSavedGame } from "@/lib/savedGamesRemote";
 import { cardRevealedByTableauDrag, scheduleWarmCardFaceArt } from "@/lib/preloadPortraitArt";
-import { POWER_TARGET_CURSOR_CLASS } from "@/lib/powerTargetUi";
+import { shelfPowerChargesForJoker } from "@/lib/deckCardDetails";
+import { isColumnTargetingPower, POWER_TARGET_CURSOR_CLASS } from "@/lib/powerTargetUi";
 import { useShiftInspectMode } from "@/lib/useShiftInspectMode";
 import { useGameStore } from "@/state/gameStore";
 
@@ -553,6 +554,25 @@ export function GameShell() {
     return applyInitialDealEntriesProgress(game, dealAnimation.entries, dealAnimation.landedCount);
   }, [game, dealAnimation]);
 
+  /** Deck/Stock hover popups support card-targeted powers only (not column powers). */
+  const openDeckStockPopupsOnPowerTargetHover = Boolean(
+    game &&
+      powerTargeting != null &&
+      !isColumnTargetingPower(game, powerTargeting.shelfIndex),
+  );
+
+  useEffect(() => {
+    if (
+      !game ||
+      powerTargeting == null ||
+      !isColumnTargetingPower(game, powerTargeting.shelfIndex)
+    ) {
+      return;
+    }
+    setDeckPopupOpen(false);
+    setStockPopupOpen(false);
+  }, [game, powerTargeting]);
+
   useEffect(() => {
     if (effectiveGame) return;
     closeInGameCardDetails();
@@ -1011,13 +1031,13 @@ export function GameShell() {
                 setStockPopupOpen(false);
                 setDeckPopupOpen(true);
               }}
-              openDeckOnPointerEnter={powerTargeting != null}
+              openDeckOnPointerEnter={openDeckStockPopupsOnPowerTargetHover}
               canOpenStockPopup={gameHasAnyCards(effectiveGame)}
               onOpenStock={() => {
                 setDeckPopupOpen(false);
                 setStockPopupOpen(true);
               }}
-              openStockOnPointerEnter={powerTargeting != null}
+              openStockOnPointerEnter={openDeckStockPopupsOnPowerTargetHover}
             />
           ) : null}
 
@@ -1167,6 +1187,7 @@ export function GameShell() {
         <CardDetailsPopup
           deckPairId={effectiveGame.config.deckPairId}
           card={inGameDetailsCard}
+          powerCharges={shelfPowerChargesForJoker(effectiveGame, inGameDetailsCard)}
           onClose={closeInGameCardDetails}
         />
       ) : null}

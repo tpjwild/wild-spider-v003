@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CardView } from "@/components/game/CardView";
 import { colors } from "@/constants/colors";
+import { jokerDefinitionForInGameId } from "@/content/deckPairs";
 import { getPowerDefinition } from "@/content/powerDefinitions";
 import {
   dimensions,
@@ -22,6 +23,8 @@ const {
   shelfHorizontalPad,
   shelfVerticalPad,
   shelfWidth,
+  shelfNamePlateGapPx,
+  shelfNamePlateHeightPx,
 } = dimensions;
 
 /** Stacking lift for the shelf card receiving pointer hover (above default shelf z-indices). */
@@ -47,6 +50,78 @@ function ShelfChargeBadge({ chargesRemaining }: { chargesRemaining: number }) {
 
 function pointerIsOverRect(x: number, y: number, rect: DOMRect): boolean {
   return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function shelfJokerLabels(
+  game: GameState,
+  jokerId: number,
+): { jokerName: string; powerName: string } | null {
+  const entry = game.shelf.find((sj) => sj.card.id === jokerId);
+  if (!entry) return null;
+  const jokerDef = jokerDefinitionForInGameId(game.config.deckPairId, entry.card.id);
+  if (!jokerDef) return null;
+  const power = getPowerDefinition(jokerDef.powerId);
+  return { jokerName: jokerDef.name, powerName: power.name };
+}
+
+function shelfNamePlateLabels(
+  game: GameState,
+  hoveredJokerId: number | null,
+  targetingShelfIndex: number | null,
+): { jokerName: string; powerName: string } | null {
+  if (targetingShelfIndex != null) {
+    const entry = game.shelf[targetingShelfIndex];
+    if (entry) {
+      const labels = shelfJokerLabels(game, entry.card.id);
+      if (labels) return labels;
+    }
+  }
+  if (hoveredJokerId != null) {
+    return shelfJokerLabels(game, hoveredJokerId);
+  }
+  return null;
+}
+
+function ShelfNamePlate({
+  jokerName,
+  powerName,
+}: {
+  jokerName?: string;
+  powerName?: string;
+}) {
+  const hasText = jokerName != null && powerName != null;
+  return (
+    <div
+      className="flex w-full flex-col items-center justify-center rounded-md border border-white/15 px-2 text-center"
+      style={{
+        marginTop: shelfNamePlateGapPx,
+        height: shelfNamePlateHeightPx,
+        backgroundColor: colors.shelfNamePlateBackground,
+      }}
+      data-testid="shelf-name-plate"
+      data-has-text={hasText ? "true" : "false"}
+      aria-hidden={!hasText}
+    >
+      {hasText ? (
+        <>
+          <div
+            className="w-full truncate text-xs font-semibold leading-tight"
+            style={{ color: colors.text }}
+            data-testid="shelf-name-plate-joker"
+          >
+            {jokerName}
+          </div>
+          <div
+            className="mt-0.5 w-full truncate text-[10px] leading-tight"
+            style={{ color: colors.textMuted }}
+            data-testid="shelf-name-plate-power"
+          >
+            {powerName}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 export function ShelfStrip({
@@ -103,10 +178,19 @@ export function ShelfStrip({
   const step = shelfHorizontalStepPx();
   const innerWidth = n <= 0 ? cw : cw + (n - 1) * step;
   const hoverBleed = shelfHoverScaleBleedPx();
+  const namePlateLabels = shelfNamePlateLabels(
+    game,
+    hoveredJokerId,
+    powerTargeting?.shelfIndex ?? null,
+  );
 
   return (
     <div
-      className="flex flex-col justify-start overflow-hidden rounded-lg border border-white/20"
+      className="flex flex-col"
+      style={{ width: shelfWidth, maxWidth: "100%" }}
+    >
+      <div
+        className="flex flex-col justify-start overflow-hidden rounded-lg border border-white/20"
       style={{
         width: shelfWidth,
         maxWidth: "100%",
@@ -259,6 +343,11 @@ export function ShelfStrip({
           </div>
         </div>
       </div>
+    </div>
+      <ShelfNamePlate
+        jokerName={namePlateLabels?.jokerName}
+        powerName={namePlateLabels?.powerName}
+      />
     </div>
   );
 }

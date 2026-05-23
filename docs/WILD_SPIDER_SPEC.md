@@ -119,7 +119,7 @@ Each deck has one image element:
 
 - Card back image: A png
 
-The deck pair registry lives in `src/constants/deckPairs.ts`. The shipped product data includes **Base** (`BAS`), **Computer Science** (`CPS`), **Western Philosophy** (`WPH`), and **Mathematics** (`MAT`), each with two decks, four suit themes, and twelve face cards per deck. **Base** defines **no** jokers; each **themed** pair defines **four** jokers per deck. **Optional** bitmap/SVG art lives under `public/gameArt/portraits/<pairId>/deck{n}/` for court and joker portraits (see `src/constants/portraitManifest.ts` for themed basenames), under `public/gameArt/shared/backs/` for card backs, `public/gameArt/shared/cards/` for **A–10 pip faces** (`AS.svg` … `10H.svg`), and `public/gameArt/shared/frames/` for per-rank and per-joker-colour frame overlays (see `src/constants/sharedDeckAssets.ts` and `src/constants/gameArtPaths.ts`). **A–10** faces use a **white** card field; pip cards use the same **zinc border and shadow** as other face-up cards (courts, jokers, typography fallbacks). Pip art is scaled to fit within the padded area without cropping. If a back image is missing or fails to load, the face-down card shows the deck palette **gradient only**. When a back image is present, the UI shows **gradient plus bitmap only** (no playing-card index glyph on the back). If a joker or court **portrait** or **frame** fails to load, the card uses the same **corner typography** style as rank/suit cards (jokers use **JOKER** with letters **stacked vertically** in each corner, like a playing-card index). If a pip face SVG fails to load, **A–10** fall back to that same corner typography. The repo does not require every asset path to exist on disk.
+The deck pair registry lives in `src/content/deckPairs/` (one module per pair plus `index.ts`). Themed **court and joker display names**, bios, and power config are authored in those deck-pair modules (`themedFaces` / `themedJokers` inputs). The shipped product data includes **Base** (`BAS`), **Computer Science** (`CPS`), **Western Philosophy** (`WPH`), and **Mathematics** (`MAT`), each with two decks, four suit themes, and twelve face cards per deck. **Base** defines **no** jokers; each **themed** pair defines **four** jokers per deck. **Optional** bitmap/SVG art lives under `public/gameArt/portraits/<pairId>/deck{n}/` for court and joker portraits (see `src/content/portraitManifest.ts` for themed portrait **file** basenames only), under `public/gameArt/shared/backs/` for card backs, `public/gameArt/shared/cards/` for **A–10 pip faces** (`AS.svg` … `10H.svg`), and `public/gameArt/shared/frames/` for per-rank and per-joker-colour frame overlays (see `src/constants/sharedDeckAssets.ts` and `src/constants/gameArtPaths.ts`). **A–10** faces use a **white** card field; pip cards use the same **zinc border and shadow** as other face-up cards (courts, jokers, typography fallbacks). Pip art is scaled to fit within the padded area without cropping. If a back image is missing or fails to load, the face-down card shows the deck palette **gradient only**. When a back image is present, the UI shows **gradient plus bitmap only** (no playing-card index glyph on the back). If a joker or court **portrait** or **frame** fails to load, the card uses the same **corner typography** style as rank/suit cards (jokers use **JOKER** with letters **stacked vertically** in each corner, like a playing-card index). If a pip face SVG fails to load, **A–10** fall back to that same corner typography. The repo does not require every asset path to exist on disk.
 
 ## Jokers
 
@@ -189,6 +189,11 @@ See **Effects** for how powers change appearance (badges, transparent rendering)
 
 Powers apply **effects** to game entities. An effect is either on a **card** or on a **tableau column**.
 
+- **Stacking:** A card or column may have **multiple** effects. A card in a column with column effects receives **both** its own card effects and that column’s effects.
+- **Duration:** Each joker in the deck-pair catalog may set **`initialDuration`**: **`null`** (default) means applied effects are **permanent** until removed; a **positive number** means the effect expires after that many **player moves** (tableau move, foundation move, or deal — not power trigger). Timed effects tick down after each such move; at zero the effect is removed.
+- **Column scope:** While a card remains in a column, **column effects** apply to **every** card in that column (in addition to any effects on the card itself).
+- **Catalog:** Effect ids and labels live in `src/content/effectDefinitions.ts`. Tableau move rules are implemented in `src/engine/tableauEffects.ts`.
+
 ### Where effects appear (badges)
 
 - **Tableau column:** Each effect on a column adds a badge in that column’s **badge holder** (see Tableau under Game View). If a column has more than two effects, show a single badge with a count; each badge has a tooltip.
@@ -209,14 +214,65 @@ If a card has the **transparent** effect:
 
 Powers **do not flip** cards. Transparent only changes rendering and badges as above; orientation still changes only through dealing and normal moves.
 
+### Wild effect (card or column; tableau only)
+
+A card with **wild** may use **any** suit when forming a **tableau** descending run or when its suit is compared to neighbors in that run. A wild card picks **one** effective suit for the whole run slice being moved; it cannot bridge two incompatible non-wild suits in a single longer run (e.g. **5♠ — wild 4 — 3♣**: the **4+3** unit may move; **5+4+3** may not).
+
+A **wild** at the **bottom** of a moving run may still move with the card below it in the slice (e.g. **wild 4** on **5♠** move together when the wild adopts spades).
+
+**Foundation:** **wild** is ignored; only physical rank and suit apply.
+
+### Wild half effect (card or column; tableau only)
+
+**halfWild** (half wild): **Hearts** and **diamonds** may each act as **H** or **D**; **spades** and **clubs** may each act as **S** or **C**. Same “one effective suit per run slice” rule as **wild**. **wild** (full wild) overrides the half constraint when both apply.
+
+**Foundation:** **halfWild** is ignored.
+
+### Skip 1 / Skip 2 effects (card or column; tableau only)
+
+**skip1:** For tableau runs and placement, the card’s rank may be treated as **one higher** or **one lower** than printed (not both in one run slice). Neighbors in a run must still differ by exactly **one** in **effective** rank.
+
+**skip2:** Same as **skip1**, but the card may be treated as **±1** or **±2** ranks from printed (one choice per card per run slice).
+
+**Placement:** Skip affects where a card may be placed on the tableau (e.g. a **skip1 4** may be placed on a **6** or a **4**; a **7** may be placed on a **skip1 9** or **skip1 7**). Suit rules for **multi-card** runs still require a single effective suit across the run; skip does not waive that.
+
+**Combined example:** A **skip2 4♠** on a **wild 6♥** may move as a group when ranks and suits can be chosen consistently (e.g. wild as **6♠**, skip2 **4** as **5♠**).
+
+**Foundation:** **skip1** and **skip2** are ignored.
+
+### Joker power registry (catalog; deck assignment optional)
+
+Power ids, **name**, **description**, and targeting rules live in `src/content/powerDefinitions.ts`. Behavior in `src/engine/powers/handlers.ts`. The **Card details** popup shows a joker’s power name, description, and **remaining charges** (live count when the joker is on the shelf; catalog starting count otherwise) below its bio. **Deck pairs** still assign only the initial red/black transparent powers until achievements expand the set.
+
+| Power id (constant) | Class | Applies | Target |
+|---------------------|-------|---------|--------|
+| `jokerAllKingsTransparent` | Immediate | transparent | all Kings |
+| `jokerTwoKingsTransparent` | Immediate | transparent | 2 Kings (prefer stock / face-down foundation, then face-up tableau, then foundation) |
+| `jokerSelectedCardTransparent` | Targeted | transparent | face-down tableau, stock popup, deck popup face-down |
+| `jokerSelectedCardWild` / `HalfWild` / `Skip1` / `Skip2` | Targeted | matching effect | tableau card, stock popup, deck popup face-down |
+| `jokerSelectedColumnTransparent` / `Wild` / `HalfWild` / `Skip1` / `Skip2` | Targeted | matching effect | tableau column (**badge holder** only while targeting; not individual cards) |
+
 ### Stage 5 joker powers (initial registry)
 
-Until achievements gate powers (Stage 6), themed jokers use a fixed mapping by **joker slot** within each deck (**1–2** = red, **3–4** = black; see portrait manifest). Each shelf joker instance starts with **`initialCharges`** from the deck-pair catalog in `deckPairs.ts` (per joker; typically **3** today).
+Until achievements gate powers (Stage 6), **Computer Science** and **Mathematics** use a fixed mapping by **joker slot** within each deck (**1–2** = red, **3–4** = black; see portrait manifest). **Western Philosophy** assigns a **distinct** power per joker (eight different powers across the pair — see `deckPairWesternPhilosophy.ts`). Each shelf joker instance starts with **`initialCharges`** and **`initialDuration`** from the deck-pair catalog in `src/content/deckPairs/` (per joker; typically **3** charges and **`null`** duration today).
 
-| Slot | Power class | Effect |
+| Slot (CPS / MAT default) | Power class | Effect |
 |------|-------------|--------|
 | **1–2 (red)** | **Immediate** | Apply **transparent** to **every King** (rank 13) in the current game — all suits, both decks, every zone (tableau, foundation, stock list, etc.); rendering/badges follow the rules above per surface. |
-| **3–4 (black)** | **Targeted** | Apply **transparent** to **one** valid target: any **face-down** card on the **tableau**; **any** card in the **Stock popup**; any card in the **Deck popup** that is **not** shown face-up (i.e. still in stock or face-down on tableau in that popup). After triggering, **hovering** the **Deck** or **Stock** button on the game bar while in **Power Target** mode opens the corresponding popup so the user can click a valid card there. Invalid target or **Escape** cancels without spending a charge. |
+| **3–4 (black)** | **Targeted** | Apply **transparent** to **one** valid target: any **face-down** card on the **tableau**; **any** card in the **Stock popup**; any card in the **Deck popup** that is **not** shown face-up (i.e. still in stock or face-down on tableau in that popup). After triggering a **card** targeted power, **hovering** the **Deck** or **Stock** button while in **Power Target** mode opens that popup so the user can click a valid card there (**column** targeted powers do not open those popups on hover). Invalid target or **Escape** cancels without spending a charge. |
+
+**Western Philosophy** joker powers (by catalog slot **1–4** per deck):
+
+| Deck | Slot | Philosopher | Power |
+|------|------|-------------|-------|
+| Classical | 1 | Protagoras | All Kings transparent |
+| Classical | 2 | Pyrrho | Two Kings transparent |
+| Classical | 3 | Diogenes | Selected card transparent |
+| Classical | 4 | Heraclitus | Selected card wild |
+| Modern | 1 | Camus | Selected card skip ±1 |
+| Modern | 2 | Sartre | Selected card half wild |
+| Modern | 3 | Nietzsche | Selected card skip ±2 |
+| Modern | 4 | Wittgenstein | Selected column transparent |
 
 Set powers and additional powers are defined in Stage 5 / later content.
 
@@ -376,6 +432,7 @@ The mouse pointer in the game view can be in the following modes:
 - Each joker and set power instance has a badge indicating how many charges it has.
 - When a joker or set power has zero charges it stays in the shelf but the **card face** is shown **greyed out** (reduced saturation/brightness plus a light grey wash in **`shelfDepletedCardWash`** in `colors.ts`); the **charge badge** stays at full opacity with its own depleted styling.
 - **Card details (inspect mode):** Hold **Shift** to inspect (question-mark cursor); shelf **jokers** scale by **`SHELF_CARD_INVESTIGATE_SCALE`** (default **1.1**) and show the same **sky-blue highlight** on hover, and open Card details on **Shift+click** (same dialog as the Deck Popup: large face, heading, and body). **Double-click** (without **Shift**) still triggers or cancels **powers** as before. While **Power Target** mode is active, shelf **Shift+click** does not open Card details (**Shift** cancels targeting). While Card details for that joker is open, the joker **keeps** the same **hover** treatment (brought to the front and scaled) even if the pointer moves onto the dialog; when the dialog closes, hover remains only if the pointer is still over that joker’s bounds, otherwise it returns to normal immediately.
+- **Name plate:** Directly **below** the shelf panel (fixed height **`shelfNamePlateHeightPx`**, gap **`shelfNamePlateGapPx`**) an empty name plate is always visible. While the pointer hovers a shelf joker, it shows that joker’s **name** and **power name** from the deck-pair catalog (same labels as Card details). When a **targeted** power is armed (double-click), the plate **keeps** that joker’s labels until the power is committed on a target or cancelled (Escape / Shift / double-click the joker again).
 
 **Game Bar**
 

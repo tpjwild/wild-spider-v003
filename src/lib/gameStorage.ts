@@ -1,6 +1,7 @@
 import { DEFAULT_DECK_PAIR_ID, deckPairs, maxJokersInPlayForDeckPair } from "@/content/deckPairs";
 import { normalizeShelfJoker } from "@/content/powerDefinitions";
-import { emptyEffectsState } from "@/engine/effects";
+import { syncShelfJokerPowerFromCatalog } from "@/engine/powers";
+import { emptyEffectsState, normalizeEffectsState } from "@/engine/effects";
 import { stripEphemeralGameState } from "@/engine/initialDeal";
 import { createShelfJokerEntry } from "@/engine/powers";
 import { validateGameConfig } from "@/engine/setup";
@@ -93,7 +94,8 @@ export function normalizeStoredGameState(parsed: GameState): GameState {
       "chargesRemaining" in entry &&
       "slot" in entry
     ) {
-      return normalizeShelfJoker(entry as ShelfJoker);
+      const normalized = normalizeShelfJoker(entry as ShelfJoker);
+      return syncShelfJokerPowerFromCatalog(parsed.config.deckPairId, normalized);
     }
     const card = (entry as { card: ShelfJoker["card"] }).card;
     return createShelfJokerEntry(parsed.config.deckPairId, card);
@@ -101,8 +103,10 @@ export function normalizeStoredGameState(parsed: GameState): GameState {
   return {
     ...parsed,
     shelf,
-    cardEffects: parsed.cardEffects ?? effects.cardEffects,
-    columnEffects: parsed.columnEffects ?? effects.columnEffects,
+    ...normalizeEffectsState({
+      cardEffects: parsed.cardEffects ?? effects.cardEffects,
+      columnEffects: parsed.columnEffects ?? effects.columnEffects,
+    }),
   };
 }
 

@@ -14,7 +14,7 @@ See also **[public/gameArt/README.md](../public/gameArt/README.md)** for how the
 | **Medium** | `public/gameArt/portraits/<pairId>/deck{n}/` | **520px** | **WebP** (quality **82**) | Card details popup |
 | **Small** | `public/gameArt/portraits-small/<pairId>/deck{n}/` | **160px** | **WebP** (quality **82**) | Tableau, foundation, deck popup cells |
 
-- **Basenames** match `src/content/portraitManifest.ts` and `deckPairs.ts` (extension may change `.png` → `.webp` after generation).
+- **Basenames** match `src/content/portraitManifest.ts` and `src/content/deckPairs/` (extension may change `.png` → `.webp` after generation).
 - **Base** court portraits are **SVG**; the generator copies them unchanged into both output trees (no resize).
 - **Shared** pip faces, frames, and backs stay under `public/gameArt/shared/` (not part of this portrait pipeline).
 
@@ -44,7 +44,7 @@ Committed template (no binaries): **`art-source.example/`** mirrors the path rul
 ## Workflow: new or updated portraits
 
 1. Export masters into **`art-source/portraits/<pairId>/deck{n}/`** using the filenames from `portraitManifest.ts` (or the naming pattern documented there).
-2. Update **`src/content/portraitManifest.ts`** and **`src/content/deckPairs.ts`** when adding a new pair or new faces.
+2. Update **`src/content/portraitManifest.ts`** (portrait files) and **`src/content/deckPairs/`** (names, bios, powers) when adding a new pair or new faces.
 3. Run **`pnpm run generate:portraits`** to refresh `public/gameArt/portraits/` and `public/gameArt/portraits-small/`.
    - Optional: `pnpm run generate:portraits -- --pair computerScience`
    - Preview: `pnpm run generate:portraits -- --dry-run`

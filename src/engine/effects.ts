@@ -1,12 +1,34 @@
-import type { Card, CardEffectKey, EffectId, GameState, Rank } from "./types";
+import type {
+  AppliedEffect,
+  Card,
+  CardEffectKey,
+  EffectId,
+  GameState,
+  Rank,
+} from "./types";
 import { isRegular } from "./cards";
 
 export function cardEffectKey(card: Card): CardEffectKey {
   return card.kind === "regular" ? `r:${card.id}` : `j:${card.id}`;
 }
 
+export function appliedEffect(
+  effect: EffectId,
+  movesRemaining: number | null = null,
+): AppliedEffect {
+  return { effect, movesRemaining };
+}
+
+function effectIds(list: readonly AppliedEffect[]): EffectId[] {
+  return list.map((e) => e.effect);
+}
+
+function hasAppliedEffect(list: readonly AppliedEffect[], effect: EffectId): boolean {
+  return list.some((e) => e.effect === effect);
+}
+
 export function cardEffectsForKey(state: GameState, key: CardEffectKey): EffectId[] {
-  return state.cardEffects[key] ?? [];
+  return effectIds(state.cardEffects[key] ?? []);
 }
 
 export function cardEffectsForCard(state: GameState, card: Card): EffectId[] {
@@ -14,15 +36,75 @@ export function cardEffectsForCard(state: GameState, card: Card): EffectId[] {
 }
 
 export function columnEffectsForColumn(state: GameState, columnIndex: number): EffectId[] {
-  return state.columnEffects[columnIndex] ?? [];
+  return effectIds(state.columnEffects[columnIndex] ?? []);
 }
 
 export function hasCardEffect(state: GameState, card: Card, effect: EffectId): boolean {
-  return cardEffectsForCard(state, card).includes(effect);
+  return hasAppliedEffect(state.cardEffects[cardEffectKey(card)] ?? [], effect);
+}
+
+/** Card effects plus any effects on the tableau column the card currently occupies. */
+export function effectsForCardInColumn(
+  state: GameState,
+  columnIndex: number,
+  card: Card,
+): EffectId[] {
+  const merged = [...cardEffectsForCard(state, card), ...columnEffectsForColumn(state, columnIndex)];
+  return [...new Set(merged)];
+}
+
+export function hasEffectOnCardInColumn(
+  state: GameState,
+  columnIndex: number,
+  card: Card,
+  effect: EffectId,
+): boolean {
+  return effectsForCardInColumn(state, columnIndex, card).includes(effect);
 }
 
 export function emptyEffectsState(): Pick<GameState, "cardEffects" | "columnEffects"> {
   return { cardEffects: {}, columnEffects: {} };
+}
+
+function normalizeAppliedEffectList(raw: unknown): AppliedEffect[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AppliedEffect[] = [];
+  for (const item of raw) {
+    if (typeof item === "string") {
+      out.push({ effect: item as EffectId, movesRemaining: null });
+      continue;
+    }
+    if (item && typeof item === "object" && "effect" in item) {
+      const effect = (item as AppliedEffect).effect;
+      const movesRemaining =
+        (item as AppliedEffect).movesRemaining === undefined
+          ? null
+          : (item as AppliedEffect).movesRemaining;
+      out.push({ effect, movesRemaining });
+    }
+  }
+  return out;
+}
+
+function normalizeEffectRecord<T extends string | number>(
+  raw: unknown,
+): Record<T, AppliedEffect[]> {
+  if (!raw || typeof raw !== "object") return {} as Record<T, AppliedEffect[]>;
+  const out = {} as Record<T, AppliedEffect[]>;
+  for (const [key, val] of Object.entries(raw)) {
+    out[key as T] = normalizeAppliedEffectList(val);
+  }
+  return out;
+}
+
+/** Upgrades persisted saves that stored plain {@link EffectId} arrays. */
+export function normalizeEffectsState(
+  state: Pick<GameState, "cardEffects" | "columnEffects">,
+): Pick<GameState, "cardEffects" | "columnEffects"> {
+  return {
+    cardEffects: normalizeEffectRecord<CardEffectKey>(state.cardEffects),
+    columnEffects: normalizeEffectRecord<number>(state.columnEffects),
+  };
 }
 
 /** All regular cards currently in play (tableau, foundation, stock). */
@@ -50,7 +132,37 @@ export function allRegularCardsWithRank(state: GameState, rank: Rank): Card[] {
   );
 }
 
-type EffectAddition = { key: CardEffectKey; effect: EffectId };
+export type EffectAddition = { key: CardEffectKey; effect: EffectId };
+
+function tickAppliedList(list: readonly AppliedEffect[]): AppliedEffect[] {
+  const out: AppliedEffect[] = [];
+  for (const entry of list) {
+    if (entry.movesRemaining === null) {
+      out.push(entry);
+      continue;
+    }
+    const next = entry.movesRemaining - 1;
+    if (next > 0) {
+      out.push({ ...entry, movesRemaining: next });
+    }
+  }
+  return out;
+}
+
+/** Decrement timed effects after a player move (tableau, foundation, deal). */
+export function tickEffectDurations(state: GameState): GameState {
+  const cardEffects: Record<CardEffectKey, AppliedEffect[]> = {};
+  for (const [key, list] of Object.entries(state.cardEffects)) {
+    const next = tickAppliedList(list);
+    if (next.length > 0) cardEffects[key as CardEffectKey] = next;
+  }
+  const columnEffects: Record<number, AppliedEffect[]> = {};
+  for (const [colKey, list] of Object.entries(state.columnEffects)) {
+    const next = tickAppliedList(list);
+    if (next.length > 0) columnEffects[Number(colKey)] = next;
+  }
+  return { ...state, cardEffects, columnEffects };
+}
 
 /**
  * Adds `effect` to the card keyed by `key` if not already present.
@@ -60,12 +172,13 @@ export function addCardEffect(
   state: GameState,
   key: CardEffectKey,
   effect: EffectId,
+  movesRemaining: number | null = null,
 ): { state: GameState; added: EffectAddition | null } {
   const prev = state.cardEffects[key] ?? [];
-  if (prev.includes(effect)) {
+  if (hasAppliedEffect(prev, effect)) {
     return { state, added: null };
   }
-  const nextList = [...prev, effect];
+  const nextList = [...prev, { effect, movesRemaining }];
   return {
     state: {
       ...state,
@@ -79,8 +192,9 @@ export function addCardEffectForCard(
   state: GameState,
   card: Card,
   effect: EffectId,
+  movesRemaining: number | null = null,
 ): { state: GameState; added: EffectAddition | null } {
-  return addCardEffect(state, cardEffectKey(card), effect);
+  return addCardEffect(state, cardEffectKey(card), effect, movesRemaining);
 }
 
 export function removeCardEffect(
@@ -89,8 +203,8 @@ export function removeCardEffect(
   effect: EffectId,
 ): GameState {
   const prev = state.cardEffects[key];
-  if (!prev?.includes(effect)) return state;
-  const nextList = prev.filter((e) => e !== effect);
+  if (!prev?.some((e) => e.effect === effect)) return state;
+  const nextList = prev.filter((e) => e.effect !== effect);
   const cardEffects = { ...state.cardEffects };
   if (nextList.length === 0) {
     delete cardEffects[key];
@@ -115,9 +229,10 @@ export function addColumnEffect(
   state: GameState,
   columnIndex: number,
   effect: EffectId,
+  movesRemaining: number | null = null,
 ): { state: GameState; added: { columnIndex: number; effect: EffectId } | null } {
   const prev = state.columnEffects[columnIndex] ?? [];
-  if (prev.includes(effect)) {
+  if (hasAppliedEffect(prev, effect)) {
     return { state, added: null };
   }
   return {
@@ -125,7 +240,7 @@ export function addColumnEffect(
       ...state,
       columnEffects: {
         ...state.columnEffects,
-        [columnIndex]: [...prev, effect],
+        [columnIndex]: [...prev, { effect, movesRemaining }],
       },
     },
     added: { columnIndex, effect },
@@ -138,8 +253,8 @@ export function removeColumnEffect(
   effect: EffectId,
 ): GameState {
   const prev = state.columnEffects[columnIndex];
-  if (!prev?.includes(effect)) return state;
-  const nextList = prev.filter((e) => e !== effect);
+  if (!prev?.some((e) => e.effect === effect)) return state;
+  const nextList = prev.filter((e) => e.effect !== effect);
   const columnEffects = { ...state.columnEffects };
   if (nextList.length === 0) {
     delete columnEffects[columnIndex];
