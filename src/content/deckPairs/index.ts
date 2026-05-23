@@ -16,6 +16,8 @@ export type {
 } from "@/content/deckPairs/types";
 export { rankSuitImageStem } from "@/content/deckPairs/types";
 
+export type { ThemedJokerInput } from "@/content/deckPairs/builders";
+
 export { DEFAULT_DECK_PAIR_ID, basePair } from "@/content/deckPairs/deckPairBase";
 export { COMPUTER_SCIENCE_ID, computerSciencePair } from "@/content/deckPairs/deckPairComputerScience";
 export { MATHEMATICS_ID, mathematicsPair } from "@/content/deckPairs/deckPairMathematics";

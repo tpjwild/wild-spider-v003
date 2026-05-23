@@ -191,6 +191,12 @@ export function GameShell() {
     if (el instanceof HTMLElement) el.blur();
   }, []);
 
+  const [detailsSessionKey, setDetailsSessionKey] = useState(sessionKey);
+  if (detailsSessionKey !== sessionKey) {
+    setDetailsSessionKey(sessionKey);
+    if (inGameDetailsCard !== null) setInGameDetailsCard(null);
+  }
+
   const closeActionsMenu = useCallback(() => {
     const el = actionsMenuRef.current;
     if (el) el.open = false;
@@ -212,10 +218,6 @@ export function GameShell() {
     closeInGameCardDetails();
     openEndGame();
   }, [closeDeckPopup, closeStockPopup, closeInGameCardDetails, openEndGame]);
-
-  useEffect(() => {
-    closeInGameCardDetails();
-  }, [sessionKey, closeInGameCardDetails]);
 
   useEffect(() => {
     if (!actionsMenuOpen) return;
@@ -561,22 +563,16 @@ export function GameShell() {
       !isColumnTargetingPower(game, powerTargeting.shelfIndex),
   );
 
-  useEffect(() => {
-    if (
-      !game ||
-      powerTargeting == null ||
-      !isColumnTargetingPower(game, powerTargeting.shelfIndex)
-    ) {
-      return;
-    }
-    setDeckPopupOpen(false);
-    setStockPopupOpen(false);
-  }, [game, powerTargeting]);
+  const columnPowerTargeting =
+    game != null &&
+    powerTargeting != null &&
+    isColumnTargetingPower(game, powerTargeting.shelfIndex);
+  if (columnPowerTargeting && deckPopupOpen) setDeckPopupOpen(false);
+  if (columnPowerTargeting && stockPopupOpen) setStockPopupOpen(false);
 
-  useEffect(() => {
-    if (effectiveGame) return;
-    closeInGameCardDetails();
-  }, [effectiveGame, closeInGameCardDetails]);
+  if (!effectiveGame && inGameDetailsCard !== null) {
+    setInGameDetailsCard(null);
+  }
 
   /** Stretch tableau column droppables to the bottom of the tableau scroll pane while a game is shown. */
   const applyTableauDropViewportFloorMinHeight = Boolean(effectiveGame);

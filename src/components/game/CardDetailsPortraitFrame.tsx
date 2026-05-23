@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type SyntheticEvent } from "react";
+import { useCallback, useState, type SyntheticEvent } from "react";
 import { decodeLoadedImage } from "@/lib/decodeCardImage";
 import {
   getPortraitLoadState,
@@ -26,6 +26,29 @@ export function CardDetailsPortraitFrame({
   frameSrc?: string;
   portraitInsetPx: number;
 }) {
+  const resetKey = `${portraitSrc}|${portraitThumbSrc ?? ""}|${frameSrc ?? ""}`;
+  return (
+    <CardDetailsPortraitFrameInner
+      key={resetKey}
+      portraitSrc={portraitSrc}
+      portraitThumbSrc={portraitThumbSrc}
+      frameSrc={frameSrc}
+      portraitInsetPx={portraitInsetPx}
+    />
+  );
+}
+
+function CardDetailsPortraitFrameInner({
+  portraitSrc,
+  portraitThumbSrc,
+  frameSrc,
+  portraitInsetPx,
+}: {
+  portraitSrc: string;
+  portraitThumbSrc?: string;
+  frameSrc?: string;
+  portraitInsetPx: number;
+}) {
   const useFrame = Boolean(frameSrc);
   const placeholderSrc =
     portraitThumbSrc && portraitThumbSrc !== portraitSrc ? portraitThumbSrc : undefined;
@@ -35,16 +58,6 @@ export function CardDetailsPortraitFrame({
   );
   const [portrait, setPortrait] = useState<LoadState>("idle");
   const [frame, setFrame] = useState<LoadState>(() => (frameSrc ? "idle" : "ok"));
-
-  useEffect(() => {
-    setPortrait("idle");
-    setFrame(frameSrc ? "idle" : "ok");
-    if (!placeholderSrc) {
-      setThumb("idle");
-      return;
-    }
-    setThumb(getPortraitLoadState(placeholderSrc) === "ok" ? "ok" : "idle");
-  }, [portraitSrc, placeholderSrc, frameSrc]);
 
   const markThumbOk = useCallback(() => {
     if (!placeholderSrc) return;
