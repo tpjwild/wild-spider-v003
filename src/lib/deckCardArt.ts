@@ -1,10 +1,7 @@
 import { DEFAULT_DECK_PAIR_ID, getDeckPairById } from "@/content/deckPairs";
-import {
-  sharedDeckCardBackPath,
-  sharedDeckLightCardFacePath,
-} from "@/constants/sharedDeckAssets";
-import { cardDeckIndexForBack } from "@/engine/cards";
+import { sharedDeckLightCardFacePath } from "@/constants/sharedDeckAssets";
 import type { Card, RegularCard } from "@/engine/types";
+import { cardBackStyleForCard } from "@/lib/deckBackStyle";
 
 /** Which of the two 52-card decks this regular card belongs to (for backs and face art paths). */
 export function deckNumFromRegularCardId(cardId: number): 1 | 2 {
@@ -61,7 +58,7 @@ export function jokerArtForCard(deckPairId: string, jokerId: number): FaceArtPat
   };
 }
 
-export function faceDownBackPathForCard(card: Card): string {
-  const idx = cardDeckIndexForBack(card);
-  return sharedDeckCardBackPath(idx === 0 ? 1 : 2);
+export function faceDownBackPathForCard(card: Card, deckPairId?: string): string {
+  if (deckPairId) return cardBackStyleForCard(deckPairId, card).path;
+  return cardBackStyleForCard(DEFAULT_DECK_PAIR_ID, card).path;
 }

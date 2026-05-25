@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildDoubleDeck } from "./cards";
+import { emptyExtraColumnState } from "./extraColumnState";
 import type { GameState, PlacedCard } from "./types";
 import {
   applyMoveTableau,
@@ -58,6 +59,7 @@ describe("canMoveTableau / foundation", () => {
     shelf: [],
     cardEffects: {},
     columnEffects: {},
+    ...emptyExtraColumnState(),
     undoCount: 0,
     history: [],
   };
@@ -189,6 +191,7 @@ describe("undo move_to_foundation run", () => {
       shelf: [],
       cardEffects: {},
       columnEffects: {},
+      ...emptyExtraColumnState(),
       undoCount: 0,
       history: [],
     };
@@ -231,6 +234,7 @@ describe("applyMoveTableau flips exposed card", () => {
       shelf: [],
       cardEffects: {},
       columnEffects: {},
+      ...emptyExtraColumnState(),
       undoCount: 0,
       history: [],
     };

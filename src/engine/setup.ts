@@ -16,6 +16,7 @@ import type {
   RegularCard,
   ShelfJoker,
 } from "./types";
+import { emptyExtraColumnState } from "./extraColumnState";
 import { emptyEffectsState } from "./effects";
 import { createShelfJokerEntry } from "./powers";
 import { FORMATTED_JOKER_INSERT_BACK_FRACTION } from "@/constants/formattedJokerDeal";
@@ -220,6 +221,7 @@ function createInitialStateFormatted(
     stock: stockCards,
     shelf,
     ...emptyEffectsState(),
+    ...emptyExtraColumnState(),
     undoCount: 0,
     history: [],
     initialDealFlightPlan: flightPlan,
@@ -281,6 +283,7 @@ export function createInitialState(config: GameConfig): GameState {
     stock: stockCards,
     shelf: [],
     ...emptyEffectsState(),
+    ...emptyExtraColumnState(),
     undoCount: 0,
     history: [],
     initialDealFlightPlan: buildInitialDealFlightPlanFromFinalColumns(columns),
@@ -309,6 +312,7 @@ export function createEmptyBoardShell(config: GameConfig): GameState {
     stock: [],
     shelf: [],
     ...emptyEffectsState(),
+    ...emptyExtraColumnState(),
     undoCount: 0,
     history: [],
   };

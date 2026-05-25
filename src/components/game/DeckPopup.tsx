@@ -327,7 +327,7 @@ export function DeckPopup({
 
           <div className="flex w-full flex-col gap-5">
             {suitRows.map((row) => {
-              const deckLabel = pair?.decks[row.deckIndex]?.label ?? `Deck ${row.deckIndex + 1}`;
+              const deckLabel = pair?.decks[row.deckIndex]?.name ?? `Deck ${row.deckIndex + 1}`;
               const suitLabel = suitThemeName(game.config.deckPairId, row.suit);
               return (
                 <section key={`${row.deckIndex}-${row.suit}`} className="w-full" aria-label={`${deckLabel} ${row.suit}`}>

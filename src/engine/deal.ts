@@ -1,13 +1,16 @@
 import { isJoker } from "./cards";
+import { getDealColumnIndices } from "./extraColumn";
 import { createShelfJokerEntry } from "./powers";
 import type { Card, GameState, HistoryEntry, JokerCard, PlacedCard, ShelfJoker } from "./types";
+
+export { getDealColumnIndices } from "./extraColumn";
 
 function totalTableauCards(state: GameState): number {
   return state.columns.reduce((s, col) => s + col.length, 0);
 }
 
-function hasEmptyColumn(state: GameState): boolean {
-  return state.columns.some((c) => c.length === 0);
+function hasEmptyDealColumn(state: GameState): boolean {
+  return getDealColumnIndices(state).some((i) => state.columns[i]!.length === 0);
 }
 
 export type DealFlightEntry = { card: Card; tableauColumn: number | null };
@@ -21,13 +24,14 @@ function runDealRound(
   columns: PlacedCard[][],
   stock: Card[],
   shelf: ShelfJoker[],
+  dealColumnIndices: readonly number[],
 ): { columns: PlacedCard[][]; stock: Card[]; shelf: ShelfJoker[]; entries: DealFlightEntry[] } | null {
   const cols = columns.map((c) => [...c]);
   const st = [...stock];
   const sh = [...shelf];
   const entries: DealFlightEntry[] = [];
 
-  for (let col = 0; col < cols.length; col++) {
+  for (const col of dealColumnIndices) {
     let placed = false;
     while (!placed) {
       const card = st.pop();
@@ -55,8 +59,9 @@ function runDealRound(
 
 export function canDealFromStock(state: GameState): boolean {
   if (state.stock.length === 0) return false;
-  const { columns } = state;
-  if (hasEmptyColumn(state) && totalTableauCards(state) >= columns.length) {
+  const dealCols = getDealColumnIndices(state);
+  if (dealCols.length === 0) return false;
+  if (hasEmptyDealColumn(state) && totalTableauCards(state) >= dealCols.length) {
     return false;
   }
   return (
@@ -65,6 +70,7 @@ export function canDealFromStock(state: GameState): boolean {
       state.columns.map((c) => [...c]),
       [...state.stock],
       [...state.shelf],
+      dealCols,
     ) !== null
   );
 }
@@ -79,14 +85,15 @@ export type DealFromStockResult = {
  * pop order and joker handling as {@link dealFromStock}. Used so each visible stock back
  * stays tied to a fixed upcoming “deal start” card instead of sliding a contiguous window.
  *
+ * @param dealColumnCount — number of columns that receive a deal card this round (deal columns only).
  * @param maxDeals — maximum number of lead cards to compute (UI cap, typically min(rules deals, visible cap)).
  */
 export function leadStockIndicesForUpcomingDeals(
   stock: readonly Card[],
-  columns: number,
+  dealColumnCount: number,
   maxDeals: number,
 ): number[] {
-  if (columns < 1 || stock.length === 0 || maxDeals < 1) return [];
+  if (dealColumnCount < 1 || stock.length === 0 || maxDeals < 1) return [];
 
   let stack = stock.map((card, idx) => ({ card, idx }));
   const leads: number[] = [];
@@ -95,7 +102,7 @@ export function leadStockIndicesForUpcomingDeals(
     const topIdx = stack[stack.length - 1]!.idx;
     const trial = stack.map((x) => ({ ...x }));
 
-    for (let col = 0; col < columns; col++) {
+    for (let i = 0; i < dealColumnCount; i++) {
       let placed = false;
       while (!placed) {
         const popped = trial.pop();
@@ -117,7 +124,9 @@ export function leadStockIndicesForUpcomingDeals(
 /** Deals one face-up card per column from stock (top first); jokers to shelf with a replacement draw per column; then any jokers left on top of the stock go to the shelf. */
 export function dealFromStock(state: GameState): DealFromStockResult | null {
   if (state.stock.length === 0) return null;
-  if (hasEmptyColumn(state) && totalTableauCards(state) >= state.columns.length) {
+  const dealCols = getDealColumnIndices(state);
+  if (dealCols.length === 0) return null;
+  if (hasEmptyDealColumn(state) && totalTableauCards(state) >= dealCols.length) {
     return null;
   }
 
@@ -126,6 +135,7 @@ export function dealFromStock(state: GameState): DealFromStockResult | null {
     state.columns.map((c) => [...c]),
     [...state.stock],
     [...state.shelf],
+    dealCols,
   );
   if (!r) return null;
 

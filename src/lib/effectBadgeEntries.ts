@@ -1,10 +1,14 @@
-import { EFFECT_DEFINITIONS } from "@/content/effectDefinitions";
+import { EFFECT_DEFINITIONS, EFFECT_EXTRA_COLUMN } from "@/content/effectDefinitions";
 import {
   cardEffectsForCard,
   columnEffectsForColumn,
   hasCardEffect,
 } from "@/engine/effects";
-import type { Card, EffectId, GameState } from "@/engine/types";
+import {
+  findExtraColumnLinkByParent,
+  isExtraChildColumn,
+} from "@/engine/extraColumn";
+import type { Card, EffectId, ExtraColumnLink, GameState } from "@/engine/types";
 import { isCardInStock, stockCardKeySet } from "@/lib/deckPopupLayout";
 
 /** Stable badge order (catalog order in {@link EFFECT_DEFINITIONS}). */
@@ -71,14 +75,28 @@ export function tableauEffectBadgeEntries(
   ];
 }
 
-/** Column badge holder — column effects only (darker badges). */
+/** Active link whose child column is `columnIndex` (child is always `parent + 1`). */
+export function extraColumnLinkForChildColumn(
+  state: GameState,
+  columnIndex: number,
+): ExtraColumnLink | undefined {
+  if (!isExtraChildColumn(state, columnIndex) || columnIndex <= 0) return undefined;
+  return findExtraColumnLinkByParent(state, columnIndex - 1);
+}
+
+/** Column badge holder — joker column effects plus Extra Column icon when this column parents a link. */
 export function columnHolderEffectBadgeEntries(
   state: GameState,
   columnIndex: number,
 ): EffectBadgeEntry[] {
-  return sortEffectsForBadgeDisplay(columnEffectsForColumn(state, columnIndex)).map(
-    (effectId) => ({ effectId, scope: "column" as const }),
-  );
+  const ids = [...columnEffectsForColumn(state, columnIndex)];
+  if (findExtraColumnLinkByParent(state, columnIndex)) {
+    ids.push(EFFECT_EXTRA_COLUMN);
+  }
+  return sortEffectsForBadgeDisplay(ids).map((effectId) => ({
+    effectId,
+    scope: "column" as const,
+  }));
 }
 
 /**

@@ -47,7 +47,13 @@ export const colors = {
   gameBarButtonHover: "rgba(2, 44, 34, 0.4)",
 
   // —— Cards ——————————————————————————————————————————————————————————————————
+  /** Fallback gradient when the back bitmap is missing — blue deck. */
+  cardBackBlue: "linear-gradient(145deg, #2a5a9e 0%, #0f2847 55%, #081830 100%)",
+  /** Fallback gradient when the back bitmap is missing — red deck. */
+  cardBackRed: "linear-gradient(145deg, #9e2a2a 0%, #471010 55%, #300808 100%)",
+  /** @deprecated Use {@link cardBackBlue} / {@link cardBackRed} via deck {@link DeckBackColor}. */
   cardBackDeckOne: "linear-gradient(145deg, #2a5a9e 0%, #0f2847 55%, #081830 100%)",
+  /** @deprecated Use {@link cardBackBlue} / {@link cardBackRed} via deck {@link DeckBackColor}. */
   cardBackDeckTwo: "linear-gradient(145deg, #9e2a2a 0%, #471010 55%, #300808 100%)",
   cardFacePip: "#ffffff",
   cardFaceBackground: "#f4f4f5",
@@ -103,6 +109,7 @@ export const colors = {
   shelfPanelBackground: "rgba(0, 0, 0, 0.3)",
   shelfPanelBorder: "rgba(255, 255, 255, 0.2)",
   shelfNamePlateBackground: "rgba(0, 0, 0, 0.45)",
+  foundationNamePlateBackground: "rgba(0, 0, 0, 0.45)",
   shelfDepletedCardWash: "rgba(235, 240, 245, 0.62)",
   shelfScrollbarThumb: gameCssVariables["--ws-shelf-scrollbar-thumb"],
   shelfScrollbarThumbHover: gameCssVariables["--ws-shelf-scrollbar-thumb-hover"],
@@ -125,6 +132,14 @@ export const colors = {
   effectBadgeCountBackground: "rgba(24, 24, 27, 0.85)",
   effectBadgeCountText: "rgba(253, 230, 138, 0.95)",
   effectBadgeCountRing: "rgba(245, 158, 11, 0.4)",
+
+  /** Extra-child column badge holder — lighter green strip (see Extra Column in spec). */
+  tableauExtraChildBadgeHolderBackground: "rgba(167, 243, 208, 0.32)",
+  tableauExtraChildBadgeHolderBorder: "rgba(134, 239, 172, 0.65)",
+  /** Circle top-left on extra-child holders — parent link `movesRemaining`. */
+  extraColumnLinkTimerBackground: "rgba(20, 83, 45, 0.94)",
+  extraColumnLinkTimerText: "#ecfdf5",
+  extraColumnLinkTimerRing: "rgba(134, 239, 172, 0.8)",
 
   // —— Power targeting & drag feedback ———————————————————————————————————————
   powerTargetRing: "#fbbf24",

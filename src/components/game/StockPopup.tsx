@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { colors } from "@/constants/colors";
 import { CardEffectBadges } from "@/components/game/CardEffectBadges";
 import { CardView } from "@/components/game/CardView";
-import { dimensions } from "@/constants/dimensions";
+import {
+  dimensions,
+  stockPopupMinPanelInnerWidthPx,
+  stockPopupMinPanelOuterHeightPx,
+  stockPopupMinPanelOuterWidthPx,
+  stockPopupMinScrollBodyHeightPx,
+} from "@/constants/dimensions";
 import { rankChar } from "@/engine/cards";
 import type { Card, GameState } from "@/engine/types";
 import {
@@ -141,14 +147,23 @@ export function StockPopup({
     [game.stock, game.config.columns],
   );
 
+  const columnCount = game.config.columns;
+
   const maxRowWidthPx = useMemo(() => {
     const jokerW = jokerRowWidthPx(jokers.length);
     const dealW = dealRows.reduce((m, row) => Math.max(m, rowWidthPx(row.length)), 0);
     return Math.max(jokerW, dealW, deckPopupCardWidth);
   }, [jokers.length, dealRows]);
 
-  const panelInnerWidthPx = maxRowWidthPx;
-  const panelOuterWidthPx = panelInnerWidthPx + 2 * deckPopupHorizontalEdgePad;
+  const minOuterWidthPx = stockPopupMinPanelOuterWidthPx(columnCount);
+  const minOuterHeightPx = stockPopupMinPanelOuterHeightPx();
+  const minScrollBodyHeightPx = stockPopupMinScrollBodyHeightPx();
+
+  const panelInnerWidthPx = Math.max(maxRowWidthPx, stockPopupMinPanelInnerWidthPx(columnCount));
+  const panelOuterWidthPx = Math.max(
+    panelInnerWidthPx + 2 * deckPopupHorizontalEdgePad,
+    minOuterWidthPx,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -189,6 +204,8 @@ export function StockPopup({
         className="flex max-h-[min(92dvh,920px)] max-w-[calc(100vw-2rem)] cursor-default flex-col overflow-hidden rounded-xl border shadow-2xl"
         style={{
           width: panelOuterWidthPx,
+          minWidth: minOuterWidthPx,
+          minHeight: minOuterHeightPx,
           boxSizing: "border-box",
           paddingLeft: deckPopupHorizontalEdgePad,
           paddingRight: deckPopupHorizontalEdgePad,
@@ -197,6 +214,7 @@ export function StockPopup({
           backgroundColor: colors.deckPopupPanelBackground,
           borderColor: colors.popupLightPanelBorder,
         }}
+        data-testid="stock-popup-panel"
         onClick={(e) => e.stopPropagation()}
       >
         <h2
@@ -210,7 +228,10 @@ export function StockPopup({
           Stock
         </h2>
 
-        <div className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden py-3">
+        <div
+          className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden py-3"
+          style={{ minHeight: minScrollBodyHeightPx }}
+        >
           {jokers.length > 0 ? (
             <section className="mb-5 w-full" aria-label="Jokers in stock">
               <h3

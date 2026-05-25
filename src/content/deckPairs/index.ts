@@ -6,6 +6,7 @@
  * **pairCode:** exactly three characters `[A-Z0-9]`, immutable per pair — used in formatted game seeds.
  */
 export type {
+  DeckBackColor,
   DeckFaceCard,
   DeckFaceRank,
   DeckInPair,
@@ -14,6 +15,7 @@ export type {
   DeckPairId,
   SuitTheme,
 } from "@/content/deckPairs/types";
+export { deckEntry } from "@/content/deckPairs/deckEntry";
 export { rankSuitImageStem } from "@/content/deckPairs/types";
 
 export type { ThemedJokerInput } from "@/content/deckPairs/builders";

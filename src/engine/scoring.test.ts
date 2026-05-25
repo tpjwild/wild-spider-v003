@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildDoubleDeck } from "./cards";
 import { computeScore } from "./scoring";
+import { emptyExtraColumnState } from "./extraColumnState";
 import type { GameState } from "./types";
 
 function emptyState(): Omit<GameState, "columns" | "foundation"> {
@@ -16,6 +17,7 @@ function emptyState(): Omit<GameState, "columns" | "foundation"> {
     shelf: [],
     cardEffects: {},
     columnEffects: {},
+    ...emptyExtraColumnState(),
     undoCount: 0,
     history: [],
   };

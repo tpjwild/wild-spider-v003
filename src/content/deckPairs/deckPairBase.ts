@@ -1,4 +1,4 @@
-import { sharedDeckCardBackPath } from "@/constants/sharedDeckAssets";
+import { deckEntry } from "@/content/deckPairs/deckEntry";
 import { baseFaces } from "@/content/deckPairs/builders";
 import type { DeckPairDefinition } from "@/content/deckPairs/types";
 
@@ -34,9 +34,7 @@ export const basePair: DeckPairDefinition = {
     },
   ],
   decks: [
-    {
-      label: "Deck 1",
-      cardBackPath: sharedDeckCardBackPath(1),
+    deckEntry("Base Deck", "red", {
       jokers: [],
       faces: baseFaces(1, {
         S: {
@@ -72,10 +70,8 @@ export const basePair: DeckPairDefinition = {
           kBio: "Face-card slot for Deck 1, hearts.",
         },
       }),
-    },
-    {
-      label: "Deck 2",
-      cardBackPath: sharedDeckCardBackPath(2),
+    }),
+    deckEntry("Base Deck", "blue", {
       jokers: [],
       faces: baseFaces(2, {
         S: {
@@ -111,6 +107,6 @@ export const basePair: DeckPairDefinition = {
           kBio: "Face-card slot for Deck 2, hearts.",
         },
       }),
-    },
+    }),
   ],
 };

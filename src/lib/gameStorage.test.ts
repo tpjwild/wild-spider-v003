@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { applyExtraColumn } from "@/engine/extraColumn";
 import { newGame } from "@/engine/game";
 import { DEFAULT_DECK_PAIR_ID } from "@/content/deckPairs";
 import {
@@ -69,6 +70,77 @@ describe("gameStorage last new-game defaults", () => {
     const parsed = parseStoredGameState(JSON.parse(JSON.stringify(g)));
     expect(parsed).not.toBeNull();
     expect(parsed!.config.seed).toBe(g.config.seed);
+    expect(parsed!.extraColumnLinks).toEqual([]);
+    expect(parsed!.columnFlags).toEqual({});
+  });
+
+  it("parseStoredGameState fills extra column defaults on older saves", () => {
+    const g = newGame({
+      columns: 4,
+      deals: 5,
+      deckPairId: DEFAULT_DECK_PAIR_ID,
+      seed: "04-005-BAS-11111111111111",
+      jokerCount: 0,
+    });
+    const legacy = JSON.parse(JSON.stringify(g)) as Record<string, unknown>;
+    delete legacy.bonusColumnLinks;
+    delete legacy.columnFlags;
+    const parsed = parseStoredGameState(legacy);
+    expect(parsed!.extraColumnLinks).toEqual([]);
+    expect(parsed!.columnFlags).toEqual({});
+  });
+
+  it("round-trips extra column topology through parse and localStorage", () => {
+    let g = newGame({
+      columns: 4,
+      deals: 5,
+      deckPairId: DEFAULT_DECK_PAIR_ID,
+      seed: "04-005-BAS-11111111111111",
+      jokerCount: 0,
+    });
+    const appliedOnDeal = applyExtraColumn(g, 0, 10);
+    expect(appliedOnDeal).not.toBeNull();
+    g = appliedOnDeal!.state;
+    const appliedOnLeaf = applyExtraColumn(g, 1, 8);
+    expect(appliedOnLeaf).not.toBeNull();
+    g = appliedOnLeaf!.state;
+
+    expect(g.columns).toHaveLength(6);
+    expect(g.extraColumnLinks).toEqual([
+      { parentColumnIndex: 0, movesRemaining: 10 },
+      { parentColumnIndex: 1, movesRemaining: 8 },
+    ]);
+    expect(g.columnFlags[1]).toEqual({ isExtraChild: true });
+    expect(g.columnFlags[2]).toEqual({ isExtraChild: true });
+
+    const parsed = parseStoredGameState(JSON.parse(JSON.stringify(g)));
+    expect(parsed).not.toBeNull();
+    expect(parsed!.columns).toHaveLength(6);
+    expect(parsed!.extraColumnLinks).toEqual(g.extraColumnLinks);
+    expect(parsed!.columnFlags).toEqual(g.columnFlags);
+
+    saveGameState(g);
+    const loaded = loadGameState();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.columns).toHaveLength(6);
+    expect(loaded!.extraColumnLinks).toEqual(g.extraColumnLinks);
+    expect(loaded!.columnFlags).toEqual(g.columnFlags);
+    expect(loaded!.config.columns).toBe(4);
+  });
+
+  it("parseStoredGameState migrates legacy bonusColumnLinks field", () => {
+    const g = newGame({
+      columns: 4,
+      deals: 5,
+      deckPairId: DEFAULT_DECK_PAIR_ID,
+      seed: "04-005-BAS-11111111111111",
+      jokerCount: 0,
+    });
+    const legacy = JSON.parse(JSON.stringify(g)) as Record<string, unknown>;
+    legacy.bonusColumnLinks = [{ parentColumnIndex: 0, movesRemaining: 7 }];
+    delete legacy.extraColumnLinks;
+    const parsed = parseStoredGameState(legacy);
+    expect(parsed!.extraColumnLinks).toEqual([{ parentColumnIndex: 0, movesRemaining: 7 }]);
   });
 
   it("resolvedGameConfigForEmptyShell uses last defaults when present", () => {

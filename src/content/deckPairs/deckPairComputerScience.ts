@@ -1,4 +1,4 @@
-import { sharedDeckCardBackPath } from "@/constants/sharedDeckAssets";
+import { deckEntry } from "@/content/deckPairs/deckEntry";
 import {
   JOKER_POWER_ALL_KINGS_TRANSPARENT,
   JOKER_POWER_SELECTED_CARD_TRANSPARENT,
@@ -43,9 +43,7 @@ export const computerSciencePair: DeckPairDefinition = {
     },
   ],
   decks: [
-    {
-      label: "Classical",
-      cardBackPath: sharedDeckCardBackPath(1),
+    deckEntry("Classical Deck", "red", {
       jokers: themedJokers({
         pairId: "computerScience",
         deck: 1,
@@ -130,10 +128,8 @@ export const computerSciencePair: DeckPairDefinition = {
           },
         },
       }),
-    },
-    {
-      label: "Modern",
-      cardBackPath: sharedDeckCardBackPath(2),
+    }),
+    deckEntry("Modern Deck", "blue", {
       jokers: themedJokers({
         pairId: "computerScience",
         deck: 2,
@@ -218,6 +214,6 @@ export const computerSciencePair: DeckPairDefinition = {
           },
         },
       }),
-    },
+    }),
   ],
 };

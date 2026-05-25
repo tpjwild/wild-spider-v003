@@ -8,6 +8,7 @@ import { DEFAULT_DECK_PAIR_ID } from "@/content/deckPairs";
 import { dimensions } from "@/constants/dimensions";
 import { cardDeckIndexForBack, isJoker, isRegular, rankChar } from "@/engine/cards";
 import type { Card, JokerCard, PlacedCard, Suit } from "@/engine/types";
+import { cardBackStyleForCard } from "@/lib/deckBackStyle";
 import {
   faceArtForRegularCard,
   faceDownBackPathForCard,
@@ -35,15 +36,15 @@ const SUIT_GLYPH: Record<Suit, string> = {
 /** In-game face-up: show the card back until portrait art is decoded (avoids white/zinc flash). */
 function FaceUpBackUntilPortraitReady({
   card,
+  deckPairId,
   portraitReady,
 }: {
   card: Card;
+  deckPairId: string;
   portraitReady: boolean;
 }) {
   if (portraitReady) return null;
-  const backSrc = faceDownBackPathForCard(card);
-  const backGradient =
-    cardDeckIndexForBack(card) === 0 ? colors.cardBackDeckOne : colors.cardBackDeckTwo;
+  const { path: backSrc, gradient: backGradient } = cardBackStyleForCard(deckPairId, card);
   return (
     <div className="pointer-events-none absolute inset-0 z-[30] overflow-hidden rounded-md" aria-hidden>
       <div className="absolute inset-0" style={{ background: backGradient }} />
@@ -59,12 +60,14 @@ function FaceUpBackUntilPortraitReady({
 /** Face-down cell: full face with the standard card-back bitmap at the given opacity (0–1). */
 function DeckPopupFaceDownBackOverlay({
   card,
+  deckPairId,
   opacity,
 }: {
   card: Card;
+  deckPairId: string;
   opacity: number;
 }) {
-  const backSrc = faceDownBackPathForCard(card);
+  const backSrc = faceDownBackPathForCard(card, deckPairId);
   const o = opacity;
   return (
     <div
@@ -104,6 +107,7 @@ function modeFor(placed: PlacedCard, displayMode?: CardDisplayMode): CardDisplay
 
 type FaceUpPortraitCardShellProps = {
   card: Card;
+  deckPairId: string;
   mode: CardDisplayMode;
   faceDownBackOpacity: number;
   portraitSrc: string;
@@ -118,6 +122,7 @@ const FaceUpPortraitCardShell = forwardRef<HTMLDivElement, FaceUpPortraitCardShe
   function FaceUpPortraitCardShell(
     {
       card,
+      deckPairId,
       mode,
       faceDownBackOpacity,
       portraitSrc,
@@ -155,10 +160,18 @@ const FaceUpPortraitCardShell = forwardRef<HTMLDivElement, FaceUpPortraitCardShe
           {children}
         </OptionalPortraitFrameArt>
         {mode === "faceUp" ? (
-          <FaceUpBackUntilPortraitReady card={card} portraitReady={portraitReady} />
+          <FaceUpBackUntilPortraitReady
+            card={card}
+            deckPairId={deckPairId}
+            portraitReady={portraitReady}
+          />
         ) : null}
         {mode === "deckPopupFaceDown" ? (
-          <DeckPopupFaceDownBackOverlay card={card} opacity={faceDownBackOpacity} />
+          <DeckPopupFaceDownBackOverlay
+            card={card}
+            deckPairId={deckPairId}
+            opacity={faceDownBackOpacity}
+          />
         ) : null}
       </div>
     );
@@ -192,11 +205,9 @@ export const CardView = forwardRef<
   const base =
     "select-none rounded-md border border-zinc-600 shadow-sm flex flex-col items-center justify-center text-xs font-semibold";
 
-  const backGradient =
-    cardDeckIndexForBack(placed.card) === 0 ? colors.cardBackDeckOne : colors.cardBackDeckTwo;
+  const { path: backSrc, gradient: backGradient } = cardBackStyleForCard(deckPairId, placed.card);
 
   if (mode === "faceDown") {
-    const backSrc = faceDownBackPathForCard(placed.card);
     return (
       <div
         ref={ref}
@@ -228,6 +239,7 @@ export const CardView = forwardRef<
         key={`${c.id}:${art.portraitThumbPath}:${art.framePath}`}
         ref={ref}
         card={c}
+        deckPairId={deckPairId}
         mode={mode}
         faceDownBackOpacity={faceDownBackOpacity}
         portraitSrc={art.portraitThumbPath}
@@ -283,6 +295,7 @@ export const CardView = forwardRef<
           key={`${c.id}:${art.portraitThumbPath}:${art.framePath ?? ""}`}
           ref={ref}
           card={c}
+          deckPairId={deckPairId}
           mode={mode}
           faceDownBackOpacity={faceDownBackOpacity}
           portraitSrc={art.portraitThumbPath}
@@ -345,7 +358,7 @@ export const CardView = forwardRef<
         </span>
       </div>
       {mode === "deckPopupFaceDown" && (
-        <DeckPopupFaceDownBackOverlay card={c} opacity={faceDownBackOpacity} />
+        <DeckPopupFaceDownBackOverlay card={c} deckPairId={deckPairId} opacity={faceDownBackOpacity} />
       )}
     </div>
   );

@@ -4,25 +4,23 @@ import type { CSSProperties, ReactNode } from "react";
 import { OptionalCardBackImage } from "@/components/game/OptionalCardBackImage";
 import { colors } from "@/constants/colors";
 import { dimensions, stockStackRegionHeightPx, stockVisibleDealCapForLayout } from "@/constants/dimensions";
-import { cardDeckIndexForBack } from "@/engine/cards";
-import { leadStockIndicesForUpcomingDeals } from "@/engine/deal";
+import { getDealColumnIndices, leadStockIndicesForUpcomingDeals } from "@/engine/deal";
 import type { Card, GameState } from "@/engine/types";
+import { cardBackStyleForCard } from "@/lib/deckBackStyle";
 import { faceDownBackPathForCard } from "@/lib/deckCardArt";
 
 const { cardWidth: cw, cardHeight: ch, stockCardOffset: so } = dimensions;
 
-function backGradientForCard(card: Card): string {
-  return cardDeckIndexForBack(card) === 0 ? colors.cardBackDeckOne : colors.cardBackDeckTwo;
-}
-
 /** One face-down stock card: same back URL + gradient layering as {@link CardView}. */
 function StockBackCard({
   card,
+  deckPairId,
   className,
   style,
   onDoubleClick,
 }: {
   card: Card;
+  deckPairId: string;
   /** Positioning + chrome (must not include `absolute` — this component applies it). */
   className: string;
   style: CSSProperties;
@@ -34,9 +32,13 @@ function StockBackCard({
       style={style}
       onDoubleClick={onDoubleClick}
     >
-      <div className="absolute inset-0" style={{ background: backGradientForCard(card) }} aria-hidden />
+      <div
+        className="absolute inset-0"
+        style={{ background: cardBackStyleForCard(deckPairId, card).gradient }}
+        aria-hidden
+      />
       <OptionalCardBackImage
-        src={faceDownBackPathForCard(card)}
+        src={faceDownBackPathForCard(card, deckPairId)}
         alt=""
         className="absolute inset-0 h-full w-full object-cover"
       />
@@ -76,6 +78,7 @@ export function StockPile({
         <StockBackCard
           key={`init-stock-${fromTop}-${card.kind}-${card.id}`}
           card={card}
+          deckPairId={game.config.deckPairId}
           className={`left-0 top-0 rounded-md border border-zinc-600/80 shadow ${
             topCardInteractive ? "cursor-pointer" : "cursor-default"
           }`}
@@ -89,12 +92,12 @@ export function StockPile({
         />
       );
     } else {
-      const columns = game.columns.length;
+      const dealColumnCount = getDealColumnIndices(game).length;
       const useFrozen =
         frozenUpcomingLeadCards != null && frozenUpcomingLeadCards.length > 0;
       const leads = useFrozen
         ? null
-        : leadStockIndicesForUpcomingDeals(game.stock, columns, leadPreviewCap);
+        : leadStockIndicesForUpcomingDeals(game.stock, dealColumnCount, leadPreviewCap);
       const shown = useFrozen ? frozenUpcomingLeadCards.length : leads!.length;
       stackBody = (
         <>
@@ -112,6 +115,7 @@ export function StockPile({
               <StockBackCard
                 key={key}
                 card={card}
+                deckPairId={game.config.deckPairId}
                 className={`left-0 rounded-md border border-zinc-600/80 shadow ${
                   isTop && topCardInteractive ? "cursor-pointer" : "cursor-default"
                 }`}

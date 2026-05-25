@@ -3,8 +3,16 @@
 import { useDroppable } from "@dnd-kit/core";
 import { motion } from "framer-motion";
 import { CardView } from "@/components/game/CardView";
+import {
+  useActiveTableauInspectSource,
+  useSetTableauInspectHover,
+} from "@/components/game/TableauInspectContext";
 import { dimensions } from "@/constants/dimensions";
 import { layoutIdCardMotionProps } from "@/constants/timings";
+import {
+  namePlateInspectHighlightClass,
+  namePlateInspectHighlightForFoundationCard,
+} from "@/lib/cardInspectUi";
 import { cardLayoutId } from "@/lib/cardLayoutId";
 import type { FoundationIndex, GameState } from "@/engine/types";
 import { useGameStore } from "@/state/gameStore";
@@ -21,6 +29,12 @@ export function FoundationSlot({
   const pile = game.foundation[index] ?? [];
   const top = pile.length > 0 ? pile[pile.length - 1] : undefined;
   const dealLocked = useGameStore((s) => s.dealAnimation != null);
+  const setInspectHover = useSetTableauInspectHover();
+  const activeInspectSource = useActiveTableauInspectSource();
+  const namePlateHighlightTier = top
+    ? namePlateInspectHighlightForFoundationCard(activeInspectSource, index, top.card)
+    : "none";
+  const namePlateHighlightClass = namePlateInspectHighlightClass(namePlateHighlightTier);
   const { setNodeRef, isOver } = useDroppable({
     id: `foundation-${index}`,
     data: { type: "foundation", foundationIndex: index },
@@ -58,7 +72,15 @@ export function FoundationSlot({
           key={cardLayoutId(top.card)}
           layoutId={cardLayoutId(top.card)}
           {...layoutIdCardMotionProps(cardLayoutId(top.card))}
-          className="relative z-[1] inline-block"
+          className={`relative z-[1] inline-block rounded-md ${namePlateHighlightClass}`}
+          data-name-plate-inspect-highlight={namePlateHighlightTier !== "none" ? "true" : undefined}
+          data-name-plate-inspect-tier={namePlateHighlightTier !== "none" ? namePlateHighlightTier : undefined}
+          onPointerEnter={() => {
+            if (!dealLocked) {
+              setInspectHover({ kind: "foundation", foundationIndex: index });
+            }
+          }}
+          onPointerLeave={() => setInspectHover(null)}
         >
           <CardView placed={top} />
         </motion.div>

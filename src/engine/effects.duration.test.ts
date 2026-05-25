@@ -7,6 +7,7 @@ import {
   cardEffectKey,
   tickEffectDurations,
 } from "@/engine/effects";
+import { emptyExtraColumnState } from "@/engine/extraColumnState";
 import { moveTableau } from "@/engine/game";
 import type { GameState } from "@/engine/types";
 
@@ -25,6 +26,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     shelf: [],
     cardEffects: {},
     columnEffects: {},
+    ...emptyExtraColumnState(),
     undoCount: 0,
     history: [],
     ...overrides,

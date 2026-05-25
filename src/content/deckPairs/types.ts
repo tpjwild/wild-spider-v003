@@ -33,9 +33,14 @@ export type DeckJokerCard = {
   framePath: string;
 };
 
+/** Card-back palette for a deck within a pair (maps to shared back art). */
+export type DeckBackColor = "red" | "blue";
+
 export type DeckInPair = {
-  /** Short label for UI (e.g. era or sub-theme). */
-  label: string;
+  /** Display name (e.g. `Classical Deck`); shown in UI with {@link color}. */
+  name: string;
+  /** Determines shared back bitmap and fallback gradient. Deck 1 → red, deck 2 → blue. */
+  color: DeckBackColor;
   cardBackPath: string;
   /** Up to four per deck; Base ships with none. */
   jokers: readonly DeckJokerCard[];

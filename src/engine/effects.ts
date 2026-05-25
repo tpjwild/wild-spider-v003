@@ -1,3 +1,4 @@
+import { tickExtraColumnLinks } from "./extraColumn";
 import type {
   AppliedEffect,
   Card,
@@ -66,16 +67,24 @@ export function emptyEffectsState(): Pick<GameState, "cardEffects" | "columnEffe
   return { cardEffects: {}, columnEffects: {} };
 }
 
+const LEGACY_EFFECT_ID_MAP: Record<string, EffectId> = {
+  bonusColumn: "extraColumn",
+};
+
+function normalizeEffectId(effect: string): EffectId {
+  return LEGACY_EFFECT_ID_MAP[effect] ?? (effect as EffectId);
+}
+
 function normalizeAppliedEffectList(raw: unknown): AppliedEffect[] {
   if (!Array.isArray(raw)) return [];
   const out: AppliedEffect[] = [];
   for (const item of raw) {
     if (typeof item === "string") {
-      out.push({ effect: item as EffectId, movesRemaining: null });
+      out.push({ effect: normalizeEffectId(item), movesRemaining: null });
       continue;
     }
     if (item && typeof item === "object" && "effect" in item) {
-      const effect = (item as AppliedEffect).effect;
+      const effect = normalizeEffectId(String((item as AppliedEffect).effect));
       const movesRemaining =
         (item as AppliedEffect).movesRemaining === undefined
           ? null
@@ -135,9 +144,20 @@ export function allRegularCardsWithRank(state: GameState, rank: Rank): Card[] {
 export type EffectAddition = { key: CardEffectKey; effect: EffectId };
 
 function tickAppliedList(list: readonly AppliedEffect[]): AppliedEffect[] {
+  return tickAppliedListExcluding(list, () => false);
+}
+
+function tickAppliedListExcluding(
+  list: readonly AppliedEffect[],
+  excludeEntry: (entry: AppliedEffect) => boolean,
+): AppliedEffect[] {
   const out: AppliedEffect[] = [];
   for (const entry of list) {
     if (entry.movesRemaining === null) {
+      out.push(entry);
+      continue;
+    }
+    if (excludeEntry(entry)) {
       out.push(entry);
       continue;
     }
@@ -147,6 +167,47 @@ function tickAppliedList(list: readonly AppliedEffect[]): AppliedEffect[] {
     }
   }
   return out;
+}
+
+export type TargetCommitTickExcludes = {
+  cardEffectsAdded?: readonly EffectAddition[];
+  columnEffectsAdded?: readonly { columnIndex: number; effect: EffectId }[];
+  extraColumnLinkParentsAdded?: readonly number[];
+};
+
+/**
+ * After a targeted power commit: tick existing timed card/column effects and extra-column links,
+ * skipping effects and parent links added on that commit.
+ */
+export function tickEffectDurationsOnTargetCommit(
+  state: GameState,
+  excludes: TargetCommitTickExcludes = {},
+): GameState {
+  const cardAdded = excludes.cardEffectsAdded ?? [];
+  const columnAdded = excludes.columnEffectsAdded ?? [];
+
+  const cardEffects: Record<CardEffectKey, AppliedEffect[]> = {};
+  for (const [key, list] of Object.entries(state.cardEffects)) {
+    const next = tickAppliedListExcluding(list, (entry) =>
+      cardAdded.some((a) => a.key === key && a.effect === entry.effect),
+    );
+    if (next.length > 0) cardEffects[key as CardEffectKey] = next;
+  }
+
+  const columnEffects: Record<number, AppliedEffect[]> = {};
+  for (const [colKey, list] of Object.entries(state.columnEffects)) {
+    const col = Number(colKey);
+    const next = tickAppliedListExcluding(list, (entry) =>
+      columnAdded.some((a) => a.columnIndex === col && a.effect === entry.effect),
+    );
+    if (next.length > 0) columnEffects[col] = next;
+  }
+
+  let next = { ...state, cardEffects, columnEffects };
+  next = tickExtraColumnLinks(next, {
+    excludeParentIndices: excludes.extraColumnLinkParentsAdded,
+  });
+  return next;
 }
 
 /** Decrement timed effects after a player move (tableau, foundation, deal). */

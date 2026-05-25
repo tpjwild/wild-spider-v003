@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  JOKER_POWER_EXTRA_COLUMN,
   JOKER_POWER_SELECTED_CARD_SKIP2,
   JOKER_POWER_SELECTED_CARD_TRANSPARENT,
   JOKER_POWER_SELECTED_COLUMN_TRANSPARENT,
@@ -7,6 +8,7 @@ import {
 import { triggerTargetedPower } from "@/engine/game";
 import { hasCardEffect } from "@/engine/effects";
 import { EFFECT_SKIP2 } from "@/content/effectDefinitions";
+import { emptyExtraColumnState } from "@/engine/extraColumnState";
 import { createShelfJokerEntry } from "@/engine/powers";
 import { buildDoubleDeck } from "@/engine/cards";
 import type { GameState, ShelfJoker } from "@/engine/types";
@@ -35,6 +37,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     shelf: [],
     cardEffects: {},
     columnEffects: {},
+    ...emptyExtraColumnState(),
     undoCount: 0,
     history: [],
     ...overrides,
@@ -71,6 +74,26 @@ describe("powerTargetUi", () => {
       shelf: shelfWithCatalogPower("westernPhilosophy", 7),
     });
     expect(isTableauColumnPowerTarget(game, 0, 0)).toBe(true);
+  });
+
+  it("isTableauColumnPowerTarget for Sartre Extra Column on deal and extra-child columns", () => {
+    const game = baseState({
+      shelf: shelfWithCatalogPower("westernPhilosophy", 5),
+    });
+    expect(createShelfJokerEntry("westernPhilosophy", { kind: "joker", id: 5 }).powerId).toBe(
+      JOKER_POWER_EXTRA_COLUMN,
+    );
+    expect(isTableauColumnPowerTarget(game, 0, 0)).toBe(true);
+    const chained = baseState({
+      columnFlags: { 1: { isExtraChild: true }, 2: { isExtraChild: true } },
+      extraColumnLinks: [
+        { parentColumnIndex: 0, movesRemaining: 10 },
+        { parentColumnIndex: 1, movesRemaining: 5 },
+      ],
+      shelf: shelfWithCatalogPower("westernPhilosophy", 5),
+    });
+    expect(isTableauColumnPowerTarget(chained, 1, 0)).toBe(true);
+    expect(isTableauColumnPowerTarget(chained, 2, 0)).toBe(true);
   });
 
   it("armedPowerIdForShelf uses western philosophy catalog for Wittgenstein joker id", () => {

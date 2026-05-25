@@ -31,6 +31,8 @@ import { NewGameDialog } from "@/components/game/NewGameDialog";
 import { ShelfStrip } from "@/components/game/ShelfStrip";
 import { StockPile } from "@/components/game/StockPile";
 import { TableauColumn } from "@/components/game/TableauColumn";
+import { FoundationInspectNamePlate, TableauInspectController } from "@/components/game/TableauInspectBridge";
+import { TableauInspectProvider } from "@/components/game/TableauInspectContext";
 import { TableauDragReturnLayer } from "@/components/game/TableauDragReturnLayer";
 import { TableauDragStackPreview } from "@/components/game/TableauDragStackPreview";
 import {
@@ -38,12 +40,17 @@ import {
   type TableauDragOverlayContextValue,
 } from "@/components/game/TableauDragOverlayContext";
 import { colors, gameShellColorStyle } from "@/constants/colors";
-import { dimensions, shelfFoundationStockStripMinHeightPx } from "@/constants/dimensions";
+import {
+  dimensions,
+  foundationRowWidthPx,
+  shelfFoundationStockStripMinHeightPx,
+} from "@/constants/dimensions";
 import { timings } from "@/constants/timings";
 import { applyDealEntriesProgress, canDealFromStock } from "@/engine/deal";
 import { gameHasAnyCards } from "@/engine/setup";
 import { applyInitialDealEntriesProgress } from "@/engine/initialDeal";
 import type { Card, FoundationIndex, PlacedCard } from "@/engine/types";
+import type { TableauNamePlateSource } from "@/lib/tableauNamePlate";
 import { clearGameState } from "@/lib/gameStorage";
 import {
   measureTableauOverlayReturnFlight,
@@ -132,6 +139,8 @@ export function GameShell() {
   const shiftInspectMode = useShiftInspectMode(cancelTargetingOnShiftInspect);
 
   const [overlayCards, setOverlayCards] = useState<readonly PlacedCard[] | null>(null);
+  const [overlayFromColumn, setOverlayFromColumn] = useState<number | null>(null);
+  const [dragInspectTarget, setDragInspectTarget] = useState<TableauNamePlateSource | null>(null);
   /** While set, only this draggable id keeps `useDraggable` during the drag (see `TableauColumn`). */
   const [activeTableauDragId, setActiveTableauDragId] = useState<string | null>(null);
   const [overlayApplyDragHoverScale, setOverlayApplyDragHoverScale] = useState(true);
@@ -380,6 +389,8 @@ export function GameShell() {
   const clearTableauDragSession = useCallback(() => {
     setActiveTableauDragId(null);
     setOverlayCards(null);
+    setOverlayFromColumn(null);
+    setDragInspectTarget(null);
     setOverlayReturnFlight(null);
     setTableauReturnHide(null);
     setOverlayApplyDragHoverScale(true);
@@ -405,6 +416,7 @@ export function GameShell() {
         setTableauReturnHide({ column: fromCol, startIndex });
         setActiveTableauDragId(null);
         setOverlayCards(null);
+        setDragInspectTarget(null);
         setOverlayApplyDragHoverScale(false);
       });
     },
@@ -438,7 +450,13 @@ export function GameShell() {
       setTableauReturnHide(null);
       setActiveTableauDragId(String(e.active.id));
       setOverlayApplyDragHoverScale(true);
+      setOverlayFromColumn(d.fromColumn);
       setOverlayCards(col.slice(d.startIndex));
+      setDragInspectTarget({
+        kind: "card",
+        columnIndex: d.fromColumn,
+        cardIndex: d.startIndex,
+      });
       const reveal = cardRevealedByTableauDrag(g.columns, d.fromColumn, d.startIndex);
       if (reveal) scheduleWarmCardFaceArt(g.config.deckPairId, reveal);
     },
@@ -851,12 +869,14 @@ export function GameShell() {
         onDragEnd={onDragEnd}
         onDragCancel={onDragCancel}
       >
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <TableauInspectProvider dragTarget={dragInspectTarget}>
+        <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+        <TableauInspectController game={effectiveGame} detailsCard={inGameDetailsCard} />
         <LayoutGroup id="game-board">
           <TableauDragOverlayContext.Provider value={tableauDragOverlayValue}>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
           <div
-            className="sticky top-0 z-40 shrink-0 border-b border-black/25"
+            className="sticky top-0 z-40 w-full shrink-0 border-b border-black/25"
             style={{
               backgroundColor: colors.background,
               boxShadow: `0 6px 16px ${colors.playAreaHeaderShadow}`,
@@ -1042,7 +1062,7 @@ export function GameShell() {
 
           {effectiveGame ? (
             <div
-              className={`px-3 pb-3 pt-1 ${shiftInspectMode ? "cursor-help" : ""}`}
+              className={`w-full shrink-0 px-3 pb-3 pt-1 ${shiftInspectMode ? "cursor-help" : ""}`}
               style={{ minHeight: shelfFoundationStockStripMinHeightPx(effectiveGame.config.deals) }}
             >
               <div
@@ -1060,23 +1080,32 @@ export function GameShell() {
                     detailsCard={inGameDetailsCard}
                   />
                 </div>
-                <motion.div
-                  className="flex min-w-0 justify-center"
-                  style={{ paddingTop: dimensions.shelfVerticalPad }}
-                >
-                  <motion.div
-                    key={sessionKey}
-                    className="flex flex-wrap items-start justify-center"
-                    style={{ gap: dimensions.columnSpacing }}
-                    initial={{ opacity: 0.35, y: -12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: timings.cardDealDuration / 1000 }}
+                <div className="flex min-w-0 justify-center">
+                  <div
+                    className="flex max-w-full flex-col"
+                    style={{
+                      paddingTop: dimensions.shelfVerticalPad,
+                      width: foundationRowWidthPx(),
+                    }}
                   >
-                    {Array.from({ length: 8 }).map((_, i) => (
-                      <FoundationSlot key={i} game={effectiveGame} index={i as FoundationIndex} />
-                    ))}
-                  </motion.div>
-                </motion.div>
+                    <motion.div
+                      key={sessionKey}
+                      className="flex flex-nowrap items-start justify-center"
+                      style={{ gap: dimensions.columnSpacing }}
+                      initial={{ opacity: 0.35, y: -12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: timings.cardDealDuration / 1000 }}
+                    >
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <FoundationSlot key={i} game={effectiveGame} index={i as FoundationIndex} />
+                      ))}
+                    </motion.div>
+                    <FoundationInspectNamePlate
+                      game={effectiveGame}
+                      dragInspectTarget={dragInspectTarget}
+                    />
+                  </div>
+                </div>
                 <div
                   className="flex min-w-0 justify-center"
                   style={{ paddingTop: dimensions.shelfVerticalPad }}
@@ -1100,7 +1129,7 @@ export function GameShell() {
 
         <div
           ref={tableauScrollPaneRef}
-          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
+          className="tableau-scroll flex min-h-0 min-w-0 w-full flex-1 flex-col"
           data-tableau-scroll-pane
         >
         {!game ? (
@@ -1115,15 +1144,11 @@ export function GameShell() {
         ) : null}
 
         {effectiveGame ? (
-          <div
-            className={`relative z-0 isolate flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-3 ${
-              shiftInspectMode ? "cursor-help" : ""
-            }`}
-          >
+          <div className="flex min-h-full w-full min-w-0 justify-center">
             <div
-              className={`flex min-h-0 min-w-0 flex-1 flex-wrap content-start justify-center ${
-                powerTargeting ? POWER_TARGET_CURSOR_CLASS : shiftInspectMode ? "cursor-help" : ""
-              }`}
+              className={`relative z-0 isolate inline-flex min-h-full shrink-0 flex-nowrap content-start p-3 ${
+                shiftInspectMode ? "cursor-help" : ""
+              } ${powerTargeting ? POWER_TARGET_CURSOR_CLASS : shiftInspectMode ? "cursor-help" : ""}`}
               style={{ gap: dimensions.columnSpacing }}
               data-testid="tableau-root"
               data-power-target-mode={powerTargeting ? "true" : undefined}
@@ -1154,18 +1179,22 @@ export function GameShell() {
               cards={overlayCards}
               applyHoverScale={overlayApplyDragHoverScale}
               dragOverlayMeasureMarker
+              game={effectiveGame ?? undefined}
+              columnIndex={overlayFromColumn ?? undefined}
             />
           ) : null}
         </DragOverlay>
 
-        {overlayReturnFlight ? (
+        {overlayReturnFlight && effectiveGame ? (
           <TableauDragReturnLayer
             flight={overlayReturnFlight}
             applyHoverScale={overlayApplyDragHoverScale}
             onComplete={finishTableauReturnFlight}
+            game={effectiveGame}
           />
         ) : null}
         </div>
+        </TableauInspectProvider>
       </DndContext>
       </div>
 

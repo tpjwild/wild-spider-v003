@@ -10,6 +10,7 @@ import {
   getPowerDefinition,
   JOKER_POWER_2_KINGS_TRANSPARENT,
   JOKER_POWER_ALL_KINGS_TRANSPARENT,
+  JOKER_POWER_EXTRA_COLUMN,
   JOKER_POWER_SELECTED_CARD_HALFWILD,
   JOKER_POWER_SELECTED_CARD_SKIP1,
   JOKER_POWER_SELECTED_CARD_SKIP2,
@@ -25,11 +26,14 @@ import {
   type PowerTargetKind,
 } from "@/content/powerDefinitions";
 import { buildDoubleDeck, isRegular } from "@/engine/cards";
+import { applyExtraColumn, canTargetExtraColumnParent } from "@/engine/extraColumn";
 import {
   addCardEffectForCard,
   addColumnEffect,
   hasCardEffect,
+  tickEffectDurationsOnTargetCommit,
 } from "@/engine/effects";
+import { snapshotExtraColumnTopology } from "@/engine/extraColumnTopology";
 import { createMulberry32, hashSeedToUint32, shuffleInPlace } from "@/engine/seededRng";
 import type {
   Card,
@@ -280,6 +284,9 @@ export function isValidTargetedColumnTarget(
   const normalized = normalizePowerId(powerId);
   if (!powerTargetsTableauColumn(normalized)) return false;
   if (columnIndex < 0 || columnIndex >= state.columns.length) return false;
+  if (normalized === JOKER_POWER_EXTRA_COLUMN) {
+    return canTargetExtraColumnParent(state, columnIndex);
+  }
   if (columnAlreadyHasTargetedPowerEffect(state, normalized, columnIndex)) return false;
   return true;
 }
@@ -435,7 +442,9 @@ export function triggerTargetedPower(
   const chargesBefore = shelfEntry.chargesRemaining;
   const duration = powerEffectDuration(state, shelfIndex);
   const applied = applyCardEffect(state, card, effect, duration);
-  const next = consumeShelfCharge(applied.state, shelfIndex);
+  const next = tickEffectDurationsOnTargetCommit(consumeShelfCharge(applied.state, shelfIndex), {
+    cardEffectsAdded: applied.cardEffectsAdded,
+  });
   return {
     state: next,
     history: {
@@ -458,13 +467,38 @@ export function triggerTargetedColumnPower(
   const powerId = resolvedPowerIdForShelf(state, shelfIndex);
   if (!isValidTargetedColumnTarget(state, powerId, columnIndex)) return null;
 
+  const chargesBefore = shelfEntry.chargesRemaining;
+
+  if (powerId === JOKER_POWER_EXTRA_COLUMN) {
+    const duration = powerEffectDuration(state, shelfIndex);
+    if (duration == null || duration <= 0) return null;
+    const topologyBefore = snapshotExtraColumnTopology(state);
+    const applied = applyExtraColumn(state, columnIndex, duration);
+    if (!applied) return null;
+    const next = tickEffectDurationsOnTargetCommit(consumeShelfCharge(applied.state, shelfIndex), {
+      extraColumnLinkParentsAdded: [applied.newLinkParentIndex],
+    });
+    return {
+      state: next,
+      history: {
+        type: "power_trigger",
+        shelfIndex,
+        chargesBefore,
+        cardEffectsAdded: [],
+        columnEffectsAdded: [],
+        extraColumnTopologyBefore: topologyBefore,
+      },
+    };
+  }
+
   const effect = effectForTargetedPower(powerId);
   if (!effect) return null;
 
-  const chargesBefore = shelfEntry.chargesRemaining;
   const duration = powerEffectDuration(state, shelfIndex);
   const applied = applyColumnEffect(state, columnIndex, effect, duration);
-  const next = consumeShelfCharge(applied.state, shelfIndex);
+  const next = tickEffectDurationsOnTargetCommit(consumeShelfCharge(applied.state, shelfIndex), {
+    columnEffectsAdded: applied.columnEffectsAdded,
+  });
   return {
     state: next,
     history: {

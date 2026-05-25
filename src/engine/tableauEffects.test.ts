@@ -13,7 +13,9 @@ import {
   effectiveSuitChoices,
   isValidStrictSameSuitDescendingRun,
   isValidTableauRun,
+  tableauCardAboveSharesDragRun,
 } from "@/engine/tableauEffects";
+import { emptyExtraColumnState } from "@/engine/extraColumnState";
 import type { GameState, PlacedCard } from "@/engine/types";
 
 const d = buildDoubleDeck();
@@ -37,6 +39,7 @@ function emptyState(columns: PlacedCard[][]): GameState {
     shelf: [],
     cardEffects: {},
     columnEffects: {},
+    ...emptyExtraColumnState(),
     undoCount: 0,
     history: [],
   };
@@ -138,6 +141,24 @@ describe("isValidTableauRun", () => {
     state = withColumnEffect(state, 0, EFFECT_HALF_WILD);
     state = withCardEffect(state, s4, EFFECT_SKIP1);
     expect(isValidTableauRun(state, 0, col, 1)).toBe(true);
+  });
+});
+
+describe("tableauCardAboveSharesDragRun", () => {
+  const s5 = d.find((c) => c.suit === "S" && c.rank === 5)!;
+  const s4 = d.find((c) => c.suit === "S" && c.rank === 4 && c.id !== s5.id)!;
+  const c3 = d.find((c) => c.suit === "C" && c.rank === 3)!;
+
+  it("is true when the card above anchors a run that includes this card", () => {
+    const col = pile({ card: s5, faceUp: true }, { card: s4, faceUp: true });
+    const state = emptyState([col]);
+    expect(tableauCardAboveSharesDragRun(state, 0, 1)).toBe(true);
+  });
+
+  it("is false when the card above does not share a run", () => {
+    const col = pile({ card: s5, faceUp: true }, { card: s4, faceUp: true }, { card: c3, faceUp: true });
+    const state = emptyState([col]);
+    expect(tableauCardAboveSharesDragRun(state, 0, 2)).toBe(false);
   });
 });
 

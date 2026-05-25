@@ -15,6 +15,10 @@ import {
   useTableauReturnHide,
 } from "@/components/game/TableauDragOverlayContext";
 import {
+  useActiveTableauInspectSource,
+  useTableauInspect,
+} from "@/components/game/TableauInspectContext";
+import {
   dimensions,
   TABLEAU_CARD_INVESTIGATE_SCALE,
   TABLEAU_DRAGGABLE_HOVER_SCALE,
@@ -22,6 +26,7 @@ import {
   tableauColumnStackTopPx,
 } from "@/constants/dimensions";
 import { layoutIdCardMotionProps, timings } from "@/constants/timings";
+import { isExtraChildColumn } from "@/engine/extraColumn";
 import {
   cardHasTransparentEffectInColumn,
   columnHolderEffectBadgeEntries,
@@ -29,6 +34,7 @@ import {
   tableauEffectBadgeEntries,
   transparentEffectBackOpacity,
 } from "@/lib/cardEffectsUi";
+import { extraColumnLinkForChildColumn } from "@/lib/effectBadgeEntries";
 import { cardLayoutId } from "@/lib/cardLayoutId";
 import {
   isColumnTargetingPower,
@@ -38,10 +44,15 @@ import {
   POWER_TARGET_VALID_CURSOR_CLASS,
   tableauPowerTargetContextForCommit,
 } from "@/lib/powerTargetUi";
-import { CARD_INSPECT_HIGHLIGHT_CLASS } from "@/lib/cardInspectUi";
+import {
+  CARD_INSPECT_HIGHLIGHT_CLASS,
+  namePlateInspectHighlightClass,
+  namePlateInspectHighlightForTableauCard,
+} from "@/lib/cardInspectUi";
 import { isInGameCardDetailsClickable } from "@/lib/deckCardDetails";
 import { useSuppressClickAfterDrag } from "@/lib/useSuppressClickAfterDrag";
 import type { Card, GameState, PlacedCard } from "@/engine/types";
+import { tableauCardAboveSharesDragRun } from "@/engine/tableauEffects";
 import { canDragFromTableau, useGameStore } from "@/state/gameStore";
 
 const { cardWidth: cw, cardHeight: ch, tableauColumnBadgeHolderGapPx } = dimensions;
@@ -135,7 +146,14 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
   shiftInspectMode,
   onArmHover,
   onOpenCardDetails,
-}: TableauCardSharedProps) {
+  onInspectHover,
+  onInspectLeave,
+  onDragHoverPointerLeave,
+}: TableauCardSharedProps & {
+  onInspectHover: () => void;
+  onInspectLeave: () => void;
+  onDragHoverPointerLeave: (e: React.PointerEvent<HTMLElement>) => void;
+}) {
   const powerTargeting = useGameStore((s) => s.powerTargeting);
   const commitTargetedPower = useGameStore((s) => s.commitTargetedPower);
   const isPowerTargetMode = powerTargeting != null;
@@ -150,6 +168,15 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
     isTableauPowerTarget(game, placed.card, placed.faceUp, powerTargeting.shelfIndex);
   const [hoverValidTarget, setHoverValidTarget] = useState(false);
   const [inspectHover, setInspectHover] = useState(false);
+  const activeInspectSource = useActiveTableauInspectSource();
+  const namePlateHighlightTier = namePlateInspectHighlightForTableauCard(
+    game,
+    activeInspectSource,
+    columnIndex,
+    cardIndex,
+    placed,
+  );
+  const namePlateHighlightClass = namePlateInspectHighlightClass(namePlateHighlightTier);
 
   const id = `t-${columnIndex}-${cardIndex}`;
   const activeTableauDragId = useActiveTableauDragId();
@@ -214,7 +241,7 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
       ? "ring-2 ring-amber-400 ring-offset-1 ring-offset-black/30"
       : detailsClickable && inspectHover
         ? CARD_INSPECT_HIGHLIGHT_CLASS
-        : "";
+        : namePlateHighlightClass;
 
   const dragListenersActive = !isPowerTargetMode && (!tableauDragInProgress || isActiveDrag);
   const {
@@ -231,6 +258,8 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
       data-power-target-valid={isValidPowerTarget ? "true" : undefined}
       data-in-game-details-clickable={detailsClickable ? "true" : undefined}
       data-inspect-highlight={detailsClickable && inspectHover ? "true" : undefined}
+      data-name-plate-inspect-highlight={namePlateHighlightTier !== "none" ? "true" : undefined}
+      data-name-plate-inspect-tier={namePlateHighlightTier !== "none" ? namePlateHighlightTier : undefined}
       data-tableau-card-key={tableauCardIdentity(placed.card)}
       title={detailsClickable ? "Hold Shift and click to view card details" : undefined}
       onPointerEnter={() => {
@@ -238,10 +267,23 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
         if (isPowerTargetMode && isValidPowerTarget) setHoverValidTarget(true);
         if (detailsClickable) setInspectHover(true);
         if (canDrag && !dealLocked && !isPowerTargetMode && !shiftInspectMode) onArmHover();
+        if (!tableauDragInProgress && !dealLocked && !columnPowerTargetMode) onInspectHover();
       }}
-      onPointerLeave={() => {
+      onPointerLeave={(e) => {
         if (hoverValidTarget) setHoverValidTarget(false);
         if (inspectHover) setInspectHover(false);
+        const rel = e.relatedTarget;
+        if (rel instanceof Node && e.currentTarget.contains(rel)) return;
+        if (
+          canDrag &&
+          !dealLocked &&
+          !tableauDragInProgress &&
+          !isPowerTargetMode &&
+          !shiftInspectMode
+        ) {
+          onDragHoverPointerLeave(e);
+        }
+        onInspectLeave();
       }}
       onClick={(e) => {
         if (isPowerTargetMode && isValidPowerTarget && powerTargeting != null) {
@@ -315,8 +357,14 @@ function TableauCardSlot({
   detailsPinned,
   shiftInspectMode,
   onArmHover,
+  onInspectHover,
+  onInspectLeave,
+  onDragHoverPointerLeave,
   onOpenCardDetails,
 }: Omit<TableauCardSharedProps, "hideInTableau"> & {
+  onInspectHover: () => void;
+  onInspectLeave: () => void;
+  onDragHoverPointerLeave: (e: React.PointerEvent<HTMLElement>) => void;
   columnDragRunStart: number | null;
   tableauReturnHide: { column: number; startIndex: number } | null;
 }) {
@@ -338,6 +386,9 @@ function TableauCardSlot({
       detailsPinned={detailsPinned}
       shiftInspectMode={shiftInspectMode}
       onArmHover={onArmHover}
+      onInspectHover={onInspectHover}
+      onInspectLeave={onInspectLeave}
+      onDragHoverPointerLeave={onDragHoverPointerLeave}
       onOpenCardDetails={onOpenCardDetails}
     />
   );
@@ -365,6 +416,7 @@ export function TableauColumn({
   const applyViewportFloor = useApplyTableauDropViewportFloorMinHeight();
   const tableauDropFloorBottomPx = useTableauDropFloorBottomPx();
   const activeTableauDragId = useActiveTableauDragId();
+  const { setHoverTarget: setInspectHoverTarget } = useTableauInspect();
 
   const [hoveredDragRunStart, setHoveredDragRunStart] = useState<number | null>(null);
   const [columnDragRunStart, setColumnDragRunStart] = useState<number | null>(null);
@@ -398,10 +450,12 @@ export function TableauColumn({
       el != null && pointerIsOverRect(x, y, el.getBoundingClientRect());
     if (stillOver && canDragFromTableau(game, columnIndex, cardIndex) && !dealLocked) {
       setHoveredDragRunStart(cardIndex);
+      setInspectHoverTarget({ kind: "card", columnIndex, cardIndex });
     } else {
       setHoveredDragRunStart((start) => (start === cardIndex ? null : start));
+      setInspectHoverTarget(null);
     }
-  }, [col, columnIndex, dealLocked, detailsCard, game]);
+  }, [col, columnIndex, dealLocked, detailsCard, game, setInspectHoverTarget]);
 
   const tryArmHover = useCallback(
     (idx: number) => {
@@ -454,11 +508,15 @@ export function TableauColumn({
   );
 
   /** Top-hit tableau card receives the pointer over its bounds; stacking order matches z-index. */
-  const handleStackPointerLeave = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const rel = e.relatedTarget;
-    if (rel instanceof Node && e.currentTarget.contains(rel)) return;
-    setHoveredDragRunStart(null);
-  }, []);
+  const handleStackPointerLeave = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const rel = e.relatedTarget;
+      if (rel instanceof Node && e.currentTarget.contains(rel)) return;
+      setHoveredDragRunStart(null);
+      setInspectHoverTarget(null);
+    },
+    [setInspectHoverTarget],
+  );
 
   const hoveredDragRunStartActive =
     dealLocked || activeTableauDragId != null ? null : hoveredDragRunStart;
@@ -513,12 +571,62 @@ export function TableauColumn({
     [col, tryArmHover],
   );
 
+  const inspectHoverCallbacks = useMemo(
+    () =>
+      col.map((_, cardIndex) => () => {
+        setInspectHoverTarget({ kind: "card", columnIndex, cardIndex });
+      }),
+    [col, columnIndex, setInspectHoverTarget],
+  );
+
+  const inspectLeaveCallback = useCallback(() => {
+    setInspectHoverTarget(null);
+  }, [setInspectHoverTarget]);
+
+  const handleCardDragHoverPointerLeave = useCallback(
+    (e: React.PointerEvent<HTMLElement>, leaveIndex: number) => {
+      if (dealLocked || activeTableauDragId != null || powerTargeting != null) return;
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const exitTop = e.clientY < rect.top;
+
+      if (exitTop && leaveIndex > 0) {
+        const rel = e.relatedTarget;
+        if (tableauCardAboveSharesDragRun(game, columnIndex, leaveIndex) && rel instanceof Node) {
+          const abovePlaced = col[leaveIndex - 1]!;
+          const aboveEl = stackElRef.current?.querySelector<HTMLElement>(
+            `[data-tableau-card-key="${tableauCardIdentity(abovePlaced.card)}"]`,
+          );
+          if (aboveEl && (aboveEl === rel || aboveEl.contains(rel))) {
+            return;
+          }
+        }
+        setHoveredDragRunStart((start) => {
+          if (start === null) return null;
+          if (leaveIndex >= start) return null;
+          return start;
+        });
+      }
+    },
+    [activeTableauDragId, col, columnIndex, dealLocked, game, powerTargeting],
+  );
+
+  const dragHoverLeaveCallbacks = useMemo(
+    () => col.map((_, cardIndex) => (e: React.PointerEvent<HTMLElement>) => {
+      handleCardDragHoverPointerLeave(e, cardIndex);
+    }),
+    [col, handleCardDragHoverPointerLeave],
+  );
+
   const columnTargetMode =
     powerTargeting != null && isColumnTargetingPower(game, powerTargeting.shelfIndex);
   const isValidColumnTarget =
     columnTargetMode &&
     powerTargeting != null &&
     isTableauColumnPowerTarget(game, columnIndex, powerTargeting.shelfIndex);
+
+  const columnIsExtraChild = isExtraChildColumn(game, columnIndex);
+  const extraChildLink = extraColumnLinkForChildColumn(game, columnIndex);
 
   return (
     <div
@@ -537,6 +645,8 @@ export function TableauColumn({
       <TableauColumnBadgeHolder
         columnIndex={columnIndex}
         entries={columnHolderEffectBadgeEntries(game, columnIndex)}
+        isExtraChildColumn={columnIsExtraChild}
+        extraChildLinkMovesRemaining={extraChildLink?.movesRemaining ?? null}
         isColumnPowerTargetMode={columnTargetMode}
         isValidColumnPowerTarget={isValidColumnTarget}
         onCommitColumnPowerTarget={
@@ -579,6 +689,9 @@ export function TableauColumn({
               detailsPinned={detailsPinned}
               shiftInspectMode={shiftInspectMode}
               onArmHover={armHoverCallbacks[cardIndex]!}
+              onInspectHover={inspectHoverCallbacks[cardIndex]!}
+              onInspectLeave={inspectLeaveCallback}
+              onDragHoverPointerLeave={dragHoverLeaveCallbacks[cardIndex]!}
               onOpenCardDetails={onOpenCardDetails}
             />
           );

@@ -4,12 +4,29 @@ import {
   applyDealEntriesProgress,
   canDealFromStock,
   dealFromStock,
+  getDealColumnIndices,
   leadStockIndicesForUpcomingDeals,
 } from "./deal";
+import { applyExtraColumn } from "./extraColumn";
 import { createInitialState } from "./setup";
 
+describe("getDealColumnIndices", () => {
+  it("excludes extra-child columns", () => {
+    const g = createInitialState({
+      columns: 3,
+      deals: 10,
+      deckPairId: "mathematics",
+      seed: "deal-cols",
+      jokerCount: 0,
+    });
+    const applied = applyExtraColumn(g, 0, 10)!;
+    expect(applied.state.columns).toHaveLength(4);
+    expect(getDealColumnIndices(applied.state)).toEqual([0, 2, 3]);
+  });
+});
+
 describe("canDealFromStock", () => {
-  it("blocks when an empty column exists and tableau can fill every column", () => {
+  it("blocks when an empty deal column exists and tableau can fill every deal column", () => {
     const g = createInitialState({
       columns: 4,
       deals: 10,
@@ -59,6 +76,29 @@ describe("canDealFromStock", () => {
     expect(s.columns.reduce((n, c) => n + c.length, 0)).toBeLessThan(s.columns.length);
     expect(canDealFromStock(s)).toBe(true);
   });
+
+  it("allows deal when only an extra-child column is empty", () => {
+    const d = buildDoubleDeck();
+    const g = createInitialState({
+      columns: 3,
+      deals: 10,
+      deckPairId: "mathematics",
+      seed: "extra-empty-ok",
+      jokerCount: 0,
+    });
+    const applied = applyExtraColumn(g, 0, 10)!;
+    const s = structuredClone(applied.state);
+    const dealCols = getDealColumnIndices(s);
+    for (const i of dealCols) {
+      if (s.columns[i]!.length === 0) {
+        s.columns[i] = [{ card: d[0]!, faceUp: true }];
+      }
+    }
+    expect(s.columns[1]).toEqual([]);
+    expect(dealCols.length).toBe(3);
+    expect(s.columns.reduce((n, c) => n + c.length, 0)).toBeGreaterThanOrEqual(dealCols.length);
+    expect(canDealFromStock(s)).toBe(true);
+  });
 });
 
 describe("leadStockIndicesForUpcomingDeals", () => {
@@ -93,6 +133,36 @@ describe("dealFromStock", () => {
     for (let c = 0; c < 4; c++) {
       expect(r!.state.columns[c]!.length).toBe(g.columns[c]!.length + 1);
       expect(r!.state.columns[c]!.at(-1)!.faceUp).toBe(true);
+    }
+  });
+
+  it("deals only to deal columns when an extra-child column is present", () => {
+    const g = createInitialState({
+      columns: 3,
+      deals: 10,
+      deckPairId: "mathematics",
+      seed: "deal-skip-extra",
+      jokerCount: 0,
+    });
+    const applied = applyExtraColumn(g, 0, 10)!;
+    const pre = applied.state;
+    const len0 = pre.columns[0]!.length;
+    const len2 = pre.columns[2]!.length;
+    const len3 = pre.columns[3]!.length;
+    const before = pre.stock.length;
+    const r = dealFromStock(pre);
+    expect(r).not.toBeNull();
+    expect(r!.state.stock.length).toBe(before - 3);
+    expect(r!.state.columns[0]!.length).toBe(len0 + 1);
+    expect(r!.state.columns[1]!.length).toBe(0);
+    expect(r!.state.columns[2]!.length).toBe(len2 + 1);
+    expect(r!.state.columns[3]!.length).toBe(len3 + 1);
+    if (r!.history.type === "deal") {
+      const dealtCols = r!.history.entries
+        .filter((e) => e.tableauColumn !== null)
+        .map((e) => e.tableauColumn);
+      expect(dealtCols).toEqual([0, 2, 3]);
+      expect(dealtCols).not.toContain(1);
     }
   });
 

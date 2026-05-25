@@ -2,6 +2,10 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { StockPopup } from "@/components/game/StockPopup";
+import {
+  stockPopupMinPanelOuterHeightPx,
+  stockPopupMinPanelOuterWidthPx,
+} from "@/constants/dimensions";
 import { newGame } from "@/engine/game";
 
 describe("StockPopup", () => {
@@ -21,6 +25,11 @@ describe("StockPopup", () => {
     expect(screen.getByText("Deal 1")).toBeInTheDocument();
     const cells = screen.getAllByTestId("stock-popup-cell");
     expect(cells.length).toBe(game.stock.length);
+    const panel = screen.getByTestId("stock-popup-panel");
+    expect(panel).toHaveStyle({
+      minWidth: `${stockPopupMinPanelOuterWidthPx(game.config.columns)}px`,
+      minHeight: `${stockPopupMinPanelOuterHeightPx()}px`,
+    });
   });
 
   it("closes on Escape", async () => {

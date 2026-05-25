@@ -25,7 +25,14 @@ export type PlacedCard = {
 };
 
 /** Card and column effect ids (applied by powers / set powers). */
-export type EffectId = "transparent" | "wild" | "halfWild" | "skip1" | "skip2";
+export type EffectId =
+  | "transparent"
+  | "wild"
+  | "halfWild"
+  | "skip1"
+  | "skip2"
+  /** Badge / name plate only; Extra Column topology is in {@link GameState.extraColumnLinks}. */
+  | "extraColumn";
 
 /** One applied effect instance; {@link movesRemaining} null means permanent. */
 export type AppliedEffect = {
@@ -53,7 +60,8 @@ export type PowerId =
   | "jokerSelectedCardSkip2"
   | "jokerSelectedColumnSkip1"
   | "jokerSelectedColumnSkip2"
-  | "jokerTwoKingsTransparent";
+  | "jokerTwoKingsTransparent"
+  | "jokerExtraColumn";
 
 /** One joker sitting on the shelf after being dealt from stock */
 export type ShelfJoker = {
@@ -72,6 +80,8 @@ export type InitialDealEntry = {
   tableauColumn: number | null;
   faceUp: boolean;
 };
+
+import type { ExtraColumnTopologySnapshot } from "./extraColumnTopology";
 
 export type HistoryEntry =
   | {
@@ -106,9 +116,20 @@ export type HistoryEntry =
       /** Effects added by this trigger (for undo). */
       cardEffectsAdded: { key: CardEffectKey; effect: EffectId }[];
       columnEffectsAdded: { columnIndex: number; effect: EffectId }[];
+      /** Present when Extra Column (or future structural column powers) changes tableau topology. */
+      extraColumnTopologyBefore?: ExtraColumnTopologySnapshot;
     };
 
+/** Timed parent → child link; child column is always at parentColumnIndex + 1 after remap. */
+export type ExtraColumnLink = {
+  parentColumnIndex: number;
+  movesRemaining: number;
+};
+
+export type ColumnFlagsEntry = { isExtraChild: true };
+
 export type GameConfig = {
+  /** Initial deal width only; {@link GameState.columns} may grow with Extra Column. */
   columns: number;
   deals: number;
   deckPairId: string;
@@ -130,6 +151,10 @@ export type GameState = {
   cardEffects: Record<CardEffectKey, AppliedEffect[]>;
   /** Per-tableau-column effects (column index → effect list). */
   columnEffects: Record<number, AppliedEffect[]>;
+  /** Active Extra Column parent links (child at parent + 1). */
+  extraColumnLinks: ExtraColumnLink[];
+  /** Per-column flags (extra-child columns inserted by Extra Column power). */
+  columnFlags: Record<number, ColumnFlagsEntry>;
   /** Number of times undo was invoked (each costs -1 score) */
   undoCount: number;
   /** Player actions only (used for undo); does not include implicit system events */

@@ -13,7 +13,12 @@ import {
 import { syncShelfJokerPowerFromCatalog } from "@/engine/powers";
 import { getPowerDefinition, powerTargetsTableauColumn } from "@/content/powerDefinitions";
 import { armedPowerIdForShelf } from "@/lib/powerTargetUi";
-import { canDealFromStock, dealFromStock, leadStockIndicesForUpcomingDeals } from "@/engine/deal";
+import {
+  canDealFromStock,
+  dealFromStock,
+  getDealColumnIndices,
+  leadStockIndicesForUpcomingDeals,
+} from "@/engine/deal";
 import {
   buildInitialDealEntries,
   initialDealAnimationBase,
@@ -400,7 +405,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const preStock = game.stock;
     const leadIdx = leadStockIndicesForUpcomingDeals(
       preStock,
-      game.columns.length,
+      getDealColumnIndices(game).length,
       stockVisibleDealCapForLayout(game.config.deals),
     );
     const frozenUpcomingLeadCards = leadIdx.map((idx) => preStock[idx]!);

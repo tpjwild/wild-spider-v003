@@ -6,7 +6,11 @@ import { motion } from "framer-motion";
 import { CardView } from "@/components/game/CardView";
 import { dimensions, shelfHorizontalStepPx, stockVisibleDealCapForLayout, tableauColumnStackTopPx } from "@/constants/dimensions";
 import { timings } from "@/constants/timings";
-import { applyDealEntriesProgress, leadStockIndicesForUpcomingDeals } from "@/engine/deal";
+import {
+  applyDealEntriesProgress,
+  getDealColumnIndices,
+  leadStockIndicesForUpcomingDeals,
+} from "@/engine/deal";
 import { applyInitialDealEntriesProgress } from "@/engine/initialDeal";
 import type { Card, GameState, InitialDealEntry } from "@/engine/types";
 import { playSound, playSoundAsync, prepareSound, stopPlayingSound } from "@/lib/playSound";
@@ -58,10 +62,10 @@ function measureStockDealFly(
   const stockStack = document.querySelector<HTMLElement>("[data-stock-stack]");
   if (!stockStack) return null;
   const sr = stockStack.getBoundingClientRect();
-  const cols = partialFrom.columns.length;
+  const dealColumnCount = getDealColumnIndices(partialFrom).length;
   const leads = leadStockIndicesForUpcomingDeals(
     partialFrom.stock,
-    cols,
+    dealColumnCount,
     stockVisibleDealCapForLayout(baseGame.config.deals),
   );
   const shown = Math.max(1, leads.length);

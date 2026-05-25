@@ -2,6 +2,7 @@ import {
   removeCardEffectsAdded,
   removeColumnEffectsAdded,
 } from "./effects";
+import { restoreExtraColumnTopology } from "./extraColumnTopology";
 import { restoreShelfCharge } from "./powers";
 import type { GameState, HistoryEntry } from "./types";
 
@@ -62,7 +63,11 @@ function undoPowerTrigger(
   state: GameState,
   entry: HistoryEntry & { type: "power_trigger" },
 ): GameState {
-  let next = removeCardEffectsAdded(state, entry.cardEffectsAdded);
+  let next = state;
+  if (entry.extraColumnTopologyBefore) {
+    next = restoreExtraColumnTopology(next, entry.extraColumnTopologyBefore);
+  }
+  next = removeCardEffectsAdded(next, entry.cardEffectsAdded);
   next = removeColumnEffectsAdded(next, entry.columnEffectsAdded);
   next = restoreShelfCharge(next, entry.shelfIndex, entry.chargesBefore);
   return next;

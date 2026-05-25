@@ -6,6 +6,11 @@ Short reference for Supabase schema updates. For the full Git workflow (review, 
 
 ---
 
+AI Prompt
+Run test, lint, build (and e2e if UI changed), then commit and push
+
+---
+
 ## Pre-commit and pre-deploy checklist
 
 Run from the **repository root** before committing or pushing to `main` (Vercel deploys from Git).

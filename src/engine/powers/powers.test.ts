@@ -4,6 +4,7 @@ import {
   EFFECT_TRANSPARENT,
   getPowerDefinition,
   JOKER_POWER_2_KINGS_TRANSPARENT,
+  JOKER_POWER_EXTRA_COLUMN,
   JOKER_POWER_SELECTED_CARD_TRANSPARENT,
   JOKER_POWER_SELECTED_CARD_WILD,
   JOKER_POWER_SELECTED_COLUMN_TRANSPARENT,
@@ -13,7 +14,8 @@ import {
   powers,
 } from "@/content/powerDefinitions";
 import { EFFECT_WILD } from "@/content/effectDefinitions";
-import { appliedEffect } from "@/engine/effects";
+import { addColumnEffect, appliedEffect, tickEffectDurationsOnTargetCommit } from "@/engine/effects";
+import { applyExtraColumn } from "@/engine/extraColumn";
 import { buildDoubleDeck, buildJokers } from "@/engine/cards";
 import {
   cardEffectKey,
@@ -35,6 +37,7 @@ import {
   isValidTargetedCardTarget,
   isValidTargetedColumnTarget,
 } from "@/engine/powers";
+import { emptyExtraColumnState } from "@/engine/extraColumnState";
 import type { GameState, PowerId, ShelfJoker } from "@/engine/types";
 
 function baseState(overrides: Partial<GameState> = {}): GameState {
@@ -52,6 +55,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     shelf: [],
     cardEffects: {},
     columnEffects: {},
+    ...emptyExtraColumnState(),
     undoCount: 0,
     history: [],
     ...overrides,
@@ -290,13 +294,12 @@ function shelfWithWesternPhilosophyPower(powerId: PowerId): ShelfJoker {
     jokerSelectedCardTransparent: 2,
     jokerSelectedCardWild: 3,
     jokerSelectedCardSkip1: 4,
-    jokerSelectedCardHalfWild: 5,
+    jokerExtraColumn: 5,
     jokerSelectedCardSkip2: 6,
     jokerSelectedColumnTransparent: 7,
   };
   const jokerId = jokerIdByPower[powerId] ?? 0;
-  const entry = createShelfJokerEntry("westernPhilosophy", { kind: "joker", id: jokerId });
-  return { ...entry, chargesRemaining: 3 };
+  return createShelfJokerEntry("westernPhilosophy", { kind: "joker", id: jokerId });
 }
 
 describe("power registry", () => {
@@ -313,6 +316,16 @@ describe("power registry", () => {
     expect(getPowerDefinition(JOKER_POWER_SELECTED_COLUMN_WILD).targetKinds).toContain(
       "tableauColumn",
     );
+    expect(getPowerDefinition(JOKER_POWER_EXTRA_COLUMN).triggerClass).toBe("targeted");
+    expect(getPowerDefinition(JOKER_POWER_EXTRA_COLUMN).targetKinds).toContain("tableauColumn");
+  });
+
+  it("western philosophy Sartre catalog row is Extra Column", () => {
+    const sartre = allJokersInDeckPair("westernPhilosophy")[5];
+    expect(sartre?.name).toBe("Jean-Paul Sartre");
+    expect(sartre?.powerId).toBe(JOKER_POWER_EXTRA_COLUMN);
+    expect(sartre?.initialCharges).toBe(10);
+    expect(sartre?.initialDuration).toBe(10);
   });
 });
 
@@ -396,5 +409,136 @@ describe("isValidTargetedColumnTarget", () => {
     expect(
       isValidTargetedColumnTarget(state, JOKER_POWER_SELECTED_COLUMN_WILD, 0),
     ).toBe(false);
+  });
+
+  it("targeted commit ticks existing timed column effect but not newly added one", () => {
+    const state = baseState({
+      columnEffects: { 0: [appliedEffect(EFFECT_WILD, 3)] },
+    });
+    const { state: withCol, added } = addColumnEffect(state, 1, EFFECT_WILD, 7);
+    expect(added).not.toBeNull();
+    const after = tickEffectDurationsOnTargetCommit(withCol, {
+      columnEffectsAdded: [added!],
+    });
+    expect(after.columnEffects[0]![0]!.movesRemaining).toBe(2);
+    expect(after.columnEffects[1]![0]!.movesRemaining).toBe(7);
+  });
+
+  it("allows deal, chain-parent, and leaf extra-child columns for Extra Column", () => {
+    const state = baseState({
+      columnFlags: { 1: { isExtraChild: true }, 2: { isExtraChild: true } },
+      extraColumnLinks: [
+        { parentColumnIndex: 0, movesRemaining: 10 },
+        { parentColumnIndex: 1, movesRemaining: 5 },
+      ],
+    });
+    expect(isValidTargetedColumnTarget(state, JOKER_POWER_EXTRA_COLUMN, 0)).toBe(true);
+    expect(isValidTargetedColumnTarget(state, JOKER_POWER_EXTRA_COLUMN, 1)).toBe(true);
+    expect(isValidTargetedColumnTarget(state, JOKER_POWER_EXTRA_COLUMN, 2)).toBe(true);
+  });
+});
+
+describe("tickEffectDurationsOnTargetCommit — extra column links", () => {
+  it("ticks reparented link 5 to 4 but not new outer link at 10", () => {
+    const state = baseState({
+      columns: [[], [], []],
+      columnFlags: { 1: { isExtraChild: true } },
+      extraColumnLinks: [{ parentColumnIndex: 0, movesRemaining: 5 }],
+    });
+    const applied = applyExtraColumn(state, 0, 10)!;
+    const after = tickEffectDurationsOnTargetCommit(applied.state, {
+      extraColumnLinkParentsAdded: [applied.newLinkParentIndex],
+    });
+    expect(after.extraColumnLinks).toEqual([
+      { parentColumnIndex: 0, movesRemaining: 10 },
+      { parentColumnIndex: 1, movesRemaining: 4 },
+    ]);
+  });
+});
+
+describe("triggerTargetedColumnPower — extra column", () => {
+  it("inserts child column and link when Sartre shelf entry targets a deal column", () => {
+    const state = baseState({
+      config: {
+        columns: 4,
+        deals: 6,
+        deckPairId: "westernPhilosophy",
+        seed: "sartre-extra-column",
+        jokerCount: 4,
+      },
+      shelf: [shelfWithWesternPhilosophyPower(JOKER_POWER_EXTRA_COLUMN)],
+    });
+    const after = triggerTargetedColumnPower(state, 0, 0);
+    expect(after).not.toBeNull();
+    expect(after!.columns).toHaveLength(5);
+    expect(after!.columns[1]).toEqual([]);
+    expect(after!.columnFlags[1]).toEqual({ isExtraChild: true });
+    expect(after!.extraColumnLinks).toEqual([{ parentColumnIndex: 0, movesRemaining: 10 }]);
+    expect(after!.shelf[0]!.chargesRemaining).toBe(9);
+    expect(after!.history).toHaveLength(1);
+    expect(after!.history[0]).toMatchObject({
+      type: "power_trigger",
+      shelfIndex: 0,
+      chargesBefore: 10,
+      extraColumnTopologyBefore: expect.objectContaining({
+        columns: state.columns,
+        extraColumnLinks: [],
+      }),
+    });
+  });
+
+  it("returns null when catalog duration is missing", () => {
+    const state = baseState({
+      shelf: [
+        {
+          card: { kind: "joker", id: 0 },
+          slot: 1,
+          powerId: JOKER_POWER_EXTRA_COLUMN,
+          chargesRemaining: 3,
+        },
+      ],
+    });
+    expect(triggerTargetedColumnPower(state, 0, 0)).toBeNull();
+  });
+});
+
+describe("triggerTargetedColumnPower — extra column undo", () => {
+  it("restores topology and charge on undo", () => {
+    const d = buildDoubleDeck();
+    const card = d[0]!;
+    const state = baseState({
+      columns: [[{ card, faceUp: true }], [], []],
+      shelf: [
+        {
+          card: { kind: "joker", id: 0 },
+          slot: 1,
+          powerId: JOKER_POWER_EXTRA_COLUMN,
+          chargesRemaining: 2,
+        },
+      ],
+    });
+    const applied = applyExtraColumn(state, 0, 10)!;
+    const withHistory: GameState = {
+      ...applied.state,
+      history: [
+        {
+          type: "power_trigger",
+          shelfIndex: 0,
+          chargesBefore: 2,
+          cardEffectsAdded: [],
+          columnEffectsAdded: [],
+          extraColumnTopologyBefore: {
+            columns: state.columns.map((c) => c.map((p) => ({ ...p }))),
+            columnEffects: {},
+            columnFlags: {},
+            extraColumnLinks: [],
+          },
+        },
+      ],
+    };
+    const restored = undo(withHistory)!;
+    expect(restored.columns).toHaveLength(3);
+    expect(restored.extraColumnLinks).toEqual([]);
+    expect(restored.shelf[0]!.chargesRemaining).toBe(2);
   });
 });

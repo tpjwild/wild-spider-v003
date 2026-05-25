@@ -55,6 +55,10 @@ export const dimensions = {
   shelfNamePlateGapPx: 6,
   /** Fixed height for the shelf name plate (joker + power labels on hover). */
   shelfNamePlateHeightPx: 40,
+  /** Gap between the foundation row and the tableau inspect name plate below it. */
+  foundationNamePlateGapPx: 6,
+  /** Fixed height for the foundation name plate (tableau card / column hover). */
+  foundationNamePlateHeightPx: 56,
   /**
    * When the bottom of the **foundation** column (shelf/foundation/stock row) is **strictly closer**
    * than this many pixels to the viewport bottom, the tableau uses viewport-floor column min-heights
@@ -74,6 +78,14 @@ export const dimensions = {
   deckPopupColumnPad: 6,
   /** Opacity of the card-back layer in the Deck Popup when the card is face-down on the tableau or still in the stock (0–1). */
   deckPopupFaceDownBackOpacity: 0.5,
+  /** Stock popup: `Deal N` label row above one card row (`text-xs` + `mb-2`, px). */
+  stockPopupDealLabelBlockHeightPx: 24,
+  /** Stock popup: `Stock` title + bottom border + `pb-3` (px). */
+  stockPopupTitleBlockHeightPx: 37,
+  /** Stock popup: footer with top border + Close control (px). */
+  stockPopupFooterBlockHeightPx: 40,
+  /** Stock popup: scroll body vertical padding (`py-3`, both sides, px). */
+  stockPopupScrollVerticalPadPx: 24,
   /**
    * Opacity (0–1) of the card-back layer over the face for the **transparent** power effect
    * (tableau face-down, Stock popup, Deck popup). Face art stays full strength underneath.
@@ -163,6 +175,67 @@ export const shelfPanelHeightPx =
 /** Foundation column: top inset + one row of card-sized slots (single-row layout on typical widths). */
 const foundationStripMinContentHeightPx =
   dimensions.shelfVerticalPad + dimensions.cardHeight;
+
+/** Number of foundation slots in the main game row. */
+export const foundationSlotCount = 8;
+
+/**
+ * Width of the foundation row when all {@link foundationSlotCount} slots sit on one line
+ * (card width × slots + {@link dimensions.columnSpacing} between slots).
+ */
+export function foundationRowWidthPx(
+  slotCount: number = foundationSlotCount,
+): number {
+  const n = Math.max(0, slotCount);
+  return n * dimensions.cardWidth + Math.max(0, n - 1) * dimensions.columnSpacing;
+}
+
+/** Width of the tableau row for `columnCount` columns (deal + extra-child slots). */
+export function tableauRowWidthPx(columnCount: number): number {
+  const n = Math.max(0, Math.floor(columnCount));
+  return n * dimensions.cardWidth + Math.max(0, n - 1) * dimensions.columnSpacing;
+}
+
+/** Width of one full stock-popup deal row (one mini-card per tableau column). */
+export function stockPopupSingleDealRowWidthPx(columnCount: number): number {
+  const n = Math.max(1, Math.floor(columnCount));
+  return (
+    n * dimensions.deckPopupCardWidth + Math.max(0, n - 1) * dimensions.deckPopupColumnPad
+  );
+}
+
+/** Minimum stock-popup panel content width for a full deal row (px). */
+export function stockPopupMinPanelInnerWidthPx(columnCount: number): number {
+  return stockPopupSingleDealRowWidthPx(columnCount);
+}
+
+/** Minimum stock-popup panel outer width (content + horizontal edge padding, px). */
+export function stockPopupMinPanelOuterWidthPx(columnCount: number): number {
+  return (
+    stockPopupMinPanelInnerWidthPx(columnCount) +
+    2 * dimensions.deckPopupHorizontalEdgePad
+  );
+}
+
+/** Height of one deal block inside the stock-popup scroll area (label + card row, px). */
+export function stockPopupSingleDealBlockHeightPx(): number {
+  return dimensions.stockPopupDealLabelBlockHeightPx + dimensions.deckPopupCardHeight;
+}
+
+/** Minimum stock-popup scroll body height (padding + one deal block, px). */
+export function stockPopupMinScrollBodyHeightPx(): number {
+  return dimensions.stockPopupScrollVerticalPadPx + stockPopupSingleDealBlockHeightPx();
+}
+
+/** Minimum stock-popup panel outer height (chrome + one deal in the scroll body, px). */
+export function stockPopupMinPanelOuterHeightPx(): number {
+  return (
+    2 * dimensions.deckPopupVerticalEdgePad +
+    dimensions.stockPopupTitleBlockHeightPx +
+    stockPopupMinScrollBodyHeightPx() +
+    dimensions.stockPopupFooterBlockHeightPx
+  );
+}
 
 /**
  * Caps **layoutDeals** (rules `deals` from game config) for stock stack height and lead-card preview depth.

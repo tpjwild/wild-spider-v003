@@ -27,6 +27,7 @@ export const JOKER_POWER_SELECTED_CARD_SKIP2: PowerId = "jokerSelectedCardSkip2"
 export const JOKER_POWER_SELECTED_COLUMN_SKIP1: PowerId = "jokerSelectedColumnSkip1";
 export const JOKER_POWER_SELECTED_COLUMN_SKIP2: PowerId = "jokerSelectedColumnSkip2";
 export const JOKER_POWER_2_KINGS_TRANSPARENT: PowerId = "jokerTwoKingsTransparent";
+export const JOKER_POWER_EXTRA_COLUMN: PowerId = "jokerExtraColumn";
 
 export type PowerTriggerClass = "immediate" | "targeted";
 
@@ -155,6 +156,14 @@ export const POWER_DEFINITIONS: Record<PowerId, PowerDefinition> = {
     appliesEffect: EFFECT_SKIP2,
     targetKinds: ["tableauColumn"],
   },
+  [JOKER_POWER_EXTRA_COLUMN]: {
+    id: JOKER_POWER_EXTRA_COLUMN,
+    name: "Extra Column",
+    description:
+      "Double-click, then click any tableau column’s badge holder. Inserts an empty extra column immediately to the right of that column, linked for a timed duration (from the joker’s initial duration). When the link expires, the child pile merges onto the parent and the child column is removed. Re-applying on a column that already has a child inserts between that column and its former child. Cancel with Escape or Shift without spending a charge.",
+    triggerClass: "targeted",
+    targetKinds: ["tableauColumn"],
+  },
 };
 
 export const powers = Object.values(POWER_DEFINITIONS);
@@ -163,6 +172,7 @@ export const powers = Object.values(POWER_DEFINITIONS);
 const LEGACY_POWER_ID_MAP: Record<string, PowerId> = {
   jokerRedAllKingsTransparent: JOKER_POWER_ALL_KINGS_TRANSPARENT,
   jokerBlackCardTransparent: JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+  jokerBonusColumn: JOKER_POWER_EXTRA_COLUMN,
 };
 
 /** Map legacy persisted ids to the current registry (no-op for current ids). */

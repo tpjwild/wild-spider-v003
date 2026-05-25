@@ -5,6 +5,7 @@ export const EFFECT_WILD: EffectId = "wild";
 export const EFFECT_HALF_WILD: EffectId = "halfWild";
 export const EFFECT_SKIP1: EffectId = "skip1";
 export const EFFECT_SKIP2: EffectId = "skip2";
+export const EFFECT_EXTRA_COLUMN: EffectId = "extraColumn";
 
 /** Effects that change tableau run / placement rules (inactive on foundation). */
 export const TABLEAU_MOVE_EFFECT_IDS = [
@@ -49,6 +50,11 @@ export const EFFECT_DEFINITIONS: Record<EffectId, EffectDefinition> = {
     id: EFFECT_SKIP2,
     label: "Skip ±2",
     tableauOnly: true,
+  },
+  [EFFECT_EXTRA_COLUMN]: {
+    id: EFFECT_EXTRA_COLUMN,
+    label: "Extra Column",
+    tableauOnly: false,
   },
 };
 

@@ -27,7 +27,10 @@ function assertDeckPairShape(p: DeckPairDefinition) {
         expect(deck.jokers[j]!.index).toBe((j + 1) as 1 | 2 | 3 | 4);
         expect(deck.jokers[j]!.name.length).toBeGreaterThan(0);
         expect(deck.jokers[j]!.initialCharges).toBeGreaterThan(0);
-        expect(deck.jokers[j]!.initialDuration).toBeNull();
+        const duration = deck.jokers[j]!.initialDuration;
+        if (duration !== null) {
+          expect(duration).toBeGreaterThan(0);
+        }
       }
     }
     expect(deck.faces).toHaveLength(12);
@@ -90,6 +93,15 @@ describe("deckPairs registry", () => {
     const powerIds = wph?.decks.flatMap((d) => d.jokers.map((j) => j.powerId)) ?? [];
     expect(powerIds).toHaveLength(8);
     expect(new Set(powerIds).size).toBe(8);
+  });
+
+  it("western philosophy Sartre is Extra Column with 10 charges and duration", () => {
+    const wph = deckPairs.find((p) => p.id === "westernPhilosophy");
+    const modern = wph?.decks[1];
+    const sartre = modern?.jokers.find((j) => j.name === "Jean-Paul Sartre");
+    expect(sartre?.powerId).toBe("jokerExtraColumn");
+    expect(sartre?.initialCharges).toBe(10);
+    expect(sartre?.initialDuration).toBe(10);
   });
 });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { CardEffectBadges } from "@/components/game/CardEffectBadges";
 import { CardView } from "@/components/game/CardView";
 import {
   dimensions,
@@ -7,7 +8,13 @@ import {
   tableauColumnStackTopPx,
   TABLEAU_DRAGGABLE_HOVER_SCALE,
 } from "@/constants/dimensions";
-import type { PlacedCard } from "@/engine/types";
+import type { GameState, PlacedCard } from "@/engine/types";
+import {
+  cardHasTransparentEffectInColumn,
+  tableauCardDisplayMode,
+  tableauEffectBadgeEntries,
+  transparentEffectBackOpacity,
+} from "@/lib/cardEffectsUi";
 
 /** Lifted tableau run shown in {@link DragOverlay} or the invalid-drop return flight layer. */
 export function TableauDragStackPreview({
@@ -15,11 +22,18 @@ export function TableauDragStackPreview({
   applyHoverScale,
   /** Set on {@link DragOverlay} root so invalid-drop return can measure screen position. */
   dragOverlayMeasureMarker = false,
+  game,
+  columnIndex,
 }: {
   cards: readonly PlacedCard[];
   applyHoverScale: boolean;
   dragOverlayMeasureMarker?: boolean;
+  /** With {@link columnIndex}, each card matches the tableau stack (display mode + effect badges). */
+  game?: GameState;
+  columnIndex?: number;
 }) {
+  const matchTableau = game !== undefined && columnIndex !== undefined;
+
   return (
     <div
       className="relative cursor-grabbing shadow-xl"
@@ -46,7 +60,24 @@ export function TableauDragStackPreview({
                 : undefined
             }
           >
-            <CardView placed={placed} />
+            {matchTableau ? (
+              <div className="relative inline-block rounded-md">
+                <CardView
+                  placed={placed}
+                  displayMode={tableauCardDisplayMode(game, columnIndex, placed)}
+                  faceDownBackOpacity={
+                    cardHasTransparentEffectInColumn(game, columnIndex, placed.card)
+                      ? transparentEffectBackOpacity()
+                      : undefined
+                  }
+                />
+                <CardEffectBadges
+                  entries={tableauEffectBadgeEntries(game, columnIndex, placed.card)}
+                />
+              </div>
+            ) : (
+              <CardView placed={placed} />
+            )}
           </div>
         </div>
       ))}

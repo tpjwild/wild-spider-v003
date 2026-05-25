@@ -4,6 +4,7 @@ export {
   applyDealEntriesProgress,
   canDealFromStock,
   dealFromStock,
+  getDealColumnIndices,
   leadStockIndicesForUpcomingDeals,
   type DealFlightEntry,
 } from "./deal";
@@ -41,6 +42,8 @@ export {
   hasCardEffect,
   hasEffectOnCardInColumn,
   emptyEffectsState,
+  tickEffectDurationsOnTargetCommit,
+  type TargetCommitTickExcludes,
 } from "./effects";
 export {
   canPlaceOnTableauWithEffects,

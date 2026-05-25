@@ -118,6 +118,21 @@ export function isValidTableauRun(
   return runSliceAdmitsAssignment(state, columnIndex, column, startIndex);
 }
 
+/**
+ * True when the card directly above `cardIndex` (lower index) starts a legal drag run
+ * that includes `cardIndex` (pointer moved up onto the peek of the card above).
+ */
+export function tableauCardAboveSharesDragRun(
+  state: GameState,
+  columnIndex: number,
+  cardIndex: number,
+): boolean {
+  if (cardIndex <= 0) return false;
+  const col = state.columns[columnIndex];
+  if (!col) return false;
+  return isValidTableauRun(state, columnIndex, col, cardIndex - 1);
+}
+
 /** Strict same-suit descending run (physical ranks/suits only; foundation and baseline). */
 export function isValidStrictSameSuitDescendingRun(
   column: PlacedCard[],

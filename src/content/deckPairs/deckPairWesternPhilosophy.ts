@@ -1,8 +1,8 @@
-import { sharedDeckCardBackPath } from "@/constants/sharedDeckAssets";
+import { deckEntry } from "@/content/deckPairs/deckEntry";
 import {
   JOKER_POWER_2_KINGS_TRANSPARENT,
   JOKER_POWER_ALL_KINGS_TRANSPARENT,
-  JOKER_POWER_SELECTED_CARD_HALFWILD,
+  JOKER_POWER_EXTRA_COLUMN,
   JOKER_POWER_SELECTED_CARD_SKIP1,
   JOKER_POWER_SELECTED_CARD_SKIP2,
   JOKER_POWER_SELECTED_CARD_TRANSPARENT,
@@ -49,9 +49,7 @@ export const westernPhilosophyPair: DeckPairDefinition = {
     },
   ],
   decks: [
-    {
-      label: "Classical",
-      cardBackPath: sharedDeckCardBackPath(1),
+    deckEntry("Classical Deck", "red", {
       jokers: themedJokers({
         pairId: "westernPhilosophy",
         deck: 1,
@@ -136,10 +134,8 @@ export const westernPhilosophyPair: DeckPairDefinition = {
           },
         },
       }),
-    },
-    {
-      label: "Modern",
-      cardBackPath: sharedDeckCardBackPath(2),
+    }),
+    deckEntry("Modern Deck", "blue", {
       jokers: themedJokers({
         pairId: "westernPhilosophy",
         deck: 2,
@@ -154,9 +150,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
           {
             name: "Jean-Paul Sartre",
             bio: "An existentialist philosopher and writer, Sartre claimed that “existence precedes essence”: we are thrown into the world without fixed natures and must create ourselves through our choices. He analyzed bad faith, freedom, and responsibility, insisting that we cannot escape owning the lives we make.",
-            powerId: JOKER_POWER_SELECTED_CARD_HALFWILD,
-            initialCharges: 3,
-            initialDuration: null,
+            powerId: JOKER_POWER_EXTRA_COLUMN,
+            initialCharges: 10,
+            initialDuration: 10,
           },
           {
             name: "Friedrich Nietzsche",
@@ -224,6 +220,6 @@ export const westernPhilosophyPair: DeckPairDefinition = {
           },
         },
       }),
-    },
+    }),
   ],
 };

@@ -1,6 +1,7 @@
 import { DEFAULT_DECK_PAIR_ID, deckPairs, maxJokersInPlayForDeckPair } from "@/content/deckPairs";
 import { normalizeShelfJoker } from "@/content/powerDefinitions";
 import { syncShelfJokerPowerFromCatalog } from "@/engine/powers";
+import { emptyExtraColumnState, normalizeExtraColumnState } from "@/engine/extraColumnState";
 import { emptyEffectsState, normalizeEffectsState } from "@/engine/effects";
 import { stripEphemeralGameState } from "@/engine/initialDeal";
 import { createShelfJokerEntry } from "@/engine/powers";
@@ -86,6 +87,7 @@ export function parseStoredGameState(value: unknown): GameState | null {
 /** Fills Stage 5 fields missing from older persisted saves. */
 export function normalizeStoredGameState(parsed: GameState): GameState {
   const effects = emptyEffectsState();
+  const extra = emptyExtraColumnState();
   const shelf: ShelfJoker[] = (parsed.shelf ?? []).map((entry) => {
     if (
       entry &&
@@ -106,6 +108,11 @@ export function normalizeStoredGameState(parsed: GameState): GameState {
     ...normalizeEffectsState({
       cardEffects: parsed.cardEffects ?? effects.cardEffects,
       columnEffects: parsed.columnEffects ?? effects.columnEffects,
+    }),
+    ...normalizeExtraColumnState({
+      extraColumnLinks: parsed.extraColumnLinks,
+      columnFlags: parsed.columnFlags,
+      bonusColumnLinks: (parsed as { bonusColumnLinks?: unknown }).bonusColumnLinks,
     }),
   };
 }

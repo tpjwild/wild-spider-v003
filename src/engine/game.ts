@@ -9,6 +9,7 @@ import {
 import { applyMoveTableau, applyMoveToFoundation } from "./moves";
 import { createInitialState } from "./setup";
 import { tickEffectDurations } from "./effects";
+import { tickExtraColumnLinks } from "./extraColumn";
 import type {
   Card,
   GameConfig,
@@ -56,7 +57,8 @@ function appendHistory(state: GameState, entry: HistoryEntry): GameState {
     ...state,
     history: [...state.history, entry],
   };
-  return shouldTickEffectDurations(entry) ? tickEffectDurations(withHistory) : withHistory;
+  if (!shouldTickEffectDurations(entry)) return withHistory;
+  return tickExtraColumnLinks(tickEffectDurations(withHistory));
 }
 
 export function undo(state: GameState): GameState | null {
