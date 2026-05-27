@@ -61,7 +61,9 @@ export type PowerId =
   | "jokerSelectedColumnSkip1"
   | "jokerSelectedColumnSkip2"
   | "jokerTwoKingsTransparent"
-  | "jokerExtraColumn";
+  | "jokerExtraColumn"
+  | "jokerFoundationReturn"
+  | "jokerCardSwap";
 
 /** One joker sitting on the shelf after being dealt from stock */
 export type ShelfJoker = {
@@ -82,6 +84,11 @@ export type InitialDealEntry = {
 };
 
 import type { ExtraColumnTopologySnapshot } from "./extraColumnTopology";
+
+/** Snapshot of a card slot before a card-swap power (for undo). */
+export type CardSlotSnapshot =
+  | { zone: "tableau"; columnIndex: number; index: number; placed: PlacedCard }
+  | { zone: "stock"; stockIndex: number; card: Card };
 
 export type HistoryEntry =
   | {
@@ -118,6 +125,17 @@ export type HistoryEntry =
       columnEffectsAdded: { columnIndex: number; effect: EffectId }[];
       /** Present when Extra Column (or future structural column powers) changes tableau topology. */
       extraColumnTopologyBefore?: ExtraColumnTopologySnapshot;
+      /** Foundation Return: card returned from foundation to tableau. */
+      foundationReturnUndo?: {
+        foundationIndex: FoundationIndex;
+        toColumn: number;
+        placed: PlacedCard;
+      };
+      /** Card Swap: slots exchanged (restore by writing snapshots back). */
+      cardSwapUndo?: {
+        slotA: CardSlotSnapshot;
+        slotB: CardSlotSnapshot;
+      };
     };
 
 /** Timed parent → child link; child column is always at parentColumnIndex + 1 after remap. */

@@ -11,6 +11,7 @@ import {
 import type { GameState, PlacedCard } from "@/engine/types";
 import {
   cardHasTransparentEffectInColumn,
+  soonestCardEffectTicks,
   tableauCardDisplayMode,
   tableauEffectBadgeEntries,
   transparentEffectBackOpacity,
@@ -73,6 +74,8 @@ export function TableauDragStackPreview({
                 />
                 <CardEffectBadges
                   entries={tableauEffectBadgeEntries(game, columnIndex, placed.card)}
+                  durationTicks={soonestCardEffectTicks(game, placed.card)}
+                  durationScope="card"
                 />
               </div>
             ) : (

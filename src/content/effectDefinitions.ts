@@ -23,6 +23,11 @@ export type EffectDefinition = {
   label: string;
   /** When true, effect does not alter foundation moves (strict rank/suit). */
   tableauOnly: boolean;
+  /**
+   * When true, an effect on {@link GameState.columnEffects} applies to every card in that
+   * column (tableau rules, badges, card name-plate Column effects). False for topology-only ids.
+   */
+  columnAffectsTableauCards: boolean;
 };
 
 export const EFFECT_DEFINITIONS: Record<EffectId, EffectDefinition> = {
@@ -30,34 +35,45 @@ export const EFFECT_DEFINITIONS: Record<EffectId, EffectDefinition> = {
     id: EFFECT_TRANSPARENT,
     label: "Transparent",
     tableauOnly: false,
+    columnAffectsTableauCards: true,
   },
   [EFFECT_WILD]: {
     id: EFFECT_WILD,
     label: "Wild",
     tableauOnly: true,
+    columnAffectsTableauCards: true,
   },
   [EFFECT_HALF_WILD]: {
     id: EFFECT_HALF_WILD,
     label: "Half wild",
     tableauOnly: true,
+    columnAffectsTableauCards: true,
   },
   [EFFECT_SKIP1]: {
     id: EFFECT_SKIP1,
     label: "Skip ±1",
     tableauOnly: true,
+    columnAffectsTableauCards: true,
   },
   [EFFECT_SKIP2]: {
     id: EFFECT_SKIP2,
     label: "Skip ±2",
     tableauOnly: true,
+    columnAffectsTableauCards: true,
   },
   [EFFECT_EXTRA_COLUMN]: {
     id: EFFECT_EXTRA_COLUMN,
     label: "Extra Column",
     tableauOnly: false,
+    columnAffectsTableauCards: false,
   },
 };
 
 export function isTableauMoveEffect(effect: EffectId): effect is TableauMoveEffectId {
   return (TABLEAU_MOVE_EFFECT_IDS as readonly EffectId[]).includes(effect);
+}
+
+/** Whether a column-level effect applies to cards in that column (name plate, badges). */
+export function columnEffectAffectsTableauCards(effect: EffectId): boolean {
+  return EFFECT_DEFINITIONS[effect].columnAffectsTableauCards;
 }

@@ -5,14 +5,21 @@ import {
   moveToFoundation,
   newGame,
   triggerImmediatePower,
+  triggerCardSwapPower,
   triggerTargetedColumnPower,
+  triggerTargetedFoundationPower,
   triggerTargetedPower,
   undo,
   type BlackJokerTargetContext,
 } from "@/engine/game";
 import { syncShelfJokerPowerFromCatalog } from "@/engine/powers";
-import { getPowerDefinition, powerTargetsTableauColumn } from "@/content/powerDefinitions";
-import { armedPowerIdForShelf } from "@/lib/powerTargetUi";
+import {
+  getPowerDefinition,
+  powerIsCardSwap,
+  powerTargetsFoundationSlot,
+  powerTargetsTableauColumn,
+} from "@/content/powerDefinitions";
+import { armedPowerIdForShelf, cardSwapTargetContextForCommit } from "@/lib/powerTargetUi";
 import {
   canDealFromStock,
   dealFromStock,
@@ -68,9 +75,17 @@ export type InitialDealAnimationState = {
 
 export type DealAnimationState = StockDealAnimationState | InitialDealAnimationState;
 
-/** Black (targeted) joker armed; charge spent only after {@link GameStore.commitTargetedPower}. */
+/** Black (targeted) joker armed; charge spent only after a valid commit. */
 export type PowerTargetingState = {
   shelfIndex: number;
+  /** Selected target (blue outline) while targeting. */
+  selectedTarget?:
+    | { kind: "card"; card: Card }
+    | { kind: "column"; columnIndex: number }
+    | { kind: "foundation"; foundationIndex: FoundationIndex };
+  /** First card chosen for card swap (second click completes). */
+  swapFirstCard?: Card;
+  swapFirstContext?: BlackJokerTargetContext;
 };
 
 export type GameStore = {
@@ -119,6 +134,7 @@ export type GameStore = {
   triggerShelfPower: (shelfIndex: number) => boolean;
   commitTargetedPower: (card: Card, targetContext: BlackJokerTargetContext) => boolean;
   commitTargetedColumnPower: (columnIndex: number) => boolean;
+  commitTargetedFoundationPower: (foundationIndex: FoundationIndex) => boolean;
   cancelPowerTargeting: () => void;
   clearError: () => void;
 };
@@ -507,7 +523,51 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { game, dealAnimation, powerTargeting } = get();
     if (dealAnimation || !game || !powerTargeting) return false;
     const armed = armedPowerIdForShelf(game, powerTargeting.shelfIndex);
-    if (!armed || powerTargetsTableauColumn(armed)) return false;
+    if (!armed || powerTargetsTableauColumn(armed) || powerTargetsFoundationSlot(armed)) {
+      return false;
+    }
+
+    if (powerIsCardSwap(armed)) {
+      const { shelfIndex, swapFirstCard, swapFirstContext } = powerTargeting;
+      if (swapFirstCard == null) {
+        const ctx = cardSwapTargetContextForCommit(game, card, targetContext, shelfIndex);
+        if (!ctx) return false;
+        set({
+          powerTargeting: {
+            shelfIndex,
+            selectedTarget: { kind: "card", card },
+            swapFirstCard: card,
+            swapFirstContext: ctx,
+          },
+          lastError: null,
+        });
+        return true;
+      }
+      if (swapFirstCard.kind === card.kind && swapFirstCard.id === card.id) {
+        set({ powerTargeting: { shelfIndex }, lastError: null });
+        return true;
+      }
+      const secondCtx = cardSwapTargetContextForCommit(
+        game,
+        card,
+        targetContext,
+        shelfIndex,
+      );
+      if (!swapFirstContext || !secondCtx) return false;
+      const next = triggerCardSwapPower(
+        game,
+        shelfIndex,
+        swapFirstCard,
+        card,
+        swapFirstContext,
+        secondCtx,
+      );
+      if (!next) return false;
+      set({ game: next, ...clearPowerTargeting(), lastError: null });
+      persistGameStateLocal(next);
+      return true;
+    }
+
     const next = triggerTargetedPower(
       game,
       powerTargeting.shelfIndex,
@@ -520,11 +580,41 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true;
   },
 
+  commitTargetedFoundationPower: (foundationIndex) => {
+    const { game, dealAnimation, powerTargeting } = get();
+    if (dealAnimation || !game || !powerTargeting) return false;
+    const armed = armedPowerIdForShelf(game, powerTargeting.shelfIndex);
+    if (!armed || !powerTargetsFoundationSlot(armed)) return false;
+    // Best-effort: show blue outline on the chosen pile until commit clears targeting.
+    set({
+      powerTargeting: {
+        ...powerTargeting,
+        selectedTarget: { kind: "foundation", foundationIndex },
+      },
+    });
+    const next = triggerTargetedFoundationPower(
+      game,
+      powerTargeting.shelfIndex,
+      foundationIndex,
+    );
+    if (!next) return false;
+    set({ game: next, ...clearPowerTargeting(), lastError: null });
+    persistGameStateLocal(next);
+    return true;
+  },
+
   commitTargetedColumnPower: (columnIndex) => {
     const { game, dealAnimation, powerTargeting } = get();
     if (dealAnimation || !game || !powerTargeting) return false;
     const armed = armedPowerIdForShelf(game, powerTargeting.shelfIndex);
     if (!armed || !powerTargetsTableauColumn(armed)) return false;
+    // Best-effort: show blue outline on the chosen holder until commit clears targeting.
+    set({
+      powerTargeting: {
+        ...powerTargeting,
+        selectedTarget: { kind: "column", columnIndex },
+      },
+    });
     const next = triggerTargetedColumnPower(game, powerTargeting.shelfIndex, columnIndex);
     if (!next) return false;
     set({ game: next, ...clearPowerTargeting(), lastError: null });

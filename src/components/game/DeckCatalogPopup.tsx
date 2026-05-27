@@ -1,11 +1,11 @@
 "use client";
 
 import { startTransition, useEffect, useMemo, useState } from "react";
-import { colors } from "@/constants/colors";
+import { colors, deckPopupScrollCssVariables } from "@/constants/colors";
 import { getDeckPairById } from "@/content/deckPairs";
 import { CardDetailsPopup } from "@/components/game/CardDetailsPopup";
 import { CardView } from "@/components/game/CardView";
-import { dimensions } from "@/constants/dimensions";
+import { deckPopupPanelOuterWidthPx, dimensions } from "@/constants/dimensions";
 import { rankChar } from "@/engine/cards";
 import type { Card, Suit } from "@/engine/types";
 import { isDeckPopupDetailsClickableCard } from "@/lib/deckCardDetails";
@@ -114,8 +114,7 @@ export function DeckCatalogPopup({
     return Math.max(jokerW, suitW, deckPopupCardWidth);
   }, [jokers.length]);
 
-  const panelInnerWidthPx = maxRowWidthPx;
-  const panelOuterWidthPx = panelInnerWidthPx + 2 * deckPopupHorizontalEdgePad;
+  const panelOuterWidthPx = deckPopupPanelOuterWidthPx(maxRowWidthPx);
 
   const [detailsCard, setDetailsCard] = useState<Card | null>(null);
 
@@ -165,6 +164,7 @@ export function DeckCatalogPopup({
             paddingBottom: deckPopupVerticalEdgePad,
             backgroundColor: colors.deckPopupPanelBackground,
             borderColor: colors.popupLightPanelBorder,
+            ...deckPopupScrollCssVariables(),
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -179,7 +179,7 @@ export function DeckCatalogPopup({
             {title}
           </h2>
 
-          <div className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden py-3">
+          <div className="deck-popup-scroll min-h-0 w-full flex-1 py-3">
             {jokers.length > 0 ? (
               <section className="mb-5 w-full" aria-label="Jokers">
                 <h3

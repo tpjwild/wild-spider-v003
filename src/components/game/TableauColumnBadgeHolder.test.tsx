@@ -17,19 +17,24 @@ describe("TableauColumnBadgeHolder", () => {
       { effectId: EFFECT_EXTRA_COLUMN, scope: "column" },
     ];
     const { container } = renderHolder(
-      <TableauColumnBadgeHolder columnIndex={0} entries={entries} />,
+      <TableauColumnBadgeHolder columnIndex={0} entries={entries} columnDurationTicks={10} />,
     );
     const glyph = container.querySelector("[data-effect-badge-glyph]");
     expect(glyph).toBeTruthy();
+    expect(screen.getByTestId("effect-duration-timer")).toHaveTextContent("10");
+    expect(screen.getByTestId("effect-duration-timer")).toHaveAttribute(
+      "data-effect-duration-scope",
+      "column",
+    );
   });
 
-  it("renders green strip and link timer on extra-child column", () => {
+  it("renders green strip without child link timer on extra-child column", () => {
     const { container } = renderHolder(
       <TableauColumnBadgeHolder
         columnIndex={1}
         entries={[{ effectId: EFFECT_WILD, scope: "column" }]}
+        columnDurationTicks={3}
         isExtraChildColumn
-        extraChildLinkMovesRemaining={10}
       />,
     );
     const holder = container.querySelector("[data-testid='tableau-column-badge-holder']");
@@ -37,6 +42,7 @@ describe("TableauColumnBadgeHolder", () => {
     expect(holder).toHaveStyle({
       backgroundColor: colors.tableauExtraChildBadgeHolderBackground,
     });
-    expect(screen.getByTestId("extra-column-link-timer")).toHaveTextContent("10");
+    expect(container.querySelector("[data-testid='extra-column-link-timer']")).toBeNull();
+    expect(screen.getByTestId("effect-duration-timer")).toHaveTextContent("3");
   });
 });

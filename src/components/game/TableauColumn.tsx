@@ -30,18 +30,18 @@ import { isExtraChildColumn } from "@/engine/extraColumn";
 import {
   cardHasTransparentEffectInColumn,
   columnHolderEffectBadgeEntries,
+  soonestCardEffectTicks,
+  soonestColumnHolderTicks,
   tableauCardDisplayMode,
   tableauEffectBadgeEntries,
   transparentEffectBackOpacity,
 } from "@/lib/cardEffectsUi";
-import { extraColumnLinkForChildColumn } from "@/lib/effectBadgeEntries";
 import { cardLayoutId } from "@/lib/cardLayoutId";
 import {
   isColumnTargetingPower,
   isTableauColumnPowerTarget,
   isTableauPowerTarget,
-  POWER_TARGET_CURSOR_CLASS,
-  POWER_TARGET_VALID_CURSOR_CLASS,
+  powerTargetCursorClass,
   tableauPowerTargetContextForCommit,
 } from "@/lib/powerTargetUi";
 import {
@@ -223,22 +223,21 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
     inspectScaled,
   );
 
-  const cursorClass =
-    isPowerTargetMode && !columnPowerTargetMode
-      ? isValidPowerTarget
-        ? hoverValidTarget
-          ? POWER_TARGET_VALID_CURSOR_CLASS
-          : POWER_TARGET_CURSOR_CLASS
-        : POWER_TARGET_CURSOR_CLASS
-      : shiftInspectMode
+  const cursorClass = isPowerTargetMode
+    ? powerTargetCursorClass(true, isValidPowerTarget, hoverValidTarget)
+    : shiftInspectMode
       ? "cursor-help"
       : canDrag && !dealLocked
         ? "cursor-grab active:cursor-grabbing"
         : "cursor-default";
 
   const cardRingClass =
-    isPowerTargetMode && isValidPowerTarget && hoverValidTarget
-      ? "ring-2 ring-amber-400 ring-offset-1 ring-offset-black/30"
+    powerTargeting?.selectedTarget?.kind === "card" &&
+    powerTargeting.selectedTarget.card.kind === placed.card.kind &&
+    powerTargeting.selectedTarget.card.id === placed.card.id
+      ? "ring-2 ring-sky-400 ring-offset-1 ring-offset-black/30"
+      : isPowerTargetMode && isValidPowerTarget && hoverValidTarget
+        ? "ring-2 ring-amber-400 ring-offset-1 ring-offset-black/30"
       : detailsClickable && inspectHover
         ? CARD_INSPECT_HIGHLIGHT_CLASS
         : namePlateHighlightClass;
@@ -338,6 +337,8 @@ const TableauDraggableCard = memo(function TableauDraggableCard({
           />
           <CardEffectBadges
             entries={tableauEffectBadgeEntries(game, columnIndex, placed.card)}
+            durationTicks={soonestCardEffectTicks(game, placed.card)}
+            durationScope="card"
           />
         </div>
       </motion.div>
@@ -626,7 +627,6 @@ export function TableauColumn({
     isTableauColumnPowerTarget(game, columnIndex, powerTargeting.shelfIndex);
 
   const columnIsExtraChild = isExtraChildColumn(game, columnIndex);
-  const extraChildLink = extraColumnLinkForChildColumn(game, columnIndex);
 
   return (
     <div
@@ -645,8 +645,8 @@ export function TableauColumn({
       <TableauColumnBadgeHolder
         columnIndex={columnIndex}
         entries={columnHolderEffectBadgeEntries(game, columnIndex)}
+        columnDurationTicks={soonestColumnHolderTicks(game, columnIndex)}
         isExtraChildColumn={columnIsExtraChild}
-        extraChildLinkMovesRemaining={extraChildLink?.movesRemaining ?? null}
         isColumnPowerTargetMode={columnTargetMode}
         isValidColumnPowerTarget={isValidColumnTarget}
         onCommitColumnPowerTarget={

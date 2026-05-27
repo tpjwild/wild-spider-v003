@@ -28,6 +28,8 @@ export const JOKER_POWER_SELECTED_COLUMN_SKIP1: PowerId = "jokerSelectedColumnSk
 export const JOKER_POWER_SELECTED_COLUMN_SKIP2: PowerId = "jokerSelectedColumnSkip2";
 export const JOKER_POWER_2_KINGS_TRANSPARENT: PowerId = "jokerTwoKingsTransparent";
 export const JOKER_POWER_EXTRA_COLUMN: PowerId = "jokerExtraColumn";
+export const JOKER_POWER_FOUNDATION_RETURN: PowerId = "jokerFoundationReturn";
+export const JOKER_POWER_CARD_SWAP: PowerId = "jokerCardSwap";
 
 export type PowerTriggerClass = "immediate" | "targeted";
 
@@ -36,7 +38,9 @@ export type PowerTargetKind =
   | "tableauCard"
   | "stockPopupCard"
   | "deckPopupFaceDownCard"
-  | "tableauColumn";
+  | "deckPopupCard"
+  | "tableauColumn"
+  | "foundationSlot";
 
 export type PowerDefinition = {
   id: PowerId;
@@ -164,6 +168,22 @@ export const POWER_DEFINITIONS: Record<PowerId, PowerDefinition> = {
     triggerClass: "targeted",
     targetKinds: ["tableauColumn"],
   },
+  [JOKER_POWER_FOUNDATION_RETURN]: {
+    id: JOKER_POWER_FOUNDATION_RETURN,
+    name: "Foundation return",
+    description:
+      "Double-click, then click a non-empty foundation pile. Its top card returns face-up to the leftmost tableau column where it can be legally placed. If no column is legal, the power is canceled without spending a charge. Escape or Shift cancels targeting without spending a charge.",
+    triggerClass: "targeted",
+    targetKinds: ["foundationSlot"],
+  },
+  [JOKER_POWER_CARD_SWAP]: {
+    id: JOKER_POWER_CARD_SWAP,
+    name: "Card swap",
+    description:
+      "Double-click, then click two cards (tableau, Stock popup, or Deck popup — not foundation or shelf). The second click swaps their positions and face-up/face-down state at those slots (stock is face-down); clicking the same card twice cancels without spending a charge. Escape or Shift cancels targeting without spending a charge.",
+    triggerClass: "targeted",
+    targetKinds: ["tableauCard", "stockPopupCard", "deckPopupCard"],
+  },
 };
 
 export const powers = Object.values(POWER_DEFINITIONS);
@@ -195,7 +215,31 @@ export function getPowerDefinition(powerId: string): PowerDefinition {
   return def;
 }
 
-export function powerTargetsTableauColumn(powerId: string): boolean {
+export function powerHasTargetKind(powerId: string, kind: PowerTargetKind): boolean {
   const kinds = getPowerDefinition(powerId).targetKinds;
-  return kinds?.includes("tableauColumn") ?? false;
+  return kinds?.includes(kind) ?? false;
+}
+
+export function powerTargetsTableauColumn(powerId: string): boolean {
+  return powerHasTargetKind(powerId, "tableauColumn");
+}
+
+export function powerTargetsFoundationSlot(powerId: string): boolean {
+  return powerHasTargetKind(powerId, "foundationSlot");
+}
+
+/** Deck popup may be used to pick a target (face-down or any non-foundation cell). */
+export function powerTargetsDeckPopup(powerId: string): boolean {
+  return (
+    powerHasTargetKind(powerId, "deckPopupFaceDownCard") ||
+    powerHasTargetKind(powerId, "deckPopupCard")
+  );
+}
+
+export function powerTargetsStockPopup(powerId: string): boolean {
+  return powerHasTargetKind(powerId, "stockPopupCard");
+}
+
+export function powerIsCardSwap(powerId: string): boolean {
+  return normalizePowerId(powerId) === JOKER_POWER_CARD_SWAP;
 }

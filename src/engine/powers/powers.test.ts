@@ -4,7 +4,9 @@ import {
   EFFECT_TRANSPARENT,
   getPowerDefinition,
   JOKER_POWER_2_KINGS_TRANSPARENT,
+  JOKER_POWER_CARD_SWAP,
   JOKER_POWER_EXTRA_COLUMN,
+  JOKER_POWER_FOUNDATION_RETURN,
   JOKER_POWER_SELECTED_CARD_TRANSPARENT,
   JOKER_POWER_SELECTED_CARD_WILD,
   JOKER_POWER_SELECTED_COLUMN_TRANSPARENT,
@@ -130,6 +132,18 @@ describe("deckPairs joker catalog", () => {
     for (const j of list) {
       expect(j.powerId).toBeDefined();
       expect(j.initialCharges).toBeGreaterThan(0);
+    }
+    expect(list.find((j) => j.name === "John Backus")?.powerId).toBe(
+      JOKER_POWER_FOUNDATION_RETURN,
+    );
+    expect(list.find((j) => j.name === "Guido van Rossum")?.powerId).toBe(JOKER_POWER_CARD_SWAP);
+    expect(list.find((j) => j.name === "John Backus")?.initialCharges).toBe(5);
+    expect(list.find((j) => j.name === "Guido van Rossum")?.initialCharges).toBe(5);
+  });
+
+  it("mathematics deck still uses default slot powers", () => {
+    const list = allJokersInDeckPair("mathematics");
+    for (const j of list) {
       if (j.index <= 2) {
         expect(j.powerId).toBe("jokerAllKingsTransparent");
       } else {
@@ -318,6 +332,10 @@ describe("power registry", () => {
     );
     expect(getPowerDefinition(JOKER_POWER_EXTRA_COLUMN).triggerClass).toBe("targeted");
     expect(getPowerDefinition(JOKER_POWER_EXTRA_COLUMN).targetKinds).toContain("tableauColumn");
+    expect(getPowerDefinition(JOKER_POWER_FOUNDATION_RETURN).targetKinds).toContain(
+      "foundationSlot",
+    );
+    expect(getPowerDefinition(JOKER_POWER_CARD_SWAP).targetKinds).toContain("deckPopupCard");
   });
 
   it("western philosophy Sartre catalog row is Extra Column", () => {

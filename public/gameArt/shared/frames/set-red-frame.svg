@@ -9,7 +9,7 @@
    id="svg2"
    version="1.1"
    inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
-   sodipodi:docname="joker-red-frame.svg"
+   sodipodi:docname="set-red-frame.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -92,10 +92,10 @@
    id="namedview39"
    showgrid="false"
    inkscape:zoom="2.4336873"
-   inkscape:cx="10.683377"
+   inkscape:cx="91.219607"
    inkscape:cy="159.22341"
-   inkscape:window-x="2069"
-   inkscape:window-y="168"
+   inkscape:window-x="2342"
+   inkscape:window-y="257"
    inkscape:window-maximized="0"
    inkscape:current-layer="svg2"
    inkscape:showpageshadow="2"
@@ -155,49 +155,33 @@
    style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:24px;line-height:1;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect11);display:inline;fill:#e00000;fill-opacity:1"
    x="12.532424"
    y="0"
-   inkscape:label="jokerTopLeft"><tspan
-     x="11.765625"
+   inkscape:label="setTopLeft"><tspan
+     x="9.7617188"
      y="25.699384"
-     id="tspan11">J
-</tspan><tspan
-     x="7.7695312"
-     y="49.699384"
-     id="tspan12">O
-</tspan><tspan
-     x="7.7695312"
-     y="73.699384"
-     id="tspan13">K
+     id="tspan2">S
 </tspan><tspan
      x="9.1054688"
-     y="97.699384"
-     id="tspan14">E
+     y="49.699384"
+     id="tspan3">E
 </tspan><tspan
-     x="8.4316406"
-     y="121.69938"
-     id="tspan15">R</tspan></text><text
+     x="9.1054688"
+     y="73.699384"
+     id="tspan4">T</tspan></text><text
    xml:space="preserve"
    transform="matrix(-0.75,0,0,-0.75,168.29218,241.88678)"
    id="text10-0"
    style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:24px;line-height:1;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect11-0);display:inline;fill:#e00000;fill-opacity:1"
    x="12.532424"
    y="0"
-   inkscape:label="jokerBottomRight"><tspan
-     x="11.765625"
+   inkscape:label="setBottomRight"><tspan
+     x="9.7617188"
      y="25.699384"
-     id="tspan16">J
-</tspan><tspan
-     x="7.7695312"
-     y="49.699384"
-     id="tspan17">O
-</tspan><tspan
-     x="7.7695312"
-     y="73.699384"
-     id="tspan18">K
+     id="tspan5">S
 </tspan><tspan
      x="9.1054688"
-     y="97.699384"
-     id="tspan19">E
+     y="49.699384"
+     id="tspan7">E
 </tspan><tspan
-     x="8.4316406"
-     y="121.69938"
-     id="tspan20">R</tspan></text></svg>
+     x="9.1054688"
+     y="73.699384"
+     id="tspan8">T</tspan></text></svg>

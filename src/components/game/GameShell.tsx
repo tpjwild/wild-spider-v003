@@ -61,7 +61,15 @@ import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/c
 import { fetchSavedGame, upsertSavedGame } from "@/lib/savedGamesRemote";
 import { cardRevealedByTableauDrag, scheduleWarmCardFaceArt } from "@/lib/preloadPortraitArt";
 import { shelfPowerChargesForJoker } from "@/lib/deckCardDetails";
-import { isColumnTargetingPower, POWER_TARGET_CURSOR_CLASS } from "@/lib/powerTargetUi";
+import {
+  powerTargetsDeckPopup,
+  powerTargetsStockPopup,
+} from "@/content/powerDefinitions";
+import {
+  armedPowerIdForShelf,
+  isColumnTargetingPower,
+  POWER_TARGET_INVALID_CURSOR_CLASS,
+} from "@/lib/powerTargetUi";
 import { useShiftInspectMode } from "@/lib/useShiftInspectMode";
 import { useGameStore } from "@/state/gameStore";
 
@@ -131,7 +139,16 @@ export function GameShell() {
   const clearError = useGameStore((s) => s.clearError);
   const lastError = useGameStore((s) => s.lastError);
   const powerTargeting = useGameStore((s) => s.powerTargeting);
-  const cancelPowerTargeting = useGameStore((s) => s.cancelPowerTargeting);
+  const cancelPowerTargetingStore = useGameStore((s) => s.cancelPowerTargeting);
+  const suppressBarPopupOpenRef = useRef(false);
+  const [deckPopupOpen, setDeckPopupOpen] = useState(false);
+  const [stockPopupOpen, setStockPopupOpen] = useState(false);
+
+  const cancelPowerTargeting = useCallback(() => {
+    cancelPowerTargetingStore();
+    setDeckPopupOpen(false);
+    setStockPopupOpen(false);
+  }, [cancelPowerTargetingStore]);
 
   const cancelTargetingOnShiftInspect = useCallback(() => {
     if (useGameStore.getState().powerTargeting) cancelPowerTargeting();
@@ -185,8 +202,6 @@ export function GameShell() {
   const [loadGameConfirmOpen, setLoadGameConfirmOpen] = useState(false);
   const [saveGameConfirmOpen, setSaveGameConfirmOpen] = useState(false);
   const [saveCompleteDialogOpen, setSaveCompleteDialogOpen] = useState(false);
-  const [deckPopupOpen, setDeckPopupOpen] = useState(false);
-  const [stockPopupOpen, setStockPopupOpen] = useState(false);
   const [inGameDetailsCard, setInGameDetailsCard] = useState<Card | null>(null);
   const actionsMenuRef = useRef<HTMLDetailsElement>(null);
 
@@ -316,35 +331,46 @@ export function GameShell() {
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [powerTargeting, cancelPowerTargeting]);
 
-  /** Escape skips in-progress initial or stock deal animations (not while a modal dialog is open). */
+  /** Escape or click anywhere skips in-progress deal animations (not while a modal is open). */
   useEffect(() => {
+    const modalOrPopupOpen = () =>
+      loadGameConfirmOpen ||
+      saveGameConfirmOpen ||
+      saveCompleteDialogOpen ||
+      deckPopupOpen ||
+      stockPopupOpen;
+
+    const trySkipDealAnimation = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      if (target.closest('[aria-modal="true"]')) return false;
+      if (isTextEntryElement(target)) return false;
+      const { powerTargeting, dealAnimation, newGameOpen, endGameOpen } = useGameStore.getState();
+      if (powerTargeting) return false;
+      if (newGameOpen || endGameOpen || modalOrPopupOpen()) return false;
+      if (!dealAnimation) return false;
+      useGameStore.getState().skipDealAnimation();
+      return true;
+    };
+
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (e.repeat) return;
-      const t = e.target;
-      if (t instanceof HTMLElement) {
-        if (t.closest('[aria-modal="true"]')) return;
-        if (isTextEntryElement(t)) return;
-      }
-      if (useGameStore.getState().powerTargeting) return;
-      const { dealAnimation, newGameOpen, endGameOpen } = useGameStore.getState();
-      if (
-        newGameOpen ||
-        endGameOpen ||
-        loadGameConfirmOpen ||
-        saveGameConfirmOpen ||
-        saveCompleteDialogOpen ||
-        deckPopupOpen ||
-        stockPopupOpen
-      )
-        return;
-      if (!dealAnimation) return;
+      if (e.key !== "Escape" || e.repeat) return;
+      if (!trySkipDealAnimation(e.target)) return;
       e.preventDefault();
       e.stopPropagation();
-      useGameStore.getState().skipDealAnimation();
     };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!trySkipDealAnimation(e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
     document.addEventListener("keydown", onKeyDown, true);
-    return () => document.removeEventListener("keydown", onKeyDown, true);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
   }, [loadGameConfirmOpen, saveGameConfirmOpen, saveCompleteDialogOpen, deckPopupOpen, stockPopupOpen]);
 
   useEffect(() => {
@@ -574,12 +600,29 @@ export function GameShell() {
     return applyInitialDealEntriesProgress(game, dealAnimation.entries, dealAnimation.landedCount);
   }, [game, dealAnimation]);
 
-  /** Deck/Stock hover popups support card-targeted powers only (not column powers). */
-  const openDeckStockPopupsOnPowerTargetHover = Boolean(
-    game &&
-      powerTargeting != null &&
-      !isColumnTargetingPower(game, powerTargeting.shelfIndex),
+  const armedPowerId =
+    game && powerTargeting != null
+      ? armedPowerIdForShelf(game, powerTargeting.shelfIndex)
+      : null;
+  const openDeckOnPowerTargetHover = Boolean(
+    armedPowerId != null && powerTargetsDeckPopup(armedPowerId),
   );
+  const openStockOnPowerTargetHover = Boolean(
+    armedPowerId != null && powerTargetsStockPopup(armedPowerId),
+  );
+
+  const openDeckPopup = useCallback(() => {
+    setStockPopupOpen(false);
+    setDeckPopupOpen(true);
+  }, []);
+
+  const openStockPopup = useCallback(() => {
+    setDeckPopupOpen(false);
+    setStockPopupOpen(true);
+  }, []);
+
+  const tableauPowerTargetCursorClass =
+    powerTargeting && !shiftInspectMode ? POWER_TARGET_INVALID_CURSOR_CLASS : "";
 
   const columnPowerTargeting =
     game != null &&
@@ -587,6 +630,8 @@ export function GameShell() {
     isColumnTargetingPower(game, powerTargeting.shelfIndex);
   if (columnPowerTargeting && deckPopupOpen) setDeckPopupOpen(false);
   if (columnPowerTargeting && stockPopupOpen) setStockPopupOpen(false);
+  if (!openDeckOnPowerTargetHover && deckPopupOpen && powerTargeting) setDeckPopupOpen(false);
+  if (!openStockOnPowerTargetHover && stockPopupOpen && powerTargeting) setStockPopupOpen(false);
 
   if (!effectiveGame && inGameDetailsCard !== null) {
     setInGameDetailsCard(null);
@@ -1047,22 +1092,48 @@ export function GameShell() {
               deferSeedDisplay={dealAnimation?.kind === "initial"}
               canOpenDeckPopup={gameHasAnyCards(effectiveGame)}
               onOpenDeck={() => {
-                setStockPopupOpen(false);
-                setDeckPopupOpen(true);
+                if (suppressBarPopupOpenRef.current) {
+                  suppressBarPopupOpenRef.current = false;
+                  return;
+                }
+                if (useGameStore.getState().powerTargeting) {
+                  cancelPowerTargeting();
+                  suppressBarPopupOpenRef.current = true;
+                  return;
+                }
+                openDeckPopup();
               }}
-              openDeckOnPointerEnter={openDeckStockPopupsOnPowerTargetHover}
+              onOpenDeckHover={openDeckOnPowerTargetHover ? openDeckPopup : undefined}
+              openDeckOnPointerEnter={openDeckOnPowerTargetHover}
               canOpenStockPopup={gameHasAnyCards(effectiveGame)}
               onOpenStock={() => {
-                setDeckPopupOpen(false);
-                setStockPopupOpen(true);
+                if (suppressBarPopupOpenRef.current) {
+                  suppressBarPopupOpenRef.current = false;
+                  return;
+                }
+                if (useGameStore.getState().powerTargeting) {
+                  cancelPowerTargeting();
+                  suppressBarPopupOpenRef.current = true;
+                  return;
+                }
+                openStockPopup();
               }}
-              openStockOnPointerEnter={openDeckStockPopupsOnPowerTargetHover}
+              onOpenStockHover={openStockOnPowerTargetHover ? openStockPopup : undefined}
+              openStockOnPointerEnter={openStockOnPowerTargetHover}
+              powerTargetingActive={Boolean(powerTargeting)}
+              onCancelPowerTargeting={cancelPowerTargeting}
             />
           ) : null}
 
           {effectiveGame ? (
             <div
-              className={`w-full shrink-0 px-3 pb-3 pt-1 ${shiftInspectMode ? "cursor-help" : ""}`}
+              className={`w-full shrink-0 px-3 pb-3 pt-1 ${
+                shiftInspectMode
+                  ? "cursor-help"
+                  : powerTargeting
+                    ? POWER_TARGET_INVALID_CURSOR_CLASS
+                    : ""
+              }`}
               style={{ minHeight: shelfFoundationStockStripMinHeightPx(effectiveGame.config.deals) }}
             >
               <div
@@ -1129,7 +1200,7 @@ export function GameShell() {
 
         <div
           ref={tableauScrollPaneRef}
-          className="tableau-scroll flex min-h-0 min-w-0 w-full flex-1 flex-col"
+          className={`tableau-scroll flex min-h-0 min-w-0 w-full flex-1 flex-col ${tableauPowerTargetCursorClass}`}
           data-tableau-scroll-pane
         >
         {!game ? (
@@ -1144,11 +1215,11 @@ export function GameShell() {
         ) : null}
 
         {effectiveGame ? (
-          <div className="flex min-h-full w-full min-w-0 justify-center">
+          <div
+            className={`flex min-h-full w-full min-w-0 justify-center ${tableauPowerTargetCursorClass}`}
+          >
             <div
-              className={`relative z-0 isolate inline-flex min-h-full shrink-0 flex-nowrap content-start p-3 ${
-                shiftInspectMode ? "cursor-help" : ""
-              } ${powerTargeting ? POWER_TARGET_CURSOR_CLASS : shiftInspectMode ? "cursor-help" : ""}`}
+              className="relative z-0 isolate inline-flex min-h-full shrink-0 flex-nowrap content-start p-3"
               style={{ gap: dimensions.columnSpacing }}
               data-testid="tableau-root"
               data-power-target-mode={powerTargeting ? "true" : undefined}

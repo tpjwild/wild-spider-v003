@@ -5,6 +5,7 @@ import { CardView } from "@/components/game/CardView";
 import { colors } from "@/constants/colors";
 import { jokerDefinitionForInGameId } from "@/content/deckPairs";
 import { getPowerDefinition } from "@/content/powerDefinitions";
+import { POWER_TARGET_INVALID_CURSOR_CLASS } from "@/lib/powerTargetUi";
 import {
   dimensions,
   SHELF_CARD_HOVER_SCALE,
@@ -195,40 +196,52 @@ export function ShelfStrip({
       style={{ width: shelfWidth, maxWidth: "100%" }}
     >
       <div
-        className="flex flex-col justify-start overflow-hidden rounded-lg border border-white/20"
-      style={{
-        width: shelfWidth,
-        maxWidth: "100%",
-        height: shelfPanelHeightPx,
-        boxSizing: "border-box",
-        backgroundColor: colors.shelfPanelBackground,
-        paddingTop: shelfVerticalPad,
-        paddingBottom: shelfVerticalPad,
-        paddingLeft: shelfHorizontalPad,
-        paddingRight: shelfHorizontalPad,
-      }}
-      data-testid="shelf"
-      data-power-target-cancel-safe="true"
-    >
-      <div
-        className="shelf-scroll w-full min-w-0"
+        className="overflow-hidden rounded-lg border border-white/20"
         style={{
-          height: ch,
-          paddingLeft: hoverBleed,
-          paddingRight: hoverBleed,
-          boxSizing: "content-box",
+          width: shelfWidth,
+          maxWidth: "100%",
+          height: shelfPanelHeightPx,
+          boxSizing: "border-box",
+          backgroundColor: colors.shelfPanelBackground,
         }}
+        data-testid="shelf"
+        data-power-target-cancel-safe="true"
       >
-        <div className="flex min-w-full justify-start">
+        <div
+          className="box-border h-full"
+          style={{
+            paddingTop: shelfVerticalPad,
+            paddingBottom: shelfVerticalPad,
+            paddingLeft: shelfHorizontalPad,
+            paddingRight: shelfHorizontalPad,
+          }}
+        >
           <div
-            className="relative shrink-0 isolate"
-            data-shelf-stack
+            className="shelf-scroll w-full min-w-0"
             style={{
-              height: ch,
-              width: innerWidth,
-              minWidth: innerWidth,
+              height: ch + 2 * hoverBleed,
+              marginTop: -hoverBleed,
+              marginBottom: -hoverBleed,
+              marginLeft: -shelfHorizontalPad,
+              marginRight: -shelfHorizontalPad,
+              paddingTop: hoverBleed,
+              paddingBottom: hoverBleed,
+              paddingLeft: shelfHorizontalPad,
+              paddingRight: shelfHorizontalPad,
+              width: `calc(100% + ${2 * shelfHorizontalPad}px)`,
+              boxSizing: "border-box",
             }}
           >
+            <div className="flex min-w-full justify-start">
+              <div
+                className="relative shrink-0 isolate"
+                data-shelf-stack
+                style={{
+                  height: ch,
+                  width: innerWidth,
+                  minWidth: innerWidth,
+                }}
+              >
             {game.shelf.length === 0 ? (
               <div className="absolute left-0 top-0 shrink-0" style={{ width: cw, height: ch }} aria-hidden />
             ) : (
@@ -273,9 +286,11 @@ export function ShelfStrip({
                     className={`absolute left-0 top-0 ${
                       shiftInspectMode
                         ? "cursor-help"
-                        : canTrigger
-                          ? "cursor-pointer"
-                          : "cursor-default"
+                        : powerTargeting
+                          ? POWER_TARGET_INVALID_CURSOR_CLASS
+                          : canTrigger
+                            ? "cursor-pointer"
+                            : "cursor-default"
                     }`}
                     style={{
                       left: i * step,
@@ -345,10 +360,11 @@ export function ShelfStrip({
                 );
               })
             )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
       <ShelfNamePlate
         jokerName={namePlateLabels?.jokerName}
         powerName={namePlateLabels?.powerName}

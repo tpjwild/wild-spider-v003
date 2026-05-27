@@ -3,6 +3,7 @@ import {
   removeColumnEffectsAdded,
 } from "./effects";
 import { restoreExtraColumnTopology } from "./extraColumnTopology";
+import { undoCardSwap, undoFoundationReturn } from "./powers/cardMoves";
 import { restoreShelfCharge } from "./powers";
 import type { GameState, HistoryEntry } from "./types";
 
@@ -67,6 +68,12 @@ function undoPowerTrigger(
   if (entry.extraColumnTopologyBefore) {
     next = restoreExtraColumnTopology(next, entry.extraColumnTopologyBefore);
   }
+  if (entry.foundationReturnUndo) {
+    next = undoFoundationReturn(next, entry.foundationReturnUndo);
+  }
+  if (entry.cardSwapUndo) {
+    next = undoCardSwap(next, entry.cardSwapUndo);
+  }
   next = removeCardEffectsAdded(next, entry.cardEffectsAdded);
   next = removeColumnEffectsAdded(next, entry.columnEffectsAdded);
   next = restoreShelfCharge(next, entry.shelfIndex, entry.chargesBefore);
@@ -88,4 +95,9 @@ export function undoLastEntry(state: GameState): GameState | null {
     undoCount: state.undoCount + 1,
     history: state.history.slice(0, -1),
   };
+}
+
+/** Committed joker power uses (each `power_trigger` history entry). */
+export function countPowerTriggers(state: GameState): number {
+  return state.history.filter((e) => e.type === "power_trigger").length;
 }

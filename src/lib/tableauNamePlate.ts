@@ -1,8 +1,11 @@
-import { EFFECT_DEFINITIONS } from "@/content/effectDefinitions";
+import {
+  columnEffectAffectsTableauCards,
+  EFFECT_DEFINITIONS,
+  EFFECT_EXTRA_COLUMN,
+} from "@/content/effectDefinitions";
 import { getDeckPairById, DEFAULT_DECK_PAIR_ID } from "@/content/deckPairs";
 import { rankChar, isRegular } from "@/engine/cards";
 import type { Rank, RegularCard } from "@/engine/types";
-import { EFFECT_EXTRA_COLUMN } from "@/content/effectDefinitions";
 import { cardEffectKey } from "@/engine/effects";
 import {
   findExtraColumnLinkByParent,
@@ -98,12 +101,24 @@ function formatCardEffectsForNamePlate(game: GameState, card: Card): string {
   return formatAppliedEffectList(game.cardEffects[key] ?? []);
 }
 
-function formatColumnEffectsForNamePlate(game: GameState, columnIndex: number): string {
-  const jokerEffects = game.columnEffects[columnIndex] ?? [];
-  const parts: string[] = jokerEffects.map((entry) => {
-    const label = EFFECT_DEFINITIONS[entry.effect].label;
-    return entry.movesRemaining !== null ? `${label} (${entry.movesRemaining})` : label;
-  });
+/** Column effects that apply to cards in the column (tableau card inspect). */
+function formatColumnEffectsForCardNamePlate(game: GameState, columnIndex: number): string {
+  const inherited = (game.columnEffects[columnIndex] ?? []).filter((entry) =>
+    columnEffectAffectsTableauCards(entry.effect),
+  );
+  return formatAppliedEffectList(inherited);
+}
+
+/** Column badge holder: all column effects plus parent Extra Column link when present. */
+function formatColumnEffectsForColumnHolderNamePlate(
+  game: GameState,
+  columnIndex: number,
+): string {
+  const parts: string[] = [];
+  const formatted = formatAppliedEffectList(game.columnEffects[columnIndex] ?? []);
+  if (formatted !== NONE_EFFECTS) {
+    parts.push(formatted);
+  }
   const ownLink = findExtraColumnLinkByParent(game, columnIndex);
   if (ownLink) {
     parts.push(`${EFFECT_DEFINITIONS[EFFECT_EXTRA_COLUMN].label} (${ownLink.movesRemaining})`);
@@ -158,11 +173,24 @@ function personName(deckPairId: string, card: RegularCard): string | null {
   return row?.name ?? null;
 }
 
+function deckShortLabel(deckName: string): string {
+  return deckName.endsWith(" Deck") ? deckName.slice(0, -" Deck".length) : deckName;
+}
+
+function suitThemeDisplayName(deckPairId: string, suit: Suit): string {
+  return suitPluralName(deckPairId, suit).replace(/ & /g, " and ");
+}
+
+/** e.g. `Blue Deck Clubs - Modern Metaphysics and Ontology`. */
 function setLine(deckPairId: string, card: RegularCard): string {
-  const deckPart = deckDisplaySuffix(deckPairId, card);
-  const themeName = suitPluralName(deckPairId, card.suit);
-  const suitName = SUIT_PLURAL_NAME[card.suit];
-  return `${deckPart} - ${themeName} (${suitName})`;
+  const pair = getDeckPairById(deckPairId) ?? getDeckPairById(DEFAULT_DECK_PAIR_ID);
+  const deck = pair?.decks[deckNumFromRegularCardId(card.id) - 1];
+  if (!deck) return HIDDEN;
+  const color = deckBackColorLabel(deck.color);
+  const suit = SUIT_PLURAL_NAME[card.suit];
+  const theme = suitThemeDisplayName(deckPairId, card.suit);
+  const shortDeck = deckShortLabel(deck.name);
+  return `${color} Deck ${suit} - ${shortDeck} ${theme}`;
 }
 
 function setPowerLine(): string {
@@ -209,7 +237,7 @@ export function tableauNamePlateFromCard(
   return {
     heading: tableauNamePlateHeading(deckPairId, game, columnIndex, placed),
     cardEffects: formatCardEffectsForNamePlate(game, card),
-    columnEffects: formatColumnEffectsForNamePlate(game, columnIndex),
+    columnEffects: formatColumnEffectsForCardNamePlate(game, columnIndex),
     set: reveal && faceCard && isRegular(card) ? setLine(deckPairId, card) : "",
     setPower: reveal && faceCard ? setPowerLine() : "",
     isFaceCard: faceCard,
@@ -247,7 +275,7 @@ export function tableauNamePlateFromColumnHolder(
   return {
     heading: columnDisplayLabel(game, columnIndex),
     cardEffects: "",
-    columnEffects: formatColumnEffectsForNamePlate(game, columnIndex),
+    columnEffects: formatColumnEffectsForColumnHolderNamePlate(game, columnIndex),
     set: "",
     setPower: "",
     isFaceCard: false,

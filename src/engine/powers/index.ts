@@ -17,11 +17,17 @@ export {
   jokerPortraitSlotForCard,
   restoreShelfCharge,
   syncShelfJokerPowerFromCatalog,
+  triggerCardSwapPower,
   triggerImmediatePower,
   triggerTargetedColumnPower,
+  triggerTargetedFoundationPower,
   triggerTargetedPower,
   type AppliedCardEffect,
   type AppliedColumnEffect,
   type BlackJokerTargetContext,
   type PowerTriggerResult,
 } from "./handlers";
+export {
+  isValidCardSwapTarget,
+  isValidFoundationReturnTarget,
+} from "./cardMoves";

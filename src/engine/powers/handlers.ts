@@ -10,7 +10,9 @@ import {
   getPowerDefinition,
   JOKER_POWER_2_KINGS_TRANSPARENT,
   JOKER_POWER_ALL_KINGS_TRANSPARENT,
+  JOKER_POWER_CARD_SWAP,
   JOKER_POWER_EXTRA_COLUMN,
+  JOKER_POWER_FOUNDATION_RETURN,
   JOKER_POWER_SELECTED_CARD_HALFWILD,
   JOKER_POWER_SELECTED_CARD_SKIP1,
   JOKER_POWER_SELECTED_CARD_SKIP2,
@@ -22,9 +24,18 @@ import {
   JOKER_POWER_SELECTED_COLUMN_TRANSPARENT,
   JOKER_POWER_SELECTED_COLUMN_WILD,
   normalizePowerId,
+  powerIsCardSwap,
+  powerTargetsFoundationSlot,
   powerTargetsTableauColumn,
   type PowerTargetKind,
 } from "@/content/powerDefinitions";
+import {
+  applyCardSwap,
+  applyFoundationReturn,
+  isCardInFoundation,
+  isValidCardSwapTargetContext,
+  isValidFoundationReturnTarget,
+} from "@/engine/powers/cardMoves";
 import { buildDoubleDeck, isRegular } from "@/engine/cards";
 import { applyExtraColumn, canTargetExtraColumnParent } from "@/engine/extraColumn";
 import {
@@ -39,6 +50,7 @@ import type {
   Card,
   CardEffectKey,
   EffectId,
+  FoundationIndex,
   GameState,
   HistoryEntry,
   JokerCard,
@@ -235,6 +247,12 @@ function targetKindMatchesLocation(
         opts.deckPopupFaceDown === true &&
         (isInStock(state, card) || isFaceDownOnTableau(state, card))
       );
+    case "deckPopupCard":
+      return (
+        opts.deckPopupCard === true &&
+        !isCardInFoundation(state, card) &&
+        (isInStock(state, card) || isOnTableau(state, card))
+      );
     default:
       return false;
   }
@@ -272,6 +290,9 @@ export function isValidTargetedCardTarget(
   targetContext: BlackJokerTargetContext,
 ): boolean {
   const normalized = normalizePowerId(powerId);
+  if (powerIsCardSwap(normalized)) {
+    return isValidCardSwapTargetContext(state, card, targetContext);
+  }
   if (cardAlreadyHasTargetedPowerEffect(state, normalized, card)) return false;
   return isCardTargetLocation(state, normalized, card, targetContext);
 }
@@ -338,6 +359,7 @@ export type BlackJokerTargetContext = {
   tableauCard?: boolean;
   inStockPopup?: boolean;
   deckPopupFaceDown?: boolean;
+  deckPopupCard?: boolean;
 };
 
 export type TargetedCardTargetContext = BlackJokerTargetContext;
@@ -411,7 +433,9 @@ export function triggerImmediatePower(
     return null;
   }
 
-  next = consumeShelfCharge(next, shelfIndex);
+  next = tickEffectDurationsOnTargetCommit(consumeShelfCharge(next, shelfIndex), {
+    cardEffectsAdded,
+  });
   return {
     state: next,
     history: {
@@ -420,6 +444,81 @@ export function triggerImmediatePower(
       chargesBefore,
       cardEffectsAdded,
       columnEffectsAdded,
+    },
+  };
+}
+
+export function triggerTargetedFoundationPower(
+  state: GameState,
+  shelfIndex: number,
+  foundationIndex: FoundationIndex,
+): PowerTriggerResult | null {
+  if (!shelfPowerTriggerable(state, shelfIndex)) return null;
+  const shelfEntry = state.shelf[shelfIndex]!;
+  const powerId = resolvedPowerIdForShelf(state, shelfIndex);
+  if (!powerTargetsFoundationSlot(powerId)) return null;
+  if (!isValidFoundationReturnTarget(state, foundationIndex)) return null;
+
+  const applied = applyFoundationReturn(state, foundationIndex);
+  if (!applied) return null;
+
+  const chargesBefore = shelfEntry.chargesRemaining;
+  const next = tickEffectDurationsOnTargetCommit(
+    consumeShelfCharge(applied.state, shelfIndex),
+    {},
+  );
+  return {
+    state: next,
+    history: {
+      type: "power_trigger",
+      shelfIndex,
+      chargesBefore,
+      cardEffectsAdded: [],
+      columnEffectsAdded: [],
+      foundationReturnUndo: applied.foundationReturnUndo,
+    },
+  };
+}
+
+export function triggerCardSwapPower(
+  state: GameState,
+  shelfIndex: number,
+  firstCard: Card,
+  secondCard: Card,
+  firstContext: BlackJokerTargetContext,
+  secondContext: BlackJokerTargetContext,
+): PowerTriggerResult | null {
+  if (!shelfPowerTriggerable(state, shelfIndex)) return null;
+  const shelfEntry = state.shelf[shelfIndex]!;
+  const powerId = resolvedPowerIdForShelf(state, shelfIndex);
+  if (!powerIsCardSwap(powerId)) return null;
+  if (
+    !isValidTargetedCardTarget(state, powerId, firstCard, firstContext) ||
+    !isValidTargetedCardTarget(state, powerId, secondCard, secondContext)
+  ) {
+    return null;
+  }
+  if (firstCard.kind === secondCard.kind && firstCard.id === secondCard.id) {
+    return null;
+  }
+
+  const applied = applyCardSwap(state, firstCard, secondCard);
+  if (!applied) return null;
+
+  const chargesBefore = shelfEntry.chargesRemaining;
+  const next = tickEffectDurationsOnTargetCommit(
+    consumeShelfCharge(applied.state, shelfIndex),
+    {},
+  );
+  return {
+    state: next,
+    history: {
+      type: "power_trigger",
+      shelfIndex,
+      chargesBefore,
+      cardEffectsAdded: [],
+      columnEffectsAdded: [],
+      cardSwapUndo: applied.cardSwapUndo,
     },
   };
 }
@@ -433,7 +532,10 @@ export function triggerTargetedPower(
   if (!shelfPowerTriggerable(state, shelfIndex)) return null;
   const shelfEntry = state.shelf[shelfIndex]!;
   const powerId = resolvedPowerIdForShelf(state, shelfIndex);
-  if (powerTargetsTableauColumn(powerId)) return null;
+  if (powerTargetsTableauColumn(powerId) || powerTargetsFoundationSlot(powerId)) {
+    return null;
+  }
+  if (powerIsCardSwap(powerId)) return null;
   if (!isValidTargetedCardTarget(state, powerId, card, targetContext)) return null;
 
   const effect = effectForTargetedPower(powerId);

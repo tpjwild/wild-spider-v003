@@ -28,6 +28,8 @@ export {
   type EffectBadgeScope,
 } from "@/lib/effectBadgeEntries";
 
+export { soonestCardEffectTicks, soonestColumnHolderTicks } from "@/lib/effectDurationTicks";
+
 export { hasCardEffect, hasEffectOnCardInColumn };
 
 export function cardEffectCount(state: GameState, card: Card): number {

@@ -3,6 +3,7 @@ import { appliedEffect, emptyEffectsState } from "@/engine/effects";
 import type { GameState, RegularCard } from "@/engine/types";
 import { cardEffectKey } from "@/engine/effects";
 import { EFFECT_TRANSPARENT, EFFECT_WILD } from "@/content/effectDefinitions";
+import { WESTERN_PHILOSOPHY_ID } from "@/content/deckPairs/deckPairWesternPhilosophy";
 import { emptyExtraColumnState } from "@/engine/extraColumnState";
 import {
   columnDisplayLabel,
@@ -41,7 +42,24 @@ describe("tableauNamePlate", () => {
     expect(model.heading).toContain("King of Hearts: King of Hearts (deck 2)");
     expect(model.heading).toContain("Base Deck (Blue)");
     expect(model.isFaceCard).toBe(true);
-    expect(model.set).toBe("Base Deck (Blue) - Hearts (Hearts)");
+    expect(model.set).toBe("Blue Deck Hearts - Base Hearts");
+  });
+
+  it("set line for themed pair: Color Deck Suit - short deck theme", () => {
+    const card = reg(102, 13, "C");
+    const placed = { card, faceUp: true };
+    const state = baseState({
+      config: {
+        seed: "t",
+        deckPairId: WESTERN_PHILOSOPHY_ID,
+        columns: 10,
+        deals: 5,
+        jokerCount: 0,
+      },
+      columns: [[placed], ...Array.from({ length: 9 }, () => [])],
+    });
+    const model = tableauNamePlateFromCard(state, 0, placed)!;
+    expect(model.set).toBe("Blue Deck Clubs - Modern Metaphysics and Ontology");
   });
 
   it("heading for pip card omits person", () => {
@@ -194,6 +212,19 @@ describe("tableauNamePlate", () => {
     const model = tableauNamePlateFromCard(state, 0, placed)!;
     expect(model.cardEffects).toBe("Transparent (2)");
     expect(model.columnEffects).toBe("Wild (5)");
+  });
+
+  it("card on parent column with Extra Column link shows inherited column effects only", () => {
+    const card = reg(1, 7, "C");
+    const placed = { card, faceUp: true };
+    const state = baseState({
+      columns: [[placed], [], []],
+      columnEffects: { 0: [appliedEffect(EFFECT_WILD, 5)] },
+      extraColumnLinks: [{ parentColumnIndex: 0, movesRemaining: 10 }],
+    });
+    const model = tableauNamePlateFromCard(state, 0, placed)!;
+    expect(model.columnEffects).toBe("Wild (5)");
+    expect(model.columnEffects).not.toContain("Extra Column");
   });
 
   it("card on extra-child column inherits column effects without parent link", () => {

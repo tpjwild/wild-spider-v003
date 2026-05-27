@@ -40,6 +40,22 @@ describe("namePlateInspectHighlightForTableauCard", () => {
     ).toBe("face");
   });
 
+  it("direct hover: face-down opaque court uses pip ring tier", () => {
+    const jackDown = { card: reg(3, 11, "S"), faceUp: false };
+    const state = baseState({
+      columns: [[jackDown], ...Array.from({ length: 9 }, () => [])],
+    });
+    expect(
+      namePlateInspectHighlightForTableauCard(
+        state,
+        { kind: "card", columnIndex: 0, cardIndex: 0 },
+        0,
+        0,
+        jackDown,
+      ),
+    ).toBe("pip");
+  });
+
   it("hovering a court highlights set mates that are face-up or transparent face-down", () => {
     const king = { card: reg(1, 13, "S"), faceUp: true };
     const queenUp = { card: reg(2, 12, "S"), faceUp: true };
@@ -64,6 +80,31 @@ describe("namePlateInspectHighlightForTableauCard", () => {
     expect(namePlateInspectHighlightForTableauCard(state, source, 1, 0, queenUp)).toBe("face");
     expect(namePlateInspectHighlightForTableauCard(state, source, 2, 0, jackDown)).toBe("face");
     expect(namePlateInspectHighlightForTableauCard(state, source, 3, 0, queenHidden)).toBe("none");
+  });
+
+  it("face-down opaque court hover does not highlight set mates", () => {
+    const jackDown = { card: reg(3, 11, "S"), faceUp: false };
+    const queenUp = { card: reg(2, 12, "S"), faceUp: true };
+    const state = baseState({
+      columns: [[jackDown], [queenUp], ...Array.from({ length: 8 }, () => [])],
+    });
+    const source = { kind: "card" as const, columnIndex: 0, cardIndex: 0 };
+    expect(namePlateInspectHighlightForTableauCard(state, source, 1, 0, queenUp)).toBe("none");
+  });
+
+  it("transparent court hover does not highlight face-down opaque set mates", () => {
+    const kingTransparent = { card: reg(1, 13, "S"), faceUp: false };
+    const queenDown = { card: reg(2, 12, "S"), faceUp: false };
+    const kingKey = cardEffectKey(kingTransparent.card);
+    const state = baseState({
+      columns: [[kingTransparent], [queenDown], ...Array.from({ length: 8 }, () => [])],
+      cardEffects: { [kingKey]: [appliedEffect(EFFECT_TRANSPARENT)] },
+    });
+    const source = { kind: "card" as const, columnIndex: 0, cardIndex: 0 };
+    expect(
+      namePlateInspectHighlightForTableauCard(state, source, 0, 0, kingTransparent),
+    ).toBe("face");
+    expect(namePlateInspectHighlightForTableauCard(state, source, 1, 0, queenDown)).toBe("none");
   });
 
   it("different deck same suit is not the same set", () => {

@@ -2,6 +2,8 @@ import { jokerDefinitionForInGameId } from "@/content/deckPairs";
 import {
   getPowerDefinition,
   normalizePowerId,
+  powerIsCardSwap,
+  powerTargetsFoundationSlot,
   powerTargetsTableauColumn,
 } from "@/content/powerDefinitions";
 import {
@@ -28,7 +30,12 @@ export function isTableauPowerTarget(
   shelfIndex: number,
 ): boolean {
   const powerId = armedPowerIdForShelf(game, shelfIndex);
-  if (!powerId || powerTargetsTableauColumn(powerId)) return false;
+  if (!powerId || powerTargetsTableauColumn(powerId) || powerTargetsFoundationSlot(powerId)) {
+    return false;
+  }
+  if (powerIsCardSwap(powerId)) {
+    return isValidTargetedCardTarget(game, powerId, card, { tableauCard: true });
+  }
   if (isValidTargetedCardTarget(game, powerId, card, { tableauCard: true })) return true;
   if (!faceUp && isValidTargetedCardTarget(game, powerId, card, { tableauFaceDown: true })) {
     return true;
@@ -55,6 +62,11 @@ export function tableauPowerTargetContextForCommit(
 ): BlackJokerTargetContext | null {
   const powerId = armedPowerIdForShelf(game, shelfIndex);
   if (!powerId) return null;
+  if (powerIsCardSwap(powerId)) {
+    return isValidTargetedCardTarget(game, powerId, card, { tableauCard: true })
+      ? { tableauCard: true }
+      : null;
+  }
   if (isValidTargetedCardTarget(game, powerId, card, { tableauCard: true })) {
     return { tableauCard: true };
   }
@@ -64,17 +76,51 @@ export function tableauPowerTargetContextForCommit(
   return null;
 }
 
-/** Deck popup cell still in stock or face-down on tableau (not dealt face-up). */
+/** Commit context for a deck-popup cell (stock/face-down tableau, face-up tableau, or swap). */
+export function deckPopupPowerTargetContextForCommit(
+  game: GameState,
+  card: Card,
+  faceDownInPopup: boolean,
+  shelfIndex: number,
+): BlackJokerTargetContext | null {
+  const powerId = armedPowerIdForShelf(game, shelfIndex);
+  if (!powerId || powerTargetsTableauColumn(powerId) || powerTargetsFoundationSlot(powerId)) {
+    return null;
+  }
+  if (powerIsCardSwap(powerId)) {
+    return isValidTargetedCardTarget(game, powerId, card, { deckPopupCard: true })
+      ? { deckPopupCard: true }
+      : null;
+  }
+  if (faceDownInPopup) {
+    return isValidTargetedCardTarget(game, powerId, card, { deckPopupFaceDown: true })
+      ? { deckPopupFaceDown: true }
+      : null;
+  }
+  return isValidTargetedCardTarget(game, powerId, card, { tableauCard: true })
+    ? { tableauCard: true }
+    : null;
+}
+
+/** Deck popup cell valid for the armed targeted power. */
 export function isDeckPopupPowerTarget(
   game: GameState,
   card: Card,
   faceDownInPopup: boolean,
   shelfIndex: number,
 ): boolean {
-  if (!faceDownInPopup) return false;
+  return deckPopupPowerTargetContextForCommit(game, card, faceDownInPopup, shelfIndex) != null;
+}
+
+/** Deck popup cell valid for card swap (any non-foundation card). */
+export function isDeckPopupCardSwapTarget(
+  game: GameState,
+  card: Card,
+  shelfIndex: number,
+): boolean {
   const powerId = armedPowerIdForShelf(game, shelfIndex);
-  if (!powerId || powerTargetsTableauColumn(powerId)) return false;
-  return isValidTargetedCardTarget(game, powerId, card, { deckPopupFaceDown: true });
+  if (!powerId || !powerIsCardSwap(powerId)) return false;
+  return isValidTargetedCardTarget(game, powerId, card, { deckPopupCard: true });
 }
 
 /** Any card shown in the Stock popup. */
@@ -104,5 +150,67 @@ export function isColumnTargetingPower(game: GameState, shelfIndex: number): boo
   return powerId != null && powerTargetsTableauColumn(powerId);
 }
 
-export const POWER_TARGET_CURSOR_CLASS = "cursor-crosshair";
-export const POWER_TARGET_VALID_CURSOR_CLASS = "cursor-cell";
+export function isFoundationTargetingPower(game: GameState, shelfIndex: number): boolean {
+  const powerId = armedPowerIdForShelf(game, shelfIndex);
+  return powerId != null && powerTargetsFoundationSlot(powerId);
+}
+
+export function isCardSwapTargetingPower(game: GameState, shelfIndex: number): boolean {
+  const powerId = armedPowerIdForShelf(game, shelfIndex);
+  return powerId != null && powerIsCardSwap(powerId);
+}
+
+/** Context for card-swap commit from a click with partial target flags. */
+export function cardSwapTargetContextForCommit(
+  game: GameState,
+  card: Card,
+  partial: BlackJokerTargetContext,
+  shelfIndex: number,
+): BlackJokerTargetContext | null {
+  const powerId = armedPowerIdForShelf(game, shelfIndex);
+  if (!powerId || !powerIsCardSwap(powerId)) return null;
+  if (partial.tableauCard && isValidTargetedCardTarget(game, powerId, card, { tableauCard: true })) {
+    return { tableauCard: true };
+  }
+  if (partial.inStockPopup && isValidTargetedCardTarget(game, powerId, card, { inStockPopup: true })) {
+    return { inStockPopup: true };
+  }
+  if (partial.deckPopupCard && isValidTargetedCardTarget(game, powerId, card, { deckPopupCard: true })) {
+    return { deckPopupCard: true };
+  }
+  if (isValidTargetedCardTarget(game, powerId, card, { tableauCard: true })) {
+    return { tableauCard: true };
+  }
+  if (isValidTargetedCardTarget(game, powerId, card, { inStockPopup: true })) {
+    return { inStockPopup: true };
+  }
+  if (isValidTargetedCardTarget(game, powerId, card, { deckPopupCard: true })) {
+    return { deckPopupCard: true };
+  }
+  return null;
+}
+
+/** Invalid target or empty space while a power is armed. */
+export const POWER_TARGET_INVALID_CURSOR_CLASS = "cursor-power-target-invalid";
+/** Pointer over a valid target while a power is armed. */
+export const POWER_TARGET_VALID_CURSOR_CLASS = "cursor-power-target-valid";
+
+/** @deprecated Use {@link POWER_TARGET_INVALID_CURSOR_CLASS}. */
+export const POWER_TARGET_ARMED_CURSOR_CLASS = POWER_TARGET_INVALID_CURSOR_CLASS;
+/** @deprecated Use {@link POWER_TARGET_VALID_CURSOR_CLASS}. */
+export const POWER_TARGET_CURSOR_CLASS = POWER_TARGET_VALID_CURSOR_CLASS;
+
+/**
+ * Cursor while {@link powerTargetingActive}. Valid cursor (green fill, white ring
+ * and crosshairs) only when hovering a valid target; otherwise the invalid cursor
+ * (same disc without crosshairs).
+ */
+export function powerTargetCursorClass(
+  powerTargetingActive: boolean,
+  isValidTarget: boolean,
+  isHoveringValidTarget: boolean,
+): string {
+  if (!powerTargetingActive) return "";
+  if (isValidTarget && isHoveringValidTarget) return POWER_TARGET_VALID_CURSOR_CLASS;
+  return POWER_TARGET_INVALID_CURSOR_CLASS;
+}

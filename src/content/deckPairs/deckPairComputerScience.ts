@@ -1,6 +1,8 @@
 import { deckEntry } from "@/content/deckPairs/deckEntry";
 import {
   JOKER_POWER_ALL_KINGS_TRANSPARENT,
+  JOKER_POWER_CARD_SWAP,
+  JOKER_POWER_FOUNDATION_RETURN,
   JOKER_POWER_SELECTED_CARD_TRANSPARENT,
 } from "@/content/powerDefinitions";
 import { themedFaces, themedJokers } from "@/content/deckPairs/builders";
@@ -58,8 +60,8 @@ export const computerSciencePair: DeckPairDefinition = {
           {
             name: "John Backus",
             bio: "Backus led the team that created Fortran, one of the first widely used high-level programming languages, and later introduced Backus–Naur Form for describing syntax. His work helped bridge human intentions and machine instructions, making it easier to write complex programs and reason about language structure.",
-            powerId: JOKER_POWER_ALL_KINGS_TRANSPARENT,
-            initialCharges: 3,
+            powerId: JOKER_POWER_FOUNDATION_RETURN,
+            initialCharges: 5,
             initialDuration: null,
           },
           {
@@ -144,8 +146,8 @@ export const computerSciencePair: DeckPairDefinition = {
           {
             name: "Guido van Rossum",
             bio: "Van Rossum created the Python programming language, emphasizing readability, simplicity, and a friendly community. Python’s clear syntax and batteries-included standard library have made it a go-to language for education, scripting, web development, data science, and AI, reflecting his vision of approachable, practical code.",
-            powerId: JOKER_POWER_ALL_KINGS_TRANSPARENT,
-            initialCharges: 3,
+            powerId: JOKER_POWER_CARD_SWAP,
+            initialCharges: 5,
             initialDuration: null,
           },
           {

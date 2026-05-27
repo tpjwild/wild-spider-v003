@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { colors } from "@/constants/colors";
+import { colors, deckPopupScrollCssVariables } from "@/constants/colors";
 import { CardEffectBadges } from "@/components/game/CardEffectBadges";
 import { CardView } from "@/components/game/CardView";
 import {
+  deckPopupPanelOuterWidthPx,
   dimensions,
   stockPopupMinPanelInnerWidthPx,
   stockPopupMinPanelOuterHeightPx,
@@ -15,14 +16,19 @@ import { rankChar } from "@/engine/cards";
 import type { Card, GameState } from "@/engine/types";
 import {
   stockPopupCardDisplayMode,
+  soonestCardEffectTicks,
   stockPopupEffectBadgeEntries,
   transparentEffectBackOpacity,
 } from "@/lib/cardEffectsUi";
 import { stockPopupLayout } from "@/lib/stockPopupLayout";
 import {
+  pointerLeftPopupOverlay,
+  usePowerTargetPopupHoverDismiss,
+} from "@/lib/powerTargetPopupUi";
+import {
   isStockPopupPowerTarget,
-  POWER_TARGET_CURSOR_CLASS,
-  POWER_TARGET_VALID_CURSOR_CLASS,
+  powerTargetCursorClass,
+  POWER_TARGET_INVALID_CURSOR_CLASS,
 } from "@/lib/powerTargetUi";
 import { useGameStore } from "@/state/gameStore";
 
@@ -73,21 +79,25 @@ function StockPopupFaceDownCell({
     powerTargeting != null &&
     isStockPopupPowerTarget(game, card, powerTargeting.shelfIndex);
   const [hoverValidTarget, setHoverValidTarget] = useState(false);
+  const isSelectedTarget =
+    powerTargeting?.selectedTarget?.kind === "card" &&
+    powerTargeting.selectedTarget.card.kind === card.kind &&
+    powerTargeting.selectedTarget.card.id === card.id;
 
-  const cellCursor = isValidPowerTarget
-    ? hoverValidTarget
-      ? POWER_TARGET_VALID_CURSOR_CLASS
-      : POWER_TARGET_CURSOR_CLASS
-    : isPowerTargetMode
-      ? POWER_TARGET_CURSOR_CLASS
-      : "";
+  const cellCursor = powerTargetCursorClass(
+    isPowerTargetMode,
+    isValidPowerTarget,
+    hoverValidTarget,
+  );
 
   return (
     <div
       className={`relative flex shrink-0 items-center justify-center overflow-hidden ${cellCursor} ${
-        isValidPowerTarget && hoverValidTarget
-          ? "rounded-md ring-2 ring-amber-400 ring-offset-1 ring-offset-zinc-900/80"
-          : ""
+        isSelectedTarget
+          ? "rounded-md ring-2 ring-sky-400 ring-offset-1 ring-offset-zinc-900/80"
+          : isValidPowerTarget && hoverValidTarget
+            ? "rounded-md ring-2 ring-amber-400 ring-offset-1 ring-offset-zinc-900/80"
+            : ""
       }`}
       style={{ width: deckPopupCardWidth, height: deckPopupCardHeight }}
       data-testid="stock-popup-cell"
@@ -126,7 +136,11 @@ function StockPopupFaceDownCell({
           }
         />
       </div>
-      <CardEffectBadges entries={effectBadgeEntries} />
+      <CardEffectBadges
+        entries={effectBadgeEntries}
+        durationTicks={soonestCardEffectTicks(game, card)}
+        durationScope="card"
+      />
     </div>
   );
 }
@@ -140,7 +154,13 @@ export function StockPopup({
   open: boolean;
   onClose: () => void;
 }) {
+  const powerTargeting = useGameStore((s) => s.powerTargeting);
   const cancelPowerTargeting = useGameStore((s) => s.cancelPowerTargeting);
+  usePowerTargetPopupHoverDismiss({
+    enabled: open && powerTargeting != null,
+    popupTestId: "stock-popup",
+    onClose,
+  });
 
   const { jokers, dealRows } = useMemo(
     () => stockPopupLayout(game.stock, game.config.columns),
@@ -161,7 +181,7 @@ export function StockPopup({
 
   const panelInnerWidthPx = Math.max(maxRowWidthPx, stockPopupMinPanelInnerWidthPx(columnCount));
   const panelOuterWidthPx = Math.max(
-    panelInnerWidthPx + 2 * deckPopupHorizontalEdgePad,
+    deckPopupPanelOuterWidthPx(panelInnerWidthPx),
     minOuterWidthPx,
   );
 
@@ -183,25 +203,39 @@ export function StockPopup({
 
   if (!open) return null;
 
+  const popupTargetingCursor = powerTargeting
+    ? POWER_TARGET_INVALID_CURSOR_CLASS
+    : "cursor-default";
+
+  const dismissOverlayOnPointerLeave = () => {
+    if (!powerTargeting) return;
+    onClose();
+  };
+
   return (
     <div
-      className="fixed inset-0 z-[53] flex cursor-default items-center justify-center p-4"
-      style={{ backgroundColor: colors.deckPopupBackdrop }}
+      className="fixed inset-0 z-[53] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="stock-popup-title"
       data-testid="stock-popup"
-      onClick={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (useGameStore.getState().powerTargeting) {
-          cancelPowerTargeting();
-          return;
-        }
-        onClose();
-      }}
+      data-power-targeting={powerTargeting ? "true" : undefined}
     >
       <div
-        className="flex max-h-[min(92dvh,920px)] max-w-[calc(100vw-2rem)] cursor-default flex-col overflow-hidden rounded-xl border shadow-2xl"
+        className={`absolute inset-0 pointer-events-auto ${popupTargetingCursor}`}
+        style={{ backgroundColor: colors.deckPopupBackdrop }}
+        aria-hidden
+        onClick={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (useGameStore.getState().powerTargeting) {
+            cancelPowerTargeting();
+            return;
+          }
+          onClose();
+        }}
+      />
+      <div
+        className={`pointer-events-auto relative z-10 flex max-h-[min(92dvh,920px)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border shadow-2xl ${popupTargetingCursor}`}
         style={{
           width: panelOuterWidthPx,
           minWidth: minOuterWidthPx,
@@ -213,8 +247,13 @@ export function StockPopup({
           paddingBottom: deckPopupVerticalEdgePad,
           backgroundColor: colors.deckPopupPanelBackground,
           borderColor: colors.popupLightPanelBorder,
+          ...deckPopupScrollCssVariables(),
         }}
         data-testid="stock-popup-panel"
+        onPointerLeave={(e) => {
+          if (!pointerLeftPopupOverlay(e)) return;
+          dismissOverlayOnPointerLeave();
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <h2
@@ -229,7 +268,7 @@ export function StockPopup({
         </h2>
 
         <div
-          className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden py-3"
+          className="deck-popup-scroll min-h-0 w-full flex-1 py-3"
           style={{ minHeight: minScrollBodyHeightPx }}
         >
           {jokers.length > 0 ? (

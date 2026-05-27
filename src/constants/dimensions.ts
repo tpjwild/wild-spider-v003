@@ -76,6 +76,13 @@ export const dimensions = {
   deckPopupVerticalEdgePad: 14,
   /** Horizontal gap between adjacent cards within a Deck Popup row (px). */
   deckPopupColumnPad: 6,
+  /** Total horizontal border on deck/stock popup panels (1px left + 1px right, `border`). */
+  deckPopupPanelBorderTotalPx: 2,
+  /**
+   * Extra panel width so a vertical scrollbar in the scroll body does not squeeze card rows
+   * (classic ~15–17px scrollbars; px).
+   */
+  deckPopupVerticalScrollbarPx: 16,
   /** Opacity of the card-back layer in the Deck Popup when the card is face-down on the tableau or still in the stock (0–1). */
   deckPopupFaceDownBackOpacity: 0.5,
   /** Stock popup: `Deal N` label row above one card row (`text-xs` + `mb-2`, px). */
@@ -209,12 +216,19 @@ export function stockPopupMinPanelInnerWidthPx(columnCount: number): number {
   return stockPopupSingleDealRowWidthPx(columnCount);
 }
 
+/** Deck/stock popup panel outer width for a card-row content width (px). */
+export function deckPopupPanelOuterWidthPx(cardRowInnerWidthPx: number): number {
+  return (
+    cardRowInnerWidthPx +
+    2 * dimensions.deckPopupHorizontalEdgePad +
+    dimensions.deckPopupPanelBorderTotalPx +
+    dimensions.deckPopupVerticalScrollbarPx
+  );
+}
+
 /** Minimum stock-popup panel outer width (content + horizontal edge padding, px). */
 export function stockPopupMinPanelOuterWidthPx(columnCount: number): number {
-  return (
-    stockPopupMinPanelInnerWidthPx(columnCount) +
-    2 * dimensions.deckPopupHorizontalEdgePad
-  );
+  return deckPopupPanelOuterWidthPx(stockPopupMinPanelInnerWidthPx(columnCount));
 }
 
 /** Height of one deal block inside the stock-popup scroll area (label + card row, px). */

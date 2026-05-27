@@ -2,7 +2,9 @@ import { dealFromStock } from "./deal";
 import { undoLastEntry } from "./history";
 import {
   triggerImmediatePower as applyImmediatePower,
+  triggerCardSwapPower as applyCardSwapPower,
   triggerTargetedColumnPower as applyTargetedColumnPower,
+  triggerTargetedFoundationPower as applyTargetedFoundationPower,
   triggerTargetedPower as applyTargetedPower,
   type BlackJokerTargetContext,
 } from "./powers";
@@ -12,6 +14,7 @@ import { tickEffectDurations } from "./effects";
 import { tickExtraColumnLinks } from "./extraColumn";
 import type {
   Card,
+  FoundationIndex,
   GameConfig,
   GameState,
   HistoryEntry,
@@ -91,6 +94,29 @@ export function triggerTargetedColumnPower(
   columnIndex: number,
 ): GameState | null {
   const r = applyTargetedColumnPower(state, shelfIndex, columnIndex);
+  if (!r) return null;
+  return appendHistory(r.state, r.history);
+}
+
+export function triggerTargetedFoundationPower(
+  state: GameState,
+  shelfIndex: number,
+  foundationIndex: FoundationIndex,
+): GameState | null {
+  const r = applyTargetedFoundationPower(state, shelfIndex, foundationIndex);
+  if (!r) return null;
+  return appendHistory(r.state, r.history);
+}
+
+export function triggerCardSwapPower(
+  state: GameState,
+  shelfIndex: number,
+  firstCard: Card,
+  secondCard: Card,
+  firstContext: BlackJokerTargetContext,
+  secondContext: BlackJokerTargetContext,
+): GameState | null {
+  const r = applyCardSwapPower(state, shelfIndex, firstCard, secondCard, firstContext, secondContext);
   if (!r) return null;
   return appendHistory(r.state, r.history);
 }

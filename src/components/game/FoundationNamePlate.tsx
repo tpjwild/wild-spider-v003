@@ -20,9 +20,9 @@ function PlateRow({ label, value }: { label: string; value: string }) {
 
 function PlateColumn({ rows }: { rows: readonly { label: string; value: string }[] }) {
   const visible = rows.filter((r) => r.value);
-  if (visible.length === 0) return <div className="min-w-0 flex-1" aria-hidden />;
+  if (visible.length === 0) return <div className="min-w-0" aria-hidden />;
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+    <div className="flex min-w-0 flex-col gap-0.5">
       {visible.map((row) => (
         <PlateRow key={row.label} label={row.label} value={row.value} />
       ))}
@@ -75,10 +75,10 @@ export function FoundationNamePlate({ model }: { model: TableauNamePlateModel | 
               </span>
             </div>
           ) : (
-            <div className="grid w-full min-w-0 grid-cols-2 gap-x-3 text-left">
+            <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-x-3 text-left">
               <PlateColumn
                 rows={[
-                  { label: "Card effects", value: model.cardEffects },
+                  { label: "Card Effects", value: model.cardEffects },
                   { label: "Column Effects", value: model.columnEffects },
                 ]}
               />
@@ -86,11 +86,11 @@ export function FoundationNamePlate({ model }: { model: TableauNamePlateModel | 
                 <PlateColumn
                   rows={[
                     { label: "Set", value: model.set },
-                    { label: "Set power", value: model.setPower },
+                    { label: "Set Power", value: model.setPower },
                   ]}
                 />
               ) : (
-                <div className="min-w-0 flex-1" aria-hidden />
+                <div className="min-w-0" aria-hidden />
               )}
             </div>
           )}

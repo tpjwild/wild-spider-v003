@@ -1,26 +1,32 @@
 "use client";
 
 import { startTransition, useEffect, useMemo, useState } from "react";
-import { colors } from "@/constants/colors";
+import { colors, deckPopupScrollCssVariables } from "@/constants/colors";
 import { CardDetailsPopup } from "@/components/game/CardDetailsPopup";
 import { CardView } from "@/components/game/CardView";
 import { CardEffectBadges } from "@/components/game/CardEffectBadges";
 import { getDeckPairById } from "@/content/deckPairs";
 import { shelfPowerChargesForJoker } from "@/lib/deckCardDetails";
-import { dimensions } from "@/constants/dimensions";
+import { deckPopupPanelOuterWidthPx, dimensions } from "@/constants/dimensions";
 import { rankChar } from "@/engine/cards";
 import type { Card, GameState, Suit } from "@/engine/types";
 import { isDeckPopupDetailsClickableCard } from "@/lib/deckCardDetails";
 import {
   cardHasTransparentEffect,
   deckPopupEffectBadgeEntries,
+  soonestCardEffectTicks,
   transparentEffectBackOpacity,
 } from "@/lib/cardEffectsUi";
 import { cardKey, deckPopupSnapshot, shouldDeckPopupFaceDown } from "@/lib/deckPopupLayout";
 import {
+  pointerLeftPopupOverlay,
+  usePowerTargetPopupHoverDismiss,
+} from "@/lib/powerTargetPopupUi";
+import {
+  deckPopupPowerTargetContextForCommit,
   isDeckPopupPowerTarget,
-  POWER_TARGET_CURSOR_CLASS,
-  POWER_TARGET_VALID_CURSOR_CLASS,
+  powerTargetCursorClass,
+  POWER_TARGET_INVALID_CURSOR_CLASS,
 } from "@/lib/powerTargetUi";
 import { useGameStore } from "@/state/gameStore";
 
@@ -69,13 +75,17 @@ function ScaledCardCell({
     powerTargeting != null &&
     isDeckPopupPowerTarget(game, card, faceDownInPopup, powerTargeting.shelfIndex);
   const [hoverValidTarget, setHoverValidTarget] = useState(false);
+  const isSelectedTarget =
+    powerTargeting?.selectedTarget?.kind === "card" &&
+    powerTargeting.selectedTarget.card.kind === card.kind &&
+    powerTargeting.selectedTarget.card.id === card.id;
   const placed = { card, faceUp: true };
   const s = Math.min(deckPopupCardWidth / cw, deckPopupCardHeight / ch);
   const ariaFaceDown = faceDownInPopup && !inStock;
   const detailsClickable =
     Boolean(onOpenDetails) &&
     isDeckPopupDetailsClickableCard(card) &&
-    !isValidPowerTarget;
+    !isPowerTargetMode;
   const scaled = (
     <div
       style={{
@@ -97,20 +107,20 @@ function ScaledCardCell({
       />
     </div>
   );
-  const cellCursor = isValidPowerTarget
-    ? hoverValidTarget
-      ? POWER_TARGET_VALID_CURSOR_CLASS
-      : POWER_TARGET_CURSOR_CLASS
-    : isPowerTargetMode
-      ? POWER_TARGET_CURSOR_CLASS
-      : "";
+  const cellCursor = powerTargetCursorClass(
+    isPowerTargetMode,
+    isValidPowerTarget,
+    hoverValidTarget,
+  );
 
   return (
     <div
       className={`relative flex shrink-0 items-center justify-center overflow-hidden ${cellCursor} ${
-        isValidPowerTarget && hoverValidTarget
-          ? "rounded-md ring-2 ring-amber-400 ring-offset-1 ring-offset-zinc-900/80"
-          : ""
+        isSelectedTarget
+          ? "rounded-md ring-2 ring-sky-400 ring-offset-1 ring-offset-zinc-900/80"
+          : isValidPowerTarget && hoverValidTarget
+            ? "rounded-md ring-2 ring-amber-400 ring-offset-1 ring-offset-zinc-900/80"
+            : ""
       }`}
       style={{ width: deckPopupCardWidth, height: deckPopupCardHeight }}
       data-testid="deck-popup-cell"
@@ -124,9 +134,16 @@ function ScaledCardCell({
         if (hoverValidTarget) setHoverValidTarget(false);
       }}
       onClick={(e) => {
-        if (!isValidPowerTarget) return;
+        if (!isValidPowerTarget || powerTargeting == null) return;
         e.stopPropagation();
-        commitTargetedPower(card, { deckPopupFaceDown: true });
+        const ctx = deckPopupPowerTargetContextForCommit(
+          game,
+          card,
+          faceDownInPopup,
+          powerTargeting.shelfIndex,
+        );
+        if (!ctx) return;
+        commitTargetedPower(card, ctx);
       }}
       aria-label={
         card.kind === "joker"
@@ -157,7 +174,11 @@ function ScaledCardCell({
       ) : (
         scaled
       )}
-      <CardEffectBadges entries={effectBadgeEntries} />
+      <CardEffectBadges
+        entries={effectBadgeEntries}
+        durationTicks={soonestCardEffectTicks(game, card)}
+        durationScope="card"
+      />
     </div>
   );
 }
@@ -195,8 +216,7 @@ export function DeckPopup({
     return Math.max(jokerW, suitW, deckPopupCardWidth);
   }, [jokers.length]);
 
-  const panelInnerWidthPx = maxRowWidthPx;
-  const panelOuterWidthPx = panelInnerWidthPx + 2 * deckPopupHorizontalEdgePad;
+  const panelOuterWidthPx = deckPopupPanelOuterWidthPx(maxRowWidthPx);
 
   const [detailsCard, setDetailsCard] = useState<Card | null>(null);
 
@@ -206,6 +226,11 @@ export function DeckPopup({
 
   const powerTargeting = useGameStore((s) => s.powerTargeting);
   const cancelPowerTargeting = useGameStore((s) => s.cancelPowerTargeting);
+  usePowerTargetPopupHoverDismiss({
+    enabled: open && powerTargeting != null,
+    popupTestId: "deck-popup",
+    onClose,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -229,26 +254,40 @@ export function DeckPopup({
 
   if (!open) return null;
 
+  const popupTargetingCursor = powerTargeting
+    ? POWER_TARGET_INVALID_CURSOR_CLASS
+    : "cursor-default";
+
+  const dismissOverlayOnPointerLeave = () => {
+    if (!powerTargeting) return;
+    onClose();
+  };
+
   return (
     <>
     <div
-      className="fixed inset-0 z-[52] flex cursor-default items-center justify-center p-4"
-      style={{ backgroundColor: colors.deckPopupBackdrop }}
+      className="fixed inset-0 z-[52] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="deck-popup-title"
       data-testid="deck-popup"
-      onClick={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (useGameStore.getState().powerTargeting) {
-          cancelPowerTargeting();
-          return;
-        }
-        onClose();
-      }}
+      data-power-targeting={powerTargeting ? "true" : undefined}
     >
       <div
-        className="flex max-h-[min(92dvh,920px)] max-w-[calc(100vw-2rem)] cursor-default flex-col overflow-hidden rounded-xl border shadow-2xl"
+        className={`absolute inset-0 pointer-events-auto ${popupTargetingCursor}`}
+        style={{ backgroundColor: colors.deckPopupBackdrop }}
+        aria-hidden
+        onClick={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (useGameStore.getState().powerTargeting) {
+            cancelPowerTargeting();
+            return;
+          }
+          onClose();
+        }}
+      />
+      <div
+        className={`pointer-events-auto relative z-10 flex max-h-[min(92dvh,920px)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border shadow-2xl ${popupTargetingCursor}`}
         style={{
           width: panelOuterWidthPx,
           boxSizing: "border-box",
@@ -258,6 +297,11 @@ export function DeckPopup({
           paddingBottom: deckPopupVerticalEdgePad,
           backgroundColor: colors.deckPopupPanelBackground,
           borderColor: colors.popupLightPanelBorder,
+          ...deckPopupScrollCssVariables(),
+        }}
+        onPointerLeave={(e) => {
+          if (!pointerLeftPopupOverlay(e)) return;
+          dismissOverlayOnPointerLeave();
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -272,7 +316,7 @@ export function DeckPopup({
           {title}
         </h2>
 
-        <div className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden py-3">
+        <div className="deck-popup-scroll min-h-0 w-full flex-1 py-3">
           {jokers.length > 0 ? (
             <section className="mb-5 w-full" aria-label="Jokers">
               <h3 className="mb-2 w-full text-center text-xs font-semibold uppercase tracking-wide" style={{ color: colors.popupLightPanelMutedText }}>

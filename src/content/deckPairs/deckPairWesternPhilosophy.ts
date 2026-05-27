@@ -8,6 +8,7 @@ import {
   JOKER_POWER_SELECTED_CARD_TRANSPARENT,
   JOKER_POWER_SELECTED_CARD_WILD,
   JOKER_POWER_SELECTED_COLUMN_TRANSPARENT,
+  JOKER_POWER_CARD_SWAP,
 } from "@/content/powerDefinitions";
 import { themedFaces, themedJokers } from "@/content/deckPairs/builders";
 import type { DeckPairDefinition } from "@/content/deckPairs/types";
@@ -72,8 +73,8 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             name: "Diogenes of Sinope",
             bio: "A provocative Cynic, Diogenes rejected social conventions and lived with extreme simplicity, often shocking Athenians with his behavior. By mocking prestige, wealth, and politeness, he forced people to confront what truly matters, turning his own life into a sharp critique of hypocrisy and false values.",
             powerId: JOKER_POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 3,
-            initialDuration: null,
+            initialCharges: 30,
+            initialDuration: 4,
           },
           {
             name: "Heraclitus",
@@ -143,8 +144,8 @@ export const westernPhilosophyPair: DeckPairDefinition = {
           {
             name: "Albert Camus",
             bio: "Novelist and philosopher of the absurd, Camus argued that we live in a universe without pre-given meaning. Rather than despair or resignation, he urged lucid awareness, revolt, and solidarity, asking how we can live with dignity and honesty amid suffering and uncertainty.",
-            powerId: JOKER_POWER_SELECTED_CARD_SKIP1,
-            initialCharges: 3,
+            powerId: JOKER_POWER_CARD_SWAP,
+            initialCharges: 10,
             initialDuration: null,
           },
           {

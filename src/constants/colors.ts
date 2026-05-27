@@ -1,7 +1,8 @@
 /**
  * Wild Spider — single source of truth for game UI colours.
  * Use these tokens in components (`style` / `colors.*`) rather than hard-coded hex in TSX.
- * Shelf scrollbar CSS in `globals.css` reads `--ws-*` variables set on the game shell root.
+ * Shelf and deck/stock popup scrollbar CSS in `globals.css` reads `--ws-*` variables
+ * (game shell root and/or popup panel via {@link deckPopupScrollCssVariables}).
  */
 
 const billiardFelt = "#2f6f45";
@@ -23,6 +24,10 @@ export const colors = {
   gameBar: "#1d4d32",
   /** Title chrome — darker than game bar */
   titleBar: "#143824",
+  /** Power targeting cursor fill */
+  powerTargetInvalidCursor: "#143824",
+  /** Power targeting cursor ring and crosshairs */
+  powerTargetCursorRing: "#ffffff",
   /** Generic dark surface (legacy / misc) */
   surface: "#1a2332",
   accent: "#c9a227",
@@ -136,10 +141,6 @@ export const colors = {
   /** Extra-child column badge holder — lighter green strip (see Extra Column in spec). */
   tableauExtraChildBadgeHolderBackground: "rgba(167, 243, 208, 0.32)",
   tableauExtraChildBadgeHolderBorder: "rgba(134, 239, 172, 0.65)",
-  /** Circle top-left on extra-child holders — parent link `movesRemaining`. */
-  extraColumnLinkTimerBackground: "rgba(20, 83, 45, 0.94)",
-  extraColumnLinkTimerText: "#ecfdf5",
-  extraColumnLinkTimerRing: "rgba(134, 239, 172, 0.8)",
 
   // —— Power targeting & drag feedback ———————————————————————————————————————
   powerTargetRing: "#fbbf24",
@@ -160,11 +161,21 @@ export const colors = {
 
 export type ColorToken = keyof typeof colors;
 
+/** CSS vars for `.deck-popup-scroll` (track matches {@link colors.deckPopupPanelBackground}). */
+export function deckPopupScrollCssVariables(): Record<string, string> {
+  return {
+    "--ws-deck-popup-scrollbar-track": colors.deckPopupPanelBackground,
+    "--ws-deck-popup-scrollbar-thumb": colors.popupLightPanelBorder,
+    "--ws-deck-popup-scrollbar-thumb-hover": colors.popupLightPanelMutedText,
+  };
+}
+
 /** Inline style map for `GameShell` root — sets `--ws-*` for global CSS. */
 export function gameShellColorStyle(): Record<string, string> {
   return {
     "--bg": colors.background,
     "--fg": colors.text,
     ...gameCssVariables,
+    ...deckPopupScrollCssVariables(),
   };
 }

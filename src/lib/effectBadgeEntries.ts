@@ -1,4 +1,8 @@
-import { EFFECT_DEFINITIONS, EFFECT_EXTRA_COLUMN } from "@/content/effectDefinitions";
+import {
+  columnEffectAffectsTableauCards,
+  EFFECT_DEFINITIONS,
+  EFFECT_EXTRA_COLUMN,
+} from "@/content/effectDefinitions";
 import {
   cardEffectsForCard,
   columnEffectsForColumn,
@@ -59,7 +63,9 @@ function columnScopeBadgeEntries(
   card: Card,
 ): EffectBadgeEntry[] {
   return sortEffectsForBadgeDisplay(
-    columnEffectsForColumn(state, columnIndex).filter((id) => !hasCardEffect(state, card, id)),
+    columnEffectsForColumn(state, columnIndex).filter(
+      (id) => columnEffectAffectsTableauCards(id) && !hasCardEffect(state, card, id),
+    ),
   ).map((effectId) => ({ effectId, scope: "column" as const }));
 }
 

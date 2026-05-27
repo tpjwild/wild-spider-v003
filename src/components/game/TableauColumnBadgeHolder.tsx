@@ -14,29 +14,10 @@ import {
   NAME_PLATE_INSPECT_HIGHLIGHT_CLASS,
 } from "@/lib/cardInspectUi";
 import type { EffectBadgeEntry } from "@/lib/effectBadgeEntries";
-import {
-  POWER_TARGET_CURSOR_CLASS,
-  POWER_TARGET_VALID_CURSOR_CLASS,
-} from "@/lib/powerTargetUi";
+import { powerTargetCursorClass } from "@/lib/powerTargetUi";
+import { useGameStore } from "@/state/gameStore";
 
 const { cardWidth: cw, tableauColumnBadgeHolderHeight: badgeH } = dimensions;
-
-function ExtraColumnLinkTimerBadge({ movesRemaining }: { movesRemaining: number }) {
-  return (
-    <div
-      className="pointer-events-none absolute left-0.5 top-0.5 z-20 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold"
-      style={{
-        backgroundColor: colors.extraColumnLinkTimerBackground,
-        color: colors.extraColumnLinkTimerText,
-        boxShadow: `0 0 0 1px ${colors.extraColumnLinkTimerRing}`,
-      }}
-      data-testid="extra-column-link-timer"
-      aria-hidden
-    >
-      {movesRemaining}
-    </div>
-  );
-}
 
 /**
  * Strip above a tableau column for column-level power effects (Stage 5).
@@ -46,17 +27,18 @@ function ExtraColumnLinkTimerBadge({ movesRemaining }: { movesRemaining: number 
 export function TableauColumnBadgeHolder({
   columnIndex,
   entries = [],
+  columnDurationTicks = null,
   isExtraChildColumn = false,
-  extraChildLinkMovesRemaining = null,
   isColumnPowerTargetMode = false,
   isValidColumnPowerTarget = false,
   onCommitColumnPowerTarget,
 }: {
   columnIndex: number;
   entries?: readonly EffectBadgeEntry[];
-  /** Lighter green strip + link timer when this column is an extra-child slot. */
+  /** Soonest timed column effect / parent Extra Column link ticks; shown on holder only. */
+  columnDurationTicks?: number | null;
+  /** Lighter green strip when this column is an extra-child slot. */
   isExtraChildColumn?: boolean;
-  extraChildLinkMovesRemaining?: number | null;
   isColumnPowerTargetMode?: boolean;
   isValidColumnPowerTarget?: boolean;
   onCommitColumnPowerTarget?: () => void;
@@ -67,23 +49,25 @@ export function TableauColumnBadgeHolder({
     activeInspectSource,
     columnIndex,
   );
+  const powerTargeting = useGameStore((s) => s.powerTargeting);
   const [targetHover, setTargetHover] = useState(false);
   const showTargetHighlight =
     isValidColumnPowerTarget && targetHover && isColumnPowerTargetMode;
 
-  const cursorClass = isColumnPowerTargetMode
-    ? isValidColumnPowerTarget && targetHover
-      ? POWER_TARGET_VALID_CURSOR_CLASS
-      : POWER_TARGET_CURSOR_CLASS
-    : "";
+  const cursorClass = powerTargetCursorClass(
+    powerTargeting != null,
+    isValidColumnPowerTarget,
+    targetHover,
+  );
 
   const holderTitle = isExtraChildColumn
-    ? extraChildLinkMovesRemaining != null
-      ? `Extra Column (${extraChildLinkMovesRemaining})`
-      : EFFECT_DEFINITIONS[EFFECT_EXTRA_COLUMN].label
+    ? EFFECT_DEFINITIONS[EFFECT_EXTRA_COLUMN].label
     : entries.some((e) => e.effectId === EFFECT_EXTRA_COLUMN)
       ? EFFECT_DEFINITIONS[EFFECT_EXTRA_COLUMN].label
       : undefined;
+
+  const showBadges =
+    entries.length > 0 || (columnDurationTicks != null && columnDurationTicks > 0);
 
   return (
     <div
@@ -134,10 +118,13 @@ export function TableauColumnBadgeHolder({
         onCommitColumnPowerTarget();
       }}
     >
-      {isExtraChildColumn && extraChildLinkMovesRemaining != null ? (
-        <ExtraColumnLinkTimerBadge movesRemaining={extraChildLinkMovesRemaining} />
+      {showBadges ? (
+        <CardEffectBadges
+          entries={entries}
+          durationTicks={columnDurationTicks}
+          durationScope="column"
+        />
       ) : null}
-      <CardEffectBadges entries={entries} />
     </div>
   );
 }

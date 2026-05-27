@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
+import { powerTargetsFoundationSlot } from "@/content/powerDefinitions";
 import { motion } from "framer-motion";
 import { CardView } from "@/components/game/CardView";
 import {
@@ -14,7 +16,12 @@ import {
   namePlateInspectHighlightForFoundationCard,
 } from "@/lib/cardInspectUi";
 import { cardLayoutId } from "@/lib/cardLayoutId";
+import { isValidFoundationReturnTarget } from "@/engine/powers";
 import type { FoundationIndex, GameState } from "@/engine/types";
+import {
+  armedPowerIdForShelf,
+  powerTargetCursorClass,
+} from "@/lib/powerTargetUi";
 import { useGameStore } from "@/state/gameStore";
 
 const { cardWidth: cw, cardHeight: ch } = dimensions;
@@ -29,6 +36,8 @@ export function FoundationSlot({
   const pile = game.foundation[index] ?? [];
   const top = pile.length > 0 ? pile[pile.length - 1] : undefined;
   const dealLocked = useGameStore((s) => s.dealAnimation != null);
+  const powerTargeting = useGameStore((s) => s.powerTargeting);
+  const commitTargetedFoundationPower = useGameStore((s) => s.commitTargetedFoundationPower);
   const setInspectHover = useSetTableauInspectHover();
   const activeInspectSource = useActiveTableauInspectSource();
   const namePlateHighlightTier = top
@@ -44,6 +53,16 @@ export function FoundationSlot({
   const underTop = pile.length >= 2 ? pile[pile.length - 2] : undefined;
 
   const empty = pile.length === 0;
+  const armedPowerId =
+    powerTargeting != null ? armedPowerIdForShelf(game, powerTargeting.shelfIndex) : null;
+  const foundationTargetMode =
+    armedPowerId != null && powerTargetsFoundationSlot(armedPowerId);
+  const isValidFoundationPowerTarget =
+    foundationTargetMode && isValidFoundationReturnTarget(game, index);
+  const [hoverValidTarget, setHoverValidTarget] = useState(false);
+  const isSelectedTarget =
+    powerTargeting?.selectedTarget?.kind === "foundation" &&
+    powerTargeting.selectedTarget.foundationIndex === index;
   /** Empty slot: dashed border only (no `ring` — ring + dashed border reads as two rectangles). */
   const borderClass = empty
     ? isOver
@@ -53,11 +72,35 @@ export function FoundationSlot({
       ? "border-2 border-transparent bg-amber-500/20"
       : "border-2 border-transparent";
 
+  const slotCursor = powerTargetCursorClass(
+    powerTargeting != null,
+    isValidFoundationPowerTarget,
+    hoverValidTarget,
+  );
+
   return (
     <div
       ref={setNodeRef}
-      className={`relative flex items-center justify-center rounded-md ${borderClass}`}
+      className={`relative flex items-center justify-center rounded-md ${borderClass} ${slotCursor} ${
+        isSelectedTarget
+          ? "ring-2 ring-sky-400 ring-offset-1 ring-offset-zinc-900/80"
+          : isValidFoundationPowerTarget && hoverValidTarget
+            ? "ring-2 ring-amber-400 ring-offset-1 ring-offset-zinc-900/80"
+            : ""
+      }`}
       style={{ width: cw, height: ch }}
+      data-power-target-valid={isValidFoundationPowerTarget ? "true" : undefined}
+      onPointerEnter={() => {
+        if (isValidFoundationPowerTarget) setHoverValidTarget(true);
+      }}
+      onPointerLeave={() => {
+        if (hoverValidTarget) setHoverValidTarget(false);
+      }}
+      onClick={(e) => {
+        if (!isValidFoundationPowerTarget) return;
+        e.stopPropagation();
+        commitTargetedFoundationPower(index);
+      }}
     >
       {underTop ? (
         <div

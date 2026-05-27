@@ -16,7 +16,11 @@ import {
   armedPowerIdForShelf,
   isColumnTargetingPower,
   isTableauColumnPowerTarget,
+  isDeckPopupPowerTarget,
   isTableauPowerTarget,
+  powerTargetCursorClass,
+  POWER_TARGET_INVALID_CURSOR_CLASS,
+  POWER_TARGET_VALID_CURSOR_CLASS,
   tableauPowerTargetContextForCommit,
 } from "@/lib/powerTargetUi";
 
@@ -52,6 +56,13 @@ function shelfWithCatalogPower(
 }
 
 describe("powerTargetUi", () => {
+  it("powerTargetCursorClass uses invalid ring unless hovering a valid target", () => {
+    expect(powerTargetCursorClass(false, false, false)).toBe("");
+    expect(powerTargetCursorClass(true, false, false)).toBe(POWER_TARGET_INVALID_CURSOR_CLASS);
+    expect(powerTargetCursorClass(true, true, false)).toBe(POWER_TARGET_INVALID_CURSOR_CLASS);
+    expect(powerTargetCursorClass(true, true, true)).toBe(POWER_TARGET_VALID_CURSOR_CLASS);
+  });
+
   it("isTableauPowerTarget is false for column-only powers", () => {
     const card = buildDoubleDeck().find((c) => c.rank === 4)!;
     const game = baseState({
@@ -67,6 +78,29 @@ describe("powerTargetUi", () => {
       shelf: shelfWithCatalogPower("computerScience", 2),
     });
     expect(isTableauPowerTarget(game, card, false, 0)).toBe(true);
+  });
+
+  it("isDeckPopupPowerTarget for skip2 on face-up tableau, face-down tableau, and stock", () => {
+    const faceDownOnTableau = buildDoubleDeck().find((c) => c.rank === 4)!;
+    const faceUpOnTableau = buildDoubleDeck().find((c) => c.rank === 5)!;
+    const inStock = buildDoubleDeck().find((c) => c.rank === 6)!;
+    const game = baseState({
+      columns: [
+        [{ card: faceDownOnTableau, faceUp: false }],
+        [{ card: faceUpOnTableau, faceUp: true }],
+        [],
+        [],
+      ],
+      stock: [inStock],
+      shelf: shelfWithCatalogPower("westernPhilosophy", 6),
+    });
+    expect(armedPowerIdForShelf(game, 0)).toBe(JOKER_POWER_SELECTED_CARD_SKIP2);
+    expect(isDeckPopupPowerTarget(game, faceDownOnTableau, true, 0)).toBe(true);
+    expect(isDeckPopupPowerTarget(game, faceUpOnTableau, false, 0)).toBe(true);
+    expect(isDeckPopupPowerTarget(game, inStock, true, 0)).toBe(true);
+    expect(isDeckPopupPowerTarget(game, { kind: "joker", id: 0 }, false, 0)).toBe(false);
+    const withSkip2 = triggerTargetedPower(game, 0, faceUpOnTableau, { tableauCard: true })!;
+    expect(isDeckPopupPowerTarget(withSkip2, faceUpOnTableau, false, 0)).toBe(false);
   });
 
   it("isTableauColumnPowerTarget is true for column transparent", () => {

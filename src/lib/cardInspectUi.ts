@@ -28,7 +28,7 @@ export function courtSetKey(card: RegularCard): string {
   return `${deckNumFromRegularCardId(card.id)}-${card.suit}`;
 }
 
-function tableauCardEligibleForSetMateHighlight(
+function tableauCardEligibleForCourtInspectRing(
   game: GameState,
   columnIndex: number,
   placed: PlacedCard,
@@ -46,6 +46,7 @@ function activeInspectCourtCard(
   if (source?.kind !== "card") return null;
   const placed = game.columns[source.columnIndex]?.[source.cardIndex];
   if (!placed || !isCourtCard(placed.card)) return null;
+  if (!tableauCardEligibleForCourtInspectRing(game, source.columnIndex, placed)) return null;
   return placed.card;
 }
 
@@ -65,13 +66,19 @@ export function namePlateInspectHighlightForTableauCard(
     source.columnIndex === columnIndex && source.cardIndex === cardIndex;
 
   if (isDirect) {
-    return isCourtCard(placed.card) ? "face" : "pip";
+    if (
+      isCourtCard(placed.card) &&
+      tableauCardEligibleForCourtInspectRing(game, columnIndex, placed)
+    ) {
+      return "face";
+    }
+    return "pip";
   }
 
   const anchor = activeInspectCourtCard(game, source);
   if (!anchor || !isCourtCard(placed.card)) return "none";
   if (courtSetKey(anchor) !== courtSetKey(placed.card)) return "none";
-  if (!tableauCardEligibleForSetMateHighlight(game, columnIndex, placed)) return "none";
+  if (!tableauCardEligibleForCourtInspectRing(game, columnIndex, placed)) return "none";
   return "face";
 }
 
