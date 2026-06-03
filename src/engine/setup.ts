@@ -12,17 +12,19 @@ import type {
   GameState,
   InitialDealEntry,
   JokerCard,
+  NumberOfSuits,
   PlacedCard,
   RegularCard,
-  ShelfJoker,
+  ShelfEntry,
 } from "./types";
 import { emptyExtraColumnState } from "./extraColumnState";
 import { emptyEffectsState } from "./effects";
-import { createShelfJokerEntry } from "./powers";
+import { appendShelfJoker, createShelfJokerEntry } from "./powers";
 import { FORMATTED_JOKER_INSERT_BACK_FRACTION } from "@/constants/formattedJokerDeal";
 import { parseFormattedGameSeed } from "@/lib/formattedGameSeed";
 import type { ParsedFormattedGameSeed } from "@/lib/formattedGameSeed";
 import { maxJokersInPlayForDeckPair } from "@/content/deckPairs";
+import { normalizeNumberOfSuits } from "@/lib/numberOfSuits";
 
 const MAX_COLUMNS = 10;
 const MIN_DEALS = 5;
@@ -34,6 +36,13 @@ export class InvalidGameConfigError extends Error {
     super(message);
     this.name = "InvalidGameConfigError";
   }
+}
+
+export function coerceGameConfig(config: GameConfig): GameConfig & { numberOfSuits: NumberOfSuits } {
+  return {
+    ...config,
+    numberOfSuits: normalizeNumberOfSuits(config.numberOfSuits),
+  };
 }
 
 export function validateGameConfig(config: GameConfig): void {
@@ -56,6 +65,16 @@ export function validateGameConfig(config: GameConfig): void {
   if (config.jokerCount > maxForPair) {
     throw new InvalidGameConfigError(
       `jokerCount must be 0..${maxForPair} for this deck pair, got ${config.jokerCount}`,
+    );
+  }
+  if (
+    config.numberOfSuits != null &&
+    config.numberOfSuits !== 1 &&
+    config.numberOfSuits !== 2 &&
+    config.numberOfSuits !== 4
+  ) {
+    throw new InvalidGameConfigError(
+      `numberOfSuits must be 1, 2, or 4, got ${config.numberOfSuits}`,
     );
   }
   if (config.columns * config.deals > 104) {
@@ -135,13 +154,15 @@ function createInitialStateFormatted(
   config: GameConfig,
   parsed: ParsedFormattedGameSeed,
 ): GameState {
+  const configSuits = normalizeNumberOfSuits(config.numberOfSuits);
   if (
     parsed.columns !== config.columns ||
     parsed.deals !== config.deals ||
-    parsed.deckPairId !== config.deckPairId
+    parsed.deckPairId !== config.deckPairId ||
+    parsed.numberOfSuits !== configSuits
   ) {
     throw new InvalidGameConfigError(
-      "formatted seed does not match columns, deals, or deck pair",
+      "formatted seed does not match columns, deals, deck pair, or number of suits",
     );
   }
 
@@ -166,7 +187,7 @@ function createInitialStateFormatted(
 
   let placedRegular = 0;
   const stockCards: Card[] = [];
-  const shelf: ShelfJoker[] = [];
+  let shelf: ShelfEntry[] = [];
   const flightPlan: InitialDealEntry[] = [];
   for (let stream = 0; stream < ordered.length; stream++) {
     const card = ordered[stream]!;
@@ -177,7 +198,7 @@ function createInitialStateFormatted(
       placedRegular++;
     } else if (isJoker(card) && placedRegular < tCount) {
       /** Would appear before the initial tableau is full — same as dealing a joker from stock: goes to shelf. */
-      shelf.push(createShelfJokerEntry(config.deckPairId, card));
+      shelf = appendShelfJoker(shelf, createShelfJokerEntry(config.deckPairId, card));
       flightPlan.push({ card, tableauColumn: null, faceUp: false });
     } else {
       stockCards.push(card);
@@ -215,11 +236,12 @@ function createInitialStateFormatted(
   const foundation = Array.from({ length: 8 }, () => [] as PlacedCard[]);
 
   return {
-    config: { ...config, seed: parsed.canonical },
+    config: { ...config, seed: parsed.canonical, numberOfSuits: configSuits },
     columns,
     foundation,
     stock: stockCards,
     shelf,
+    alignedSetKeys: [],
     ...emptyEffectsState(),
     ...emptyExtraColumnState(),
     undoCount: 0,
@@ -231,33 +253,34 @@ function createInitialStateFormatted(
 /** Creates initial game: shuffled tableau, stock (regular remainder + jokers shuffled together), empty foundation, history empty */
 export function createInitialState(config: GameConfig): GameState {
   validateGameConfig(config);
-  const parsed = parseFormattedGameSeed(config.seed.trim());
+  const cfg = coerceGameConfig(config);
+  const parsed = parseFormattedGameSeed(cfg.seed.trim());
   if (parsed) {
-    return createInitialStateFormatted(config, parsed);
+    return createInitialStateFormatted(cfg, parsed);
   }
 
-  const tCount = tableauCardCount(config);
+  const tCount = tableauCardCount(cfg);
   if (tCount < 0) {
     throw new InvalidGameConfigError("negative tableau count");
   }
 
-  const rngMain = createMulberry32(hashSeedToUint32(config.seed));
+  const rngMain = createMulberry32(hashSeedToUint32(cfg.seed));
   const deck = buildDoubleDeck();
   shuffleInPlace(deck, rngMain);
 
   const columns: PlacedCard[][] = Array.from(
-    { length: config.columns },
+    { length: cfg.columns },
     () => [],
   );
 
-  const dealCol = tableauDealColumnOrder(config.columns, tCount);
+  const dealCol = tableauDealColumnOrder(cfg.columns, tCount);
   for (let i = 0; i < tCount; i++) {
     const col = dealCol[i]!;
     const card = deck[i]!;
     columns[col]!.push({ card, faceUp: false });
   }
 
-  for (let c = 0; c < config.columns; c++) {
+  for (let c = 0; c < cfg.columns; c++) {
     const pile = columns[c]!;
     if (pile.length > 0) {
       for (let i = 0; i < pile.length; i++) {
@@ -267,21 +290,22 @@ export function createInitialState(config: GameConfig): GameState {
   }
 
   const remainder = deck.slice(tCount);
-  const jokers = buildJokers(config.jokerCount);
+  const jokers = buildJokers(cfg.jokerCount);
   const stockCards = [...remainder, ...jokers];
   const rngStock = createMulberry32(
-    hashSeedToUint32(`${config.seed}:stock`) ^ (config.columns * 31 + config.deals),
+    hashSeedToUint32(`${cfg.seed}:stock`) ^ (cfg.columns * 31 + cfg.deals),
   );
   shuffleInPlace(stockCards, rngStock);
 
   const foundation = Array.from({ length: 8 }, () => [] as PlacedCard[]);
 
   return {
-    config,
+    config: cfg,
     columns,
     foundation,
     stock: stockCards,
     shelf: [],
+    alignedSetKeys: [],
     ...emptyEffectsState(),
     ...emptyExtraColumnState(),
     undoCount: 0,
@@ -311,6 +335,7 @@ export function createEmptyBoardShell(config: GameConfig): GameState {
     foundation: Array.from({ length: 8 }, () => [] as PlacedCard[]),
     stock: [],
     shelf: [],
+    alignedSetKeys: [],
     ...emptyEffectsState(),
     ...emptyExtraColumnState(),
     undoCount: 0,

@@ -49,6 +49,7 @@ export {
   canPlaceOnTableauWithEffects,
   effectiveRankChoices,
   effectiveSuitChoices,
+  effectiveSuitChoicesForGame,
   isValidStrictSameSuitDescendingRun,
   isValidTableauRun,
 } from "./tableauEffects";
@@ -79,6 +80,19 @@ export {
 } from "./moves";
 export { computeScore, type ScoreBreakdown } from "./scoring";
 export {
+  alignedSetKeyFromFoundationPile,
+  alignedSetKeyFromTableauTriple,
+  findAlignedSets,
+  findNewlyAlignedSets,
+} from "./setAlignment";
+export {
+  applyNewSetAlignments,
+  createShelfSetPowerEntry,
+  resolvedSetPowerId,
+  syncShelfSetPowerFromCatalog,
+  undoSetPowersAdded,
+} from "./setPowers";
+export {
   createMulberry32,
   hashSeedToUint32,
   nextInt,
@@ -102,5 +116,8 @@ export type {
   Rank,
   RegularCard,
   ShelfJoker,
+  ShelfEntry,
+  SetKey,
+  ShelfSetPower,
   Suit,
 } from "./types";

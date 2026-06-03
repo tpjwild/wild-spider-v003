@@ -16,7 +16,7 @@ import {
   undo,
 } from "@/engine/game";
 import { createShelfJokerEntry } from "@/engine/powers";
-import { JOKER_POWER_CARD_SWAP, JOKER_POWER_FOUNDATION_RETURN } from "@/content/powerDefinitions";
+import { POWER_CARD_SWAP, POWER_FOUNDATION_RETURN } from "@/content/powerDefinitions";
 import { emptyExtraColumnState } from "@/engine/extraColumnState";
 import type { GameState } from "@/engine/types";
 
@@ -33,6 +33,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     foundation: [[], [], [], [], [], [], [], []],
     stock: [],
     shelf: [],
+    alignedSetKeys: [],
     cardEffects: {},
     columnEffects: {},
     ...emptyExtraColumnState(),
@@ -158,9 +159,10 @@ describe("triggerTargetedFoundationPower and undo", () => {
       foundation: [[{ card: ten, faceUp: true }], [], [], [], [], [], [], []],
       shelf: [
         {
+          kind: "joker",
           card: joker,
           slot: 2,
-          powerId: JOKER_POWER_FOUNDATION_RETURN,
+          powerId: POWER_FOUNDATION_RETURN,
           chargesRemaining: 5,
         },
       ],

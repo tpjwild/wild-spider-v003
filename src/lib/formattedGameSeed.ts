@@ -1,16 +1,26 @@
 import { deckPairs } from "@/content/deckPairs";
+import { normalizeNumberOfSuits } from "@/lib/numberOfSuits";
+import type { NumberOfSuits } from "@/engine/types";
 
-/** Full game seed: CC-DDD-XXX-SSSSSSSSSSSSSS (hyphens required). XXX = stable deck pair code. */
+/** Formatted seed with suits segment: CC-DDD-S-XXX-SSSSSSSSSSSSSS (S = 1, 2, or 4). */
 export const FORMATTED_GAME_SEED_PATTERN =
+  /^(\d{2})-(\d{3})-([124])-([A-Za-z0-9]{3})-(\d{14})$/;
+
+/** Legacy formatted seed without suits (defaults to 4 suits). */
+const LEGACY_FORMATTED_GAME_SEED_PATTERN =
   /^(\d{2})-(\d{3})-([A-Za-z0-9]{3})-(\d{14})$/;
 
 export function isFormattedGameSeed(s: string): boolean {
-  return FORMATTED_GAME_SEED_PATTERN.test(s.trim());
+  const t = s.trim();
+  return (
+    FORMATTED_GAME_SEED_PATTERN.test(t) || LEGACY_FORMATTED_GAME_SEED_PATTERN.test(t)
+  );
 }
 
 export type ParsedFormattedGameSeed = {
   columns: number;
   deals: number;
+  numberOfSuits: NumberOfSuits;
   deckPairId: string;
   /** 14-digit shuffle key only — drives regular-card order and joker slot draws. */
   shuffleKey: string;
@@ -19,18 +29,39 @@ export type ParsedFormattedGameSeed = {
 };
 
 export function parseFormattedGameSeed(trimmed: string): ParsedFormattedGameSeed | null {
-  const m = trimmed.match(FORMATTED_GAME_SEED_PATTERN);
-  if (!m) return null;
-  const columns = Number(m[1]);
-  const deals = Number(m[2]);
-  const pairCode = m[3]!.toUpperCase();
-  const shuffleKey = m[4]!;
+  const withSuits = trimmed.match(FORMATTED_GAME_SEED_PATTERN);
+  if (withSuits) {
+    const columns = Number(withSuits[1]);
+    const deals = Number(withSuits[2]);
+    const numberOfSuits = normalizeNumberOfSuits(Number(withSuits[3]));
+    const pairCode = withSuits[4]!.toUpperCase();
+    const shuffleKey = withSuits[5]!;
+    const pair = deckPairs.find((p) => p.pairCode === pairCode);
+    if (!pair) return null;
+    const canonical = `${String(columns).padStart(2, "0")}-${String(deals).padStart(3, "0")}-${numberOfSuits}-${pairCode}-${shuffleKey}`;
+    return {
+      columns,
+      deals,
+      numberOfSuits,
+      deckPairId: pair.id,
+      shuffleKey,
+      canonical,
+    };
+  }
+
+  const legacy = trimmed.match(LEGACY_FORMATTED_GAME_SEED_PATTERN);
+  if (!legacy) return null;
+  const columns = Number(legacy[1]);
+  const deals = Number(legacy[2]);
+  const pairCode = legacy[3]!.toUpperCase();
+  const shuffleKey = legacy[4]!;
   const pair = deckPairs.find((p) => p.pairCode === pairCode);
   if (!pair) return null;
   const canonical = `${String(columns).padStart(2, "0")}-${String(deals).padStart(3, "0")}-${pairCode}-${shuffleKey}`;
   return {
     columns,
     deals,
+    numberOfSuits: 4,
     deckPairId: pair.id,
     shuffleKey,
     canonical,
@@ -51,10 +82,12 @@ export function newRandomShuffleKey(): string {
 export function formatFormattedGameSeed(
   columns: number,
   deals: number,
+  numberOfSuits: NumberOfSuits,
   pairCode: string,
   shuffleKey: string,
 ): string {
-  return `${String(columns).padStart(2, "0")}-${String(deals).padStart(3, "0")}-${pairCode.toUpperCase()}-${shuffleKey}`;
+  const suits = normalizeNumberOfSuits(numberOfSuits);
+  return `${String(columns).padStart(2, "0")}-${String(deals).padStart(3, "0")}-${suits}-${pairCode.toUpperCase()}-${shuffleKey}`;
 }
 
 export function getPairCodeForDeckId(deckPairId: string): string | undefined {

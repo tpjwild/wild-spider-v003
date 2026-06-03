@@ -15,6 +15,7 @@ function emptyState(): Omit<GameState, "columns" | "foundation"> {
     },
     stock: [],
     shelf: [],
+    alignedSetKeys: [],
     cardEffects: {},
     columnEffects: {},
     ...emptyExtraColumnState(),

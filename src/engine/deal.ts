@@ -1,7 +1,7 @@
 import { isJoker } from "./cards";
 import { getDealColumnIndices } from "./extraColumn";
-import { createShelfJokerEntry } from "./powers";
-import type { Card, GameState, HistoryEntry, JokerCard, PlacedCard, ShelfJoker } from "./types";
+import { appendShelfJoker, createShelfJokerEntry } from "./powers";
+import type { Card, GameState, HistoryEntry, JokerCard, PlacedCard, ShelfEntry } from "./types";
 
 export { getDealColumnIndices } from "./extraColumn";
 
@@ -23,12 +23,12 @@ function runDealRound(
   deckPairId: string,
   columns: PlacedCard[][],
   stock: Card[],
-  shelf: ShelfJoker[],
+  shelf: ShelfEntry[],
   dealColumnIndices: readonly number[],
-): { columns: PlacedCard[][]; stock: Card[]; shelf: ShelfJoker[]; entries: DealFlightEntry[] } | null {
+): { columns: PlacedCard[][]; stock: Card[]; shelf: ShelfEntry[]; entries: DealFlightEntry[] } | null {
   const cols = columns.map((c) => [...c]);
   const st = [...stock];
-  const sh = [...shelf];
+  let sh = [...shelf];
   const entries: DealFlightEntry[] = [];
 
   for (const col of dealColumnIndices) {
@@ -37,7 +37,7 @@ function runDealRound(
       const card = st.pop();
       if (card === undefined) return null;
       if (isJoker(card)) {
-        sh.push(createShelfJokerEntry(deckPairId, card));
+        sh = appendShelfJoker(sh, createShelfJokerEntry(deckPairId, card));
         entries.push({ card, tableauColumn: null });
         continue;
       }
@@ -50,7 +50,7 @@ function runDealRound(
   while (st.length > 0 && isJoker(st[st.length - 1]!)) {
     const card = st.pop()!;
     if (!isJoker(card)) break;
-    sh.push(createShelfJokerEntry(deckPairId, card));
+    sh = appendShelfJoker(sh, createShelfJokerEntry(deckPairId, card));
     entries.push({ card, tableauColumn: null });
   }
 
@@ -172,7 +172,7 @@ export function applyDealEntriesProgress(
 
   const columns = state.columns.map((c) => [...c]);
   const stock = [...state.stock];
-  const shelf = [...state.shelf];
+  let shelf = [...state.shelf];
 
   for (let i = 0; i < landedCount; i++) {
     const e = entries[i]!;
@@ -182,7 +182,10 @@ export function applyDealEntriesProgress(
     }
     if (e.tableauColumn === null) {
       if (popped.kind !== "joker") throw new Error("applyDealEntriesProgress: expected joker to shelf");
-      shelf.push(createShelfJokerEntry(state.config.deckPairId, popped as JokerCard));
+      shelf = appendShelfJoker(
+        shelf,
+        createShelfJokerEntry(state.config.deckPairId, popped as JokerCard),
+      );
     } else {
       columns[e.tableauColumn]!.push({ card: popped, faceUp: true });
     }

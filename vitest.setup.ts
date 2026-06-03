@@ -54,6 +54,16 @@ function installMemoryLocalStorageIfBroken(): void {
 
 installMemoryLocalStorageIfBroken();
 
+/** jsdom does not provide ResizeObserver (used by shelf/foundation row layout). */
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = ResizeObserverStub as typeof ResizeObserver;
+}
+
 afterEach(() => {
   cleanup();
 });

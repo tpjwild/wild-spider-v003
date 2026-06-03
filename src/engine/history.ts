@@ -1,11 +1,21 @@
 import {
+  restoreTimedEffectsSnapshot,
   removeCardEffectsAdded,
   removeColumnEffectsAdded,
 } from "./effects";
 import { restoreExtraColumnTopology } from "./extraColumnTopology";
 import { undoCardSwap, undoFoundationReturn } from "./powers/cardMoves";
 import { restoreShelfCharge } from "./powers";
-import type { GameState, HistoryEntry } from "./types";
+import { undoSetPowersAdded } from "./setPowers";
+import type { GameState, HistoryEntry, TimedEffectsSnapshot } from "./types";
+
+function undoTimedEffectsBeforeTick(
+  state: GameState,
+  entry: { timedEffectsBeforeTick?: TimedEffectsSnapshot },
+): GameState {
+  if (!entry.timedEffectsBeforeTick) return state;
+  return restoreTimedEffectsSnapshot(state, entry.timedEffectsBeforeTick);
+}
 
 function undoMoveTableau(
   state: GameState,
@@ -19,7 +29,10 @@ function undoMoveTableau(
   if (entry.startIndex > 0) {
     src[entry.startIndex - 1]!.faceUp = entry.revealedWasFaceUp;
   }
-  return { ...state, columns };
+  return undoTimedEffectsBeforeTick(
+    undoSetPowersAdded({ ...state, columns }, entry.setPowersAdded),
+    entry,
+  );
 }
 
 function undoMoveToFoundation(
@@ -35,7 +48,10 @@ function undoMoveToFoundation(
   if (entry.startIndex > 0) {
     src[entry.startIndex - 1]!.faceUp = entry.revealedWasFaceUp;
   }
-  return { ...state, columns, foundation };
+  return undoTimedEffectsBeforeTick(
+    undoSetPowersAdded({ ...state, columns, foundation }, entry.setPowersAdded),
+    entry,
+  );
 }
 
 function undoDeal(
@@ -57,7 +73,10 @@ function undoDeal(
     }
   }
 
-  return { ...state, columns, stock, shelf };
+  return undoTimedEffectsBeforeTick(
+    undoSetPowersAdded({ ...state, columns, stock, shelf }, entry.setPowersAdded),
+    entry,
+  );
 }
 
 function undoPowerTrigger(
@@ -74,6 +93,7 @@ function undoPowerTrigger(
   if (entry.cardSwapUndo) {
     next = undoCardSwap(next, entry.cardSwapUndo);
   }
+  next = undoSetPowersAdded(next, entry.setPowersAdded);
   next = removeCardEffectsAdded(next, entry.cardEffectsAdded);
   next = removeColumnEffectsAdded(next, entry.columnEffectsAdded);
   next = restoreShelfCharge(next, entry.shelfIndex, entry.chargesBefore);

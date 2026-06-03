@@ -26,6 +26,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     foundation: [[], [], [], [], [], [], [], []],
     stock: [],
     shelf: [],
+    alignedSetKeys: [],
     cardEffects: {},
     columnEffects: {
       0: [appliedEffect(EFFECT_WILD)],

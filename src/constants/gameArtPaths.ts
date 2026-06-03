@@ -40,6 +40,13 @@ export function sharedCourtFramePath(rank: CourtFaceRank, suit: Suit): string {
   return `${SHARED_GAME_ART_DIR}/frames/${rankWord(rank)}-${SUIT_WORD[suit]}-frame.svg`;
 }
 
+/** Shared SVG frame for set-power shelf cards (hearts/diamonds = red, spades/clubs = black). */
+export function sharedSetFramePath(suit: Suit): string {
+  return suit === "H" || suit === "D"
+    ? `${SHARED_GAME_ART_DIR}/frames/set-red-frame.svg`
+    : `${SHARED_GAME_ART_DIR}/frames/set-black-frame.svg`;
+}
+
 /** Joker frame from portrait basename (`joker-red01-…` vs `joker-black01-…`). */
 export function sharedJokerFramePathFromPortraitBasename(basename: string): string {
   return basename.includes("joker-red")

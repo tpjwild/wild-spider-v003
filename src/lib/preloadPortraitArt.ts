@@ -1,9 +1,10 @@
 import { DEFAULT_DECK_PAIR_ID, getDeckPairById } from "@/content/deckPairs";
+import { sharedSetFramePath } from "@/constants/gameArtPaths";
 import { sharedDeckLightCardFacePath } from "@/constants/sharedDeckAssets";
 import type { DealFlightEntry } from "@/engine/deal";
 import { isJoker, isRegular } from "@/engine/cards";
 import type { Card, PlacedCard, Rank, Suit } from "@/engine/types";
-import { faceArtForRegularCard, jokerArtForCard } from "@/lib/deckCardArt";
+import { faceArtForRegularCard, jokerArtForCard, courtThumbsForSet } from "@/lib/deckCardArt";
 
 const PIP_RANKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const satisfies readonly Rank[];
 const PIP_SUITS = ["S", "C", "D", "H"] as const satisfies readonly Suit[];
@@ -32,6 +33,10 @@ export function collectTableauPortraitPreloadUrls(deckPairId: string): string[] 
       if (joker.portraitThumbPath) urls.add(joker.portraitThumbPath);
       if (joker.framePath) urls.add(joker.framePath);
     }
+  }
+
+  for (const suit of PIP_SUITS) {
+    urls.add(sharedSetFramePath(suit));
   }
 
   return [...urls];
@@ -81,6 +86,26 @@ function warmImageUrl(src: string): void {
 export function warmCardFaceArt(deckPairId: string, card: Card): void {
   if (typeof window === "undefined") return;
   for (const src of collectCardFacePreloadUrls(deckPairId, card)) {
+    warmImageUrl(src);
+  }
+}
+
+/** Thumb + frame URLs for one set-power shelf card. */
+export function collectSetShelfPreloadUrls(
+  deckPairId: string,
+  deckNum: 1 | 2,
+  suit: Suit,
+): string[] {
+  const urls: string[] = [sharedSetFramePath(suit)];
+  const thumbs = courtThumbsForSet(deckPairId, deckNum, suit);
+  if (!thumbs) return urls;
+  urls.push(thumbs.king, thumbs.queen, thumbs.jack);
+  return urls;
+}
+
+export function warmSetShelfArt(deckPairId: string, deckNum: 1 | 2, suit: Suit): void {
+  if (typeof window === "undefined") return;
+  for (const src of collectSetShelfPreloadUrls(deckPairId, deckNum, suit)) {
     warmImageUrl(src);
   }
 }

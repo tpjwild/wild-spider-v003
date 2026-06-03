@@ -8,21 +8,21 @@ import {
 } from "@/content/effectDefinitions";
 import {
   getPowerDefinition,
-  JOKER_POWER_2_KINGS_TRANSPARENT,
-  JOKER_POWER_ALL_KINGS_TRANSPARENT,
-  JOKER_POWER_CARD_SWAP,
-  JOKER_POWER_EXTRA_COLUMN,
-  JOKER_POWER_FOUNDATION_RETURN,
-  JOKER_POWER_SELECTED_CARD_HALFWILD,
-  JOKER_POWER_SELECTED_CARD_SKIP1,
-  JOKER_POWER_SELECTED_CARD_SKIP2,
-  JOKER_POWER_SELECTED_CARD_TRANSPARENT,
-  JOKER_POWER_SELECTED_CARD_WILD,
-  JOKER_POWER_SELECTED_COLUMN_HALFWILD,
-  JOKER_POWER_SELECTED_COLUMN_SKIP1,
-  JOKER_POWER_SELECTED_COLUMN_SKIP2,
-  JOKER_POWER_SELECTED_COLUMN_TRANSPARENT,
-  JOKER_POWER_SELECTED_COLUMN_WILD,
+  POWER_2_KINGS_TRANSPARENT,
+  POWER_ALL_KINGS_TRANSPARENT,
+  POWER_CARD_SWAP,
+  POWER_EXTRA_COLUMN,
+  POWER_FOUNDATION_RETURN,
+  POWER_SELECTED_CARD_HALFWILD,
+  POWER_SELECTED_CARD_SKIP1,
+  POWER_SELECTED_CARD_SKIP2,
+  POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_SELECTED_CARD_WILD,
+  POWER_SELECTED_COLUMN_HALFWILD,
+  POWER_SELECTED_COLUMN_SKIP1,
+  POWER_SELECTED_COLUMN_SKIP2,
+  POWER_SELECTED_COLUMN_TRANSPARENT,
+  POWER_SELECTED_COLUMN_WILD,
   normalizePowerId,
   powerIsCardSwap,
   powerTargetsFoundationSlot,
@@ -45,6 +45,11 @@ import {
   tickEffectDurationsOnTargetCommit,
 } from "@/engine/effects";
 import { snapshotExtraColumnTopology } from "@/engine/extraColumnTopology";
+import {
+  resolvedSetPowerId,
+  setPowerEffectDuration,
+  syncShelfSetPowerFromCatalog,
+} from "@/engine/setPowers";
 import { createMulberry32, hashSeedToUint32, shuffleInPlace } from "@/engine/seededRng";
 import type {
   Card,
@@ -57,7 +62,9 @@ import type {
   JokerPortraitSlot,
   PowerId,
   RegularCard,
+  ShelfEntry,
   ShelfJoker,
+  ShelfSetPower,
 } from "@/engine/types";
 
 // —— Effect applications —————————————————————————————————————————————————————
@@ -276,10 +283,10 @@ export function isValidBlackJokerCardTarget(
   card: Card,
   opts: BlackJokerTargetContext,
 ): boolean {
-  if (!isCardTargetLocation(state, JOKER_POWER_SELECTED_CARD_TRANSPARENT, card, opts)) {
+  if (!isCardTargetLocation(state, POWER_SELECTED_CARD_TRANSPARENT, card, opts)) {
     return false;
   }
-  return !cardAlreadyHasTargetedPowerEffect(state, JOKER_POWER_SELECTED_CARD_TRANSPARENT, card);
+  return !cardAlreadyHasTargetedPowerEffect(state, POWER_SELECTED_CARD_TRANSPARENT, card);
 }
 
 /** Valid card target for a shelf targeted power (zone + not already bearing that power's effect). */
@@ -305,7 +312,7 @@ export function isValidTargetedColumnTarget(
   const normalized = normalizePowerId(powerId);
   if (!powerTargetsTableauColumn(normalized)) return false;
   if (columnIndex < 0 || columnIndex >= state.columns.length) return false;
-  if (normalized === JOKER_POWER_EXTRA_COLUMN) {
+  if (normalized === POWER_EXTRA_COLUMN) {
     return canTargetExtraColumnParent(state, columnIndex);
   }
   if (columnAlreadyHasTargetedPowerEffect(state, normalized, columnIndex)) return false;
@@ -327,7 +334,7 @@ function powerIdForJokerCard(deckPairId: string, joker: JokerCard): PowerId {
   const def = jokerDefinitionForInGameId(deckPairId, joker.id);
   if (def) return def.powerId;
   const slot = jokerPortraitSlotForCard(deckPairId, joker);
-  return slot <= 2 ? JOKER_POWER_ALL_KINGS_TRANSPARENT : JOKER_POWER_SELECTED_CARD_TRANSPARENT;
+  return slot <= 2 ? POWER_ALL_KINGS_TRANSPARENT : POWER_SELECTED_CARD_TRANSPARENT;
 }
 
 export function createShelfJokerEntry(deckPairId: string, card: JokerCard): ShelfJoker {
@@ -335,11 +342,31 @@ export function createShelfJokerEntry(deckPairId: string, card: JokerCard): Shel
   const slot = def?.index ?? jokerPortraitSlotForCard(deckPairId, card);
   const powerId = def?.powerId ?? powerIdForJokerCard(deckPairId, card);
   return {
+    kind: "joker",
     card,
     slot,
     powerId,
     chargesRemaining: def?.initialCharges ?? 3,
   };
+}
+
+/** Append a joker after existing jokers and before any set-power entries. */
+export function appendShelfJoker(shelf: readonly ShelfEntry[], entry: ShelfJoker): ShelfEntry[] {
+  const next = [...shelf];
+  const insertAt = next.findIndex((e) => e.kind === "set");
+  next.splice(insertAt === -1 ? next.length : insertAt, 0, entry);
+  return next;
+}
+
+/** Enforce shelf partition: all jokers first, then set powers (repairs legacy order). */
+export function normalizeShelfPartition(shelf: readonly ShelfEntry[]): ShelfEntry[] {
+  const jokers: ShelfJoker[] = [];
+  const sets: ShelfSetPower[] = [];
+  for (const entry of shelf) {
+    if (entry.kind === "joker") jokers.push(entry);
+    else sets.push(entry);
+  }
+  return [...jokers, ...sets];
 }
 
 /** Align persisted shelf `powerId` with the deck-pair catalog for this joker card. */
@@ -350,6 +377,17 @@ export function syncShelfJokerPowerFromCatalog(
   const def = jokerDefinitionForInGameId(deckPairId, entry.card.id);
   if (!def || def.powerId === entry.powerId) return entry;
   return { ...entry, powerId: def.powerId, slot: def.index };
+}
+
+export { syncShelfSetPowerFromCatalog } from "@/engine/setPowers";
+
+/** Align persisted shelf entry with joker or set catalog (whichever applies). */
+export function syncShelfEntryPowerFromCatalog(
+  deckPairId: string,
+  entry: ShelfEntry,
+): ShelfEntry {
+  if (entry.kind === "joker") return syncShelfJokerPowerFromCatalog(deckPairId, entry);
+  return syncShelfSetPowerFromCatalog(deckPairId, entry);
 }
 
 // —— Triggering ———————————————————————————————————————————————————————————————
@@ -376,12 +414,14 @@ function shelfPowerTriggerable(state: GameState, shelfIndex: number): boolean {
 
 function resolvedPowerIdForShelf(state: GameState, shelfIndex: number): PowerId {
   const entry = state.shelf[shelfIndex]!;
+  if (entry.kind === "set") return resolvedSetPowerId(state.config.deckPairId, entry);
   const def = jokerDefinitionForInGameId(state.config.deckPairId, entry.card.id);
   return def?.powerId ?? normalizePowerId(entry.powerId);
 }
 
 function powerEffectDuration(state: GameState, shelfIndex: number): number | null {
   const entry = state.shelf[shelfIndex]!;
+  if (entry.kind === "set") return setPowerEffectDuration(state.config.deckPairId, entry);
   const def = jokerDefinitionForInGameId(state.config.deckPairId, entry.card.id);
   return def?.initialDuration ?? null;
 }
@@ -421,11 +461,11 @@ export function triggerImmediatePower(
 
   const duration = powerEffectDuration(state, shelfIndex);
 
-  if (powerId === JOKER_POWER_ALL_KINGS_TRANSPARENT) {
+  if (powerId === POWER_ALL_KINGS_TRANSPARENT) {
     const applied = applyMakeAllKingsTransparent(next, duration);
     next = applied.state;
     cardEffectsAdded = applied.cardEffectsAdded;
-  } else if (powerId === JOKER_POWER_2_KINGS_TRANSPARENT) {
+  } else if (powerId === POWER_2_KINGS_TRANSPARENT) {
     const applied = applyMakeTwoKingsTransparent(next, duration);
     next = applied.state;
     cardEffectsAdded = applied.cardEffectsAdded;
@@ -571,7 +611,7 @@ export function triggerTargetedColumnPower(
 
   const chargesBefore = shelfEntry.chargesRemaining;
 
-  if (powerId === JOKER_POWER_EXTRA_COLUMN) {
+  if (powerId === POWER_EXTRA_COLUMN) {
     const duration = powerEffectDuration(state, shelfIndex);
     if (duration == null || duration <= 0) return null;
     const topologyBefore = snapshotExtraColumnTopology(state);

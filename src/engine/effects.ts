@@ -6,6 +6,7 @@ import type {
   EffectId,
   GameState,
   Rank,
+  TimedEffectsSnapshot,
 } from "./types";
 import { isRegular } from "./cards";
 
@@ -65,6 +66,48 @@ export function hasEffectOnCardInColumn(
 
 export function emptyEffectsState(): Pick<GameState, "cardEffects" | "columnEffects"> {
   return { cardEffects: {}, columnEffects: {} };
+}
+
+function cloneCardEffects(
+  cardEffects: GameState["cardEffects"],
+): GameState["cardEffects"] {
+  const out: GameState["cardEffects"] = {};
+  for (const [key, list] of Object.entries(cardEffects)) {
+    out[key as CardEffectKey] = list.map((e) => ({ ...e }));
+  }
+  return out;
+}
+
+function cloneColumnEffects(
+  columnEffects: GameState["columnEffects"],
+): GameState["columnEffects"] {
+  const out: GameState["columnEffects"] = {};
+  for (const [colKey, list] of Object.entries(columnEffects)) {
+    out[Number(colKey)] = list.map((e) => ({ ...e }));
+  }
+  return out;
+}
+
+export function snapshotTimedEffectsState(
+  state: Pick<GameState, "cardEffects" | "columnEffects" | "extraColumnLinks">,
+): TimedEffectsSnapshot {
+  return {
+    cardEffects: cloneCardEffects(state.cardEffects),
+    columnEffects: cloneColumnEffects(state.columnEffects),
+    extraColumnLinks: state.extraColumnLinks.map((l) => ({ ...l })),
+  };
+}
+
+export function restoreTimedEffectsSnapshot(
+  state: GameState,
+  snapshot: TimedEffectsSnapshot,
+): GameState {
+  return {
+    ...state,
+    cardEffects: cloneCardEffects(snapshot.cardEffects),
+    columnEffects: cloneColumnEffects(snapshot.columnEffects),
+    extraColumnLinks: snapshot.extraColumnLinks.map((l) => ({ ...l })),
+  };
 }
 
 const LEGACY_EFFECT_ID_MAP: Record<string, EffectId> = {

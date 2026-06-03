@@ -32,14 +32,14 @@ body {
  */
 .shelf-scroll {
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--ws-shelf-scrollbar-thumb) var(--ws-shelf-scrollbar-track);
 }
 
 .shelf-scroll::-webkit-scrollbar {
   width: 0;
-  height: 8px;
+  height: var(--ws-shelf-scrollbar-size, 8px);
 }
 
 .shelf-scroll::-webkit-scrollbar:vertical {

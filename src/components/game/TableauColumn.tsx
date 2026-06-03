@@ -12,6 +12,7 @@ import {
   useApplyTableauDropViewportFloorMinHeight,
   useTableauDropFloorBottomPx,
   useTableauLayoutBoostColumn,
+  useTableauDropHide,
   useTableauReturnHide,
 } from "@/components/game/TableauDragOverlayContext";
 import {
@@ -354,6 +355,7 @@ function TableauCardSlot({
   dealLocked,
   columnDragRunStart,
   tableauReturnHide,
+  tableauDropHide,
   hoveredDragRunStart,
   detailsPinned,
   shiftInspectMode,
@@ -368,12 +370,17 @@ function TableauCardSlot({
   onDragHoverPointerLeave: (e: React.PointerEvent<HTMLElement>) => void;
   columnDragRunStart: number | null;
   tableauReturnHide: { column: number; startIndex: number } | null;
+  tableauDropHide: { column: number; startIndex: number } | null;
 }) {
+  const hideRun =
+    tableauReturnHide?.column === columnIndex
+      ? tableauReturnHide
+      : tableauDropHide?.column === columnIndex
+        ? tableauDropHide
+        : null;
   const hideInTableau =
     (columnDragRunStart !== null && cardIndex >= columnDragRunStart) ||
-    (tableauReturnHide !== null &&
-      tableauReturnHide.column === columnIndex &&
-      cardIndex >= tableauReturnHide.startIndex);
+    (hideRun !== null && cardIndex >= hideRun.startIndex);
 
   return (
     <TableauDraggableCard
@@ -414,6 +421,7 @@ export function TableauColumn({
   const commitTargetedColumnPower = useGameStore((s) => s.commitTargetedColumnPower);
   const layoutBoostColumn = useTableauLayoutBoostColumn();
   const tableauReturnHide = useTableauReturnHide();
+  const tableauDropHide = useTableauDropHide();
   const applyViewportFloor = useApplyTableauDropViewportFloorMinHeight();
   const tableauDropFloorBottomPx = useTableauDropFloorBottomPx();
   const activeTableauDragId = useActiveTableauDragId();
@@ -685,6 +693,7 @@ export function TableauColumn({
               dealLocked={dealLocked}
               columnDragRunStart={columnDragRunStart}
               tableauReturnHide={tableauReturnHide}
+              tableauDropHide={tableauDropHide}
               hoveredDragRunStart={hoveredDragRunStartActive}
               detailsPinned={detailsPinned}
               shiftInspectMode={shiftInspectMode}

@@ -9,7 +9,8 @@ import {
   parseFormattedGameSeed,
 } from "@/lib/formattedGameSeed";
 import { validateGameConfig } from "@/engine/setup";
-import type { GameConfig } from "@/engine/types";
+import type { GameConfig, NumberOfSuits } from "@/engine/types";
+import { normalizeNumberOfSuits } from "@/lib/numberOfSuits";
 import {
   decodeShareableGameSetup,
   SHAREABLE_SETUP_PREFIX,
@@ -20,14 +21,15 @@ import { useGameStore } from "@/state/gameStore";
 const defaultColumns = 8;
 const defaultDeals = 6;
 const defaultJokers = 0;
+const defaultNumberOfSuits: NumberOfSuits = 4;
 const maxJokersCap = 8;
 
-function seedFieldError(trim: string, jokerCount: number): string | null {
+function seedFieldError(trim: string, jokerCount: number, numberOfSuits: NumberOfSuits): string | null {
   if (!trim) return null;
   const ws = decodeShareableGameSetup(trim);
   if (ws) {
     try {
-      validateGameConfig({ ...ws, jokerCount });
+      validateGameConfig({ ...ws, jokerCount, numberOfSuits });
       return null;
     } catch (e) {
       return e instanceof Error ? e.message : "Invalid configuration";
@@ -42,6 +44,7 @@ function seedFieldError(trim: string, jokerCount: number): string | null {
         deckPairId: p.deckPairId,
         seed: p.canonical,
         jokerCount,
+        numberOfSuits: p.numberOfSuits,
       });
       return null;
     } catch (e) {
@@ -51,7 +54,7 @@ function seedFieldError(trim: string, jokerCount: number): string | null {
   if (trim.startsWith(SHAREABLE_SETUP_PREFIX)) {
     return "Invalid ws1 replay code.";
   }
-  return "Invalid seed — use CC-DDD-XXX-SSSSSSSSSSSSSS (hyphens required) or a valid ws1: replay code.";
+  return "Invalid seed — use CC-DDD-S-XXX-SSSSSSSSSSSSSS (S = 1, 2, or 4 suits; hyphens required) or a valid ws1: replay code.";
 }
 
 export function NewGameDialog() {
@@ -66,6 +69,7 @@ export function NewGameDialog() {
   const [seed, setSeed] = useState("");
   const [jokers, setJokers] = useState(defaultJokers);
   const [deckPairId, setDeckPairId] = useState(DEFAULT_DECK_PAIR_ID);
+  const [numberOfSuits, setNumberOfSuits] = useState<NumberOfSuits>(defaultNumberOfSuits);
 
   const columnsInputRef = useRef<HTMLInputElement>(null);
   const fieldsRef = useRef({
@@ -74,6 +78,7 @@ export function NewGameDialog() {
     seed: "",
     jokers: defaultJokers,
     deckPairId: DEFAULT_DECK_PAIR_ID,
+    numberOfSuits: defaultNumberOfSuits,
   });
 
   const seedTrim = seed.trim();
@@ -94,6 +99,7 @@ export function NewGameDialog() {
         columns: parsedFormatted.columns,
         deals: parsedFormatted.deals,
         deckPairId: parsedFormatted.deckPairId,
+        numberOfSuits: parsedFormatted.numberOfSuits,
       };
     }
     if (ws1Config) {
@@ -101,18 +107,19 @@ export function NewGameDialog() {
         columns: ws1Config.columns,
         deals: ws1Config.deals,
         deckPairId: ws1Config.deckPairId,
+        numberOfSuits: normalizeNumberOfSuits(ws1Config.numberOfSuits),
       };
     }
-    return { columns, deals, deckPairId };
-  }, [parsedFormatted, ws1Config, columns, deals, deckPairId]);
+    return { columns, deals, deckPairId, numberOfSuits };
+  }, [parsedFormatted, ws1Config, columns, deals, deckPairId, numberOfSuits]);
 
   const product = effective.columns * effective.deals;
   const layoutProductInvalid = product > 104;
   const maxJokersForPair = Math.min(maxJokersCap, maxJokersInPlayForDeckPair(effective.deckPairId));
   const jokersInRange = Math.min(jokers, maxJokersForPair);
   const seedErr = useMemo(
-    () => seedFieldError(seedTrim, jokersInRange),
-    [seedTrim, jokersInRange],
+    () => seedFieldError(seedTrim, jokersInRange, effective.numberOfSuits),
+    [seedTrim, jokersInRange, effective.numberOfSuits],
   );
   const startDisabled =
     layoutProductInvalid || (hasSeedText && seedErr != null);
@@ -132,6 +139,7 @@ export function NewGameDialog() {
         const fullSeed = formatFormattedGameSeed(
           fieldsRef.current.columns,
           fieldsRef.current.deals,
+          fieldsRef.current.numberOfSuits,
           pairCode,
           shuffleKey,
         );
@@ -141,6 +149,7 @@ export function NewGameDialog() {
           deckPairId: fieldsRef.current.deckPairId,
           seed: fullSeed,
           jokerCount: j,
+          numberOfSuits: fieldsRef.current.numberOfSuits,
         };
       } else {
         const ws = decodeShareableGameSetup(st);
@@ -155,6 +164,7 @@ export function NewGameDialog() {
             deckPairId: p.deckPairId,
             seed: p.canonical,
             jokerCount: j,
+            numberOfSuits: p.numberOfSuits,
           };
         }
       }
@@ -174,8 +184,9 @@ export function NewGameDialog() {
       seed,
       jokers: jokersInRange,
       deckPairId: effective.deckPairId,
+      numberOfSuits: effective.numberOfSuits,
     };
-  }, [effective.columns, effective.deals, effective.deckPairId, seed, jokersInRange]);
+  }, [effective.columns, effective.deals, effective.deckPairId, effective.numberOfSuits, seed, jokersInRange]);
 
   useEffect(() => {
     if (!open) return;
@@ -187,6 +198,7 @@ export function NewGameDialog() {
         setDeals(last.deals);
         setDeckPairId(pairOk ? last.deckPairId : DEFAULT_DECK_PAIR_ID);
         setJokers(last.jokerCount);
+        setNumberOfSuits(normalizeNumberOfSuits(last.numberOfSuits));
         setSeed("");
       } else {
         setSeed("");
@@ -194,6 +206,7 @@ export function NewGameDialog() {
         setDeals(defaultDeals);
         setJokers(defaultJokers);
         setDeckPairId(DEFAULT_DECK_PAIR_ID);
+        setNumberOfSuits(defaultNumberOfSuits);
       }
       columnsInputRef.current?.focus({ preventScroll: true });
     });
@@ -228,9 +241,10 @@ export function NewGameDialog() {
       const c = fieldsRef.current.columns;
       const d = fieldsRef.current.deals;
       const pair = fieldsRef.current.deckPairId;
+      const suits = fieldsRef.current.numberOfSuits;
 
       if (st) {
-        const err = seedFieldError(st, j);
+        const err = seedFieldError(st, j, suits);
         if (err) return;
         if (fieldsRef.current.columns * fieldsRef.current.deals > 104) return;
       } else {
@@ -243,13 +257,14 @@ export function NewGameDialog() {
           const pairCode = getPairCodeForDeckId(pair);
           if (!pairCode) return;
           const shuffleKey = newRandomShuffleKey();
-          const fullSeed = formatFormattedGameSeed(c, d, pairCode, shuffleKey);
+          const fullSeed = formatFormattedGameSeed(c, d, suits, pairCode, shuffleKey);
           validateGameConfig({
             columns: c,
             deals: d,
             deckPairId: pair,
             seed: fullSeed,
             jokerCount: j,
+            numberOfSuits: suits,
           });
           clearError();
           startGame({
@@ -258,6 +273,7 @@ export function NewGameDialog() {
             deckPairId: pair,
             seed: fullSeed,
             jokerCount: j,
+            numberOfSuits: suits,
           });
           return;
         }
@@ -277,6 +293,7 @@ export function NewGameDialog() {
           deckPairId: p.deckPairId,
           seed: p.canonical,
           jokerCount: j,
+          numberOfSuits: p.numberOfSuits,
         };
         validateGameConfig(cfg);
         clearError();
@@ -321,9 +338,10 @@ export function NewGameDialog() {
           New game
         </h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Seed format <span className="font-mono">CC-DDD-XXX-SSSSSSSSSSSSSS</span> (hyphens required): columns,
-          deals, stable deck code (see list), then 14-digit shuffle key. Leave blank for a random shuffle with the
-          columns, deals, and deck pair you set. Joker count is always editable. Legacy{" "}
+          Seed format <span className="font-mono">CC-DDD-S-XXX-SSSSSSSSSSSSSS</span> (hyphens required): columns,
+          deals, suits (1, 2, or 4), stable deck code (see list), then 14-digit shuffle key. Older seeds without{" "}
+          <span className="font-mono">S</span> default to 4 suits. Leave blank for a random shuffle with the options
+          you set. Joker count is always editable. Legacy{" "}
           <span className="font-mono">ws1:</span> codes still work. Return starts the game (same as Start Game).
           Press Escape or click outside to cancel.
         </p>
@@ -356,6 +374,20 @@ export function NewGameDialog() {
               data-testid="new-game-deals"
             />
           </label>
+          <label className="text-xs text-zinc-400">
+            Suits (tableau)
+            <select
+              value={effective.numberOfSuits}
+              disabled={layoutFieldsDisabled}
+              onChange={(e) => setNumberOfSuits(Number(e.target.value) as NumberOfSuits)}
+              className="mt-1 w-full rounded border border-white/20 bg-black/40 px-2 py-1 text-sm text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              data-testid="new-game-suits"
+            >
+              <option value={4}>4 — normal suits</option>
+              <option value={2}>2 — half-wild (red/black)</option>
+              <option value={1}>1 — wild (any suit)</option>
+            </select>
+          </label>
           <label className="col-span-2 text-xs text-zinc-400">
             Seed (optional)
             <input
@@ -363,7 +395,7 @@ export function NewGameDialog() {
               value={seed}
               onChange={(e) => setSeed(e.target.value)}
               className="mt-1 w-full rounded border border-white/20 bg-black/40 px-2 py-1 font-mono text-sm text-zinc-100"
-              placeholder="e.g. 08-006-BAS-12345678901234"
+              placeholder="e.g. 08-006-4-BAS-12345678901234"
               data-testid="new-game-seed"
             />
           </label>

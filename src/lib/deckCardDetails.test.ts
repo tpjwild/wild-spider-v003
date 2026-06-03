@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EFFECT_TRANSPARENT } from "@/content/effectDefinitions";
-import { getPowerDefinition, JOKER_POWER_ALL_KINGS_TRANSPARENT } from "@/content/powerDefinitions";
+import { getPowerDefinition, POWER_ALL_KINGS_TRANSPARENT } from "@/content/powerDefinitions";
 import type { GameState } from "@/engine/types";
 import {
   getDeckCardDetailsModel,
@@ -75,7 +75,7 @@ describe("deckCardDetails", () => {
     expect(m?.primaryHeading.length).toBeGreaterThan(0);
     expect(m?.body.length).toBeGreaterThan(0);
     expect(m?.portraitSrc).toContain("/gameArt/portraits/mathematics/");
-    const allKings = getPowerDefinition(JOKER_POWER_ALL_KINGS_TRANSPARENT);
+    const allKings = getPowerDefinition(POWER_ALL_KINGS_TRANSPARENT);
     expect(m?.powerName).toBe(allKings.name);
     expect(m?.powerDescription).toBe(allKings.description);
     expect(m?.powerChargesRemaining).toBe(3);

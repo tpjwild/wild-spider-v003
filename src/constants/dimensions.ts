@@ -27,8 +27,12 @@ export const dimensions = {
    * Actual layout height uses {@link stockStackRegionHeightPx} with the current game's **deals** (capped here).
    */
   stockMaxVisibleDeals: 8,
-  /** Shelf/stock panel width; flank regions in the top row are at least this wide each (see GameShell grid). */
-  shelfWidth: 260,
+  /** Minimum shelf panel width (border-box); flank columns grow with content up to available space. */
+  shelfMinWidthPx: 260,
+  /** Gap from the viewport-side edge of a flank column to the shelf/stock panel (px). */
+  shelfOuterEdgeGapPx: 8,
+  /** Gap between the shelf/stock flank and the foundation column (grid column gap, px). */
+  shelfFoundationGapPx: 8,
   /**
    * Intended horizontal overlap in px between each shelf card and the one to its **left**.
    * Layout uses step `max(0, cardWidth − shelfOverlap)` so the first card stays flush left; if this value is
@@ -51,6 +55,27 @@ export const dimensions = {
   shelfVerticalPad: 16,
   /** Inner horizontal padding of the shelf panel (joker strip inset from the shelf border). */
   shelfHorizontalPad: 8,
+  /** Thickness of the shelf strip’s horizontal scrollbar (lane below the card row). */
+  shelfHorizontalScrollbarPx: 8,
+  /** Horizontal gap from the last joker’s right edge to the first set card’s left edge. */
+  shelfJokerSetGapPx: 12,
+  /** Inset of set-power shelf court portraits inside the set frame (px). */
+  setShelfPortraitInsetPx: 13,
+  /** Visible height of each cropped court thumb on a set shelf card (px). */
+  setShelfPortraitBoxHeightPx: 26,
+  /** Width of the King thumb on a set shelf card (px). */
+  setShelfKingThumbWidthPx: 30,
+  /** Width of each Queen/Jack thumb on a set shelf card (px). */
+  setShelfQueenJackThumbWidthPx: 24,
+  /** Horizontal gap between Queen and Jack on the set shelf card bottom row (px). */
+  setShelfQueenJackGapPx: 2,
+  /** Vertical gap between the King row and the Queen/Jack row (px). */
+  setShelfPortraitRowGapPx: 2,
+  /**
+   * Optical vertical nudge for the centred set shelf portrait cluster (px).
+   * Positive moves the cluster **up** (wide bottom row reads low when box-centred).
+   */
+  setShelfPortraitClusterOffsetYPx: 5,
   /** Gap between the shelf panel and the name plate below it. */
   shelfNamePlateGapPx: 6,
   /** Fixed height for the shelf name plate (joker + power labels on hover). */
@@ -175,9 +200,29 @@ export function shelfHoverScaleBleedPx(): number {
   );
 }
 
-/** Shelf panel height: **shelfVerticalPad** above and below the card row (border-box). */
+/** Baseline inset above shelf cards (half of {@link dimensions.shelfVerticalPad}). */
+export function shelfCardVerticalInsetPx(): number {
+  return dimensions.shelfVerticalPad / 2;
+}
+
+/** Top inset inside the shelf panel (slightly less than {@link shelfCardVerticalInsetPx} for optical balance). */
+export function shelfPanelTopInsetPx(): number {
+  return Math.max(0, shelfCardVerticalInsetPx() - 2);
+}
+
+/**
+ * Shelf panel height: top inset, card row, hover bleed, scrollbar lane on the bottom edge (border-box).
+ */
 export const shelfPanelHeightPx =
-  dimensions.cardHeight + 2 * dimensions.shelfVerticalPad;
+  shelfPanelTopInsetPx() +
+  dimensions.cardHeight +
+  shelfHoverScaleBleedPx() +
+  dimensions.shelfHorizontalScrollbarPx;
+
+/** Grid padding above the shelf panel so card tops align with foundation/stock ({@link dimensions.shelfVerticalPad}). */
+export function shelfFlankPaddingTopPx(): number {
+  return dimensions.shelfVerticalPad - shelfPanelTopInsetPx();
+}
 
 /** Foundation column: top inset + one row of card-sized slots (single-row layout on typical widths). */
 const foundationStripMinContentHeightPx =

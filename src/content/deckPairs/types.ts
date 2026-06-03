@@ -17,6 +17,16 @@ export type DeckFaceCard = {
   framePath: string;
 };
 
+export type DeckSetPower = {
+  suit: Suit;
+  /** Power triggered from the shelf when this court set is aligned (see `content/powerDefinitions.ts`). */
+  powerId: PowerId;
+  /** Charges when the set power is first placed on the shelf. */
+  initialCharges: number;
+  /** null = power effects permanent; number = moves before applied effects expire. */
+  initialDuration: number | null;
+};
+
 export type DeckJokerCard = {
   /** Slot 1–4 within this deck (red/black pairs in themed art filenames). */
   index: 1 | 2 | 3 | 4;
@@ -44,6 +54,8 @@ export type DeckInPair = {
   cardBackPath: string;
   /** Up to four per deck; Base ships with none. */
   jokers: readonly DeckJokerCard[];
+  /** Exactly four: one set power per suit S, C, D, H. */
+  setPowers: readonly DeckSetPower[];
   /** Exactly twelve: J, Q, K for each suit S, C, D, H. */
   faces: readonly DeckFaceCard[];
 };

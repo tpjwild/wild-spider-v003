@@ -3,7 +3,8 @@ import {
   EFFECT_DEFINITIONS,
   EFFECT_EXTRA_COLUMN,
 } from "@/content/effectDefinitions";
-import { getDeckPairById, DEFAULT_DECK_PAIR_ID } from "@/content/deckPairs";
+import { getDeckPairById, DEFAULT_DECK_PAIR_ID, setPowerDefinitionForSet } from "@/content/deckPairs";
+import { getPowerDefinition } from "@/content/powerDefinitions";
 import { rankChar, isRegular } from "@/engine/cards";
 import type { Rank, RegularCard } from "@/engine/types";
 import { cardEffectKey } from "@/engine/effects";
@@ -23,6 +24,7 @@ import type {
 import { cardHasTransparentEffectInColumn } from "@/lib/cardEffectsUi";
 import { deckBackColorLabel } from "@/lib/deckBackStyle";
 import { deckNumFromRegularCardId } from "@/lib/deckCardArt";
+import { setKeyFromSuitDeck } from "@/lib/setPowerUi";
 
 const SUIT_PLURAL_NAME: Record<Suit, string> = {
   S: "Spades",
@@ -193,8 +195,13 @@ function setLine(deckPairId: string, card: RegularCard): string {
   return `${color} Deck ${suit} - ${shortDeck} ${theme}`;
 }
 
-function setPowerLine(): string {
-  return HIDDEN;
+function setPowerLine(deckPairId: string, game: GameState, card: RegularCard): string {
+  const deckNum = deckNumFromRegularCardId(card.id);
+  const setKey = setKeyFromSuitDeck(deckNum, card.suit);
+  if (!game.alignedSetKeys.includes(setKey)) return "";
+  const catalog = setPowerDefinitionForSet(deckPairId, deckNum, card.suit);
+  if (!catalog) return HIDDEN;
+  return getPowerDefinition(catalog.powerId).name;
 }
 
 function formatHeading(deckPairId: string, card: Card): string {
@@ -239,7 +246,7 @@ export function tableauNamePlateFromCard(
     cardEffects: formatCardEffectsForNamePlate(game, card),
     columnEffects: formatColumnEffectsForCardNamePlate(game, columnIndex),
     set: reveal && faceCard && isRegular(card) ? setLine(deckPairId, card) : "",
-    setPower: reveal && faceCard ? setPowerLine() : "",
+    setPower: reveal && faceCard && isRegular(card) ? setPowerLine(deckPairId, game, card) : "",
     isFaceCard: faceCard,
   };
 }
@@ -258,7 +265,7 @@ export function tableauNamePlateFromFoundationCard(
     cardEffects: formatCardEffectsForNamePlate(game, card),
     columnEffects: NONE_EFFECTS,
     set: faceCard && isRegular(card) ? setLine(deckPairId, card) : "",
-    setPower: faceCard ? setPowerLine() : "",
+    setPower: faceCard && isRegular(card) ? setPowerLine(deckPairId, game, card) : "",
     isFaceCard: faceCard,
   };
 }

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { stockVisibleDealCapForLayout } from "@/constants/dimensions";
 import {
+  finalizePlayerMove,
   moveTableau,
   moveToFoundation,
   newGame,
@@ -12,7 +13,7 @@ import {
   undo,
   type BlackJokerTargetContext,
 } from "@/engine/game";
-import { syncShelfJokerPowerFromCatalog } from "@/engine/powers";
+import { syncShelfEntryPowerFromCatalog } from "@/engine/powers";
 import {
   getPowerDefinition,
   powerIsCardSwap,
@@ -119,6 +120,8 @@ export type GameStore = {
   cancelEndGame: () => void;
   confirmEndGame: () => void;
   undoMove: () => void;
+  /** Applies an undo result already computed by the engine (e.g. before a tableau undo flight). */
+  commitUndoResult: (next: GameState) => void;
   tryDeal: () => boolean;
   /** Skip remaining deal flights (Escape); commits `finalGame` and clears `dealAnimation`. */
   skipDealAnimation: () => void;
@@ -404,6 +407,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     persistGameStateLocal(next);
   },
 
+  commitUndoResult: (next) => {
+    set({ game: next, ...clearPowerTargeting() });
+    persistGameStateLocal(next);
+  },
+
   tryDeal: () => {
     const { game, dealAnimation } = get();
     if (dealAnimation) return false;
@@ -411,11 +419,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!canDealFromStock(game)) return false;
     const r = dealFromStock(game);
     if (!r) return false;
-    const finalGame: GameState = {
-      ...r.state,
-      history: [...game.history, r.history],
-    };
-    const h = r.history;
+    const finalGame = finalizePlayerMove(r.state, r.history);
+    const h = finalGame.history[finalGame.history.length - 1]!;
     if (h.type !== "deal") return false;
     const { entries } = h;
     const preStock = game.stock;
@@ -493,9 +498,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const entry = game.shelf[shelfIndex];
     if (!entry || entry.chargesRemaining <= 0) return false;
 
-    const syncedEntry = syncShelfJokerPowerFromCatalog(game.config.deckPairId, entry);
-    const syncedGame =
-      syncedEntry === entry ? game : { ...game, shelf: game.shelf.map((sj, i) => (i === shelfIndex ? syncedEntry : sj)) };
+    let syncedGame = game;
+    const syncedEntry = syncShelfEntryPowerFromCatalog(game.config.deckPairId, entry);
+    syncedGame =
+      syncedEntry === entry
+        ? game
+        : { ...game, shelf: game.shelf.map((sj, i) => (i === shelfIndex ? syncedEntry : sj)) };
     const armed = armedPowerIdForShelf(syncedGame, shelfIndex) ?? syncedEntry.powerId;
     const def = getPowerDefinition(armed);
     if (def.triggerClass === "targeted") {

@@ -1,6 +1,6 @@
 import { DEFAULT_DECK_PAIR_ID, getDeckPairById } from "@/content/deckPairs";
 import { sharedDeckLightCardFacePath } from "@/constants/sharedDeckAssets";
-import type { Card, RegularCard } from "@/engine/types";
+import type { Card, RegularCard, Suit } from "@/engine/types";
 import { cardBackStyleForCard } from "@/lib/deckBackStyle";
 
 /** Which of the two 52-card decks this regular card belongs to (for backs and face art paths). */
@@ -13,6 +13,30 @@ export type FaceArtPaths = {
   portraitThumbPath: string;
   framePath?: string;
 };
+
+export type SetCourtThumbPaths = {
+  king: string;
+  queen: string;
+  jack: string;
+};
+
+/** Small portrait thumb URLs for the three courts in one aligned set (K top, Q|J bottom). */
+export function courtThumbsForSet(
+  deckPairId: string,
+  deckNum: 1 | 2,
+  suit: Suit,
+): SetCourtThumbPaths | null {
+  const pair = getDeckPairById(deckPairId) ?? getDeckPairById(DEFAULT_DECK_PAIR_ID);
+  if (!pair) return null;
+  const deck = pair.decks[deckNum - 1];
+  const thumb = (rank: 11 | 12 | 13) =>
+    deck.faces.find((f) => f.suit === suit && f.rank === rank)?.portraitThumbPath ?? "";
+  const king = thumb(13);
+  const queen = thumb(12);
+  const jack = thumb(11);
+  if (!king || !queen || !jack) return null;
+  return { king, queen, jack };
+}
 
 export function faceArtForRegularCard(
   deckPairId: string,

@@ -47,6 +47,20 @@ export function effectiveSuitChoices(suit: Suit, effects: readonly EffectId[]): 
   return [...out];
 }
 
+/** Tableau suit choices including game-wide numberOfSuits (foundation ignores this). */
+export function effectiveSuitChoicesForGame(
+  state: GameState,
+  suit: Suit,
+  effects: readonly EffectId[],
+): Suit[] {
+  const mode = state.config.numberOfSuits ?? 4;
+  if (mode === 1) return [...ALL_SUITS];
+  if (mode === 2) {
+    return effectiveSuitChoices(suit, [...effects, EFFECT_HALF_WILD]);
+  }
+  return effectiveSuitChoices(suit, effects);
+}
+
 function segmentIsFaceUpRegular(column: PlacedCard[], startIndex: number): boolean {
   if (startIndex < 0 || startIndex >= column.length) return false;
   if (!column[startIndex]!.faceUp) return false;
@@ -78,7 +92,7 @@ function runSliceAdmitsAssignment(
     if (!isRegular(card)) return false;
     const effects = effectsForCardInColumn(state, columnIndex, card);
     rankChoices.push(effectiveRankChoices(card.rank, effects));
-    suitChoices.push(effectiveSuitChoices(card.suit, effects));
+    suitChoices.push(effectiveSuitChoicesForGame(state, card.suit, effects));
     if (rankChoices[rankChoices.length - 1]!.length === 0) return false;
     if (suitChoices[suitChoices.length - 1]!.length === 0) return false;
   }

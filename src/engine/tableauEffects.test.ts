@@ -11,6 +11,7 @@ import {
   canPlaceOnTableauWithEffects,
   effectiveRankChoices,
   effectiveSuitChoices,
+  effectiveSuitChoicesForGame,
   isValidStrictSameSuitDescendingRun,
   isValidTableauRun,
   tableauCardAboveSharesDragRun,
@@ -37,6 +38,7 @@ function emptyState(columns: PlacedCard[][]): GameState {
     foundation: [[], [], [], [], [], [], [], []],
     stock: [],
     shelf: [],
+    alignedSetKeys: [],
     cardEffects: {},
     columnEffects: {},
     ...emptyExtraColumnState(),
@@ -73,6 +75,27 @@ describe("effectiveRankChoices", () => {
   });
 });
 
+describe("effectiveSuitChoicesForGame", () => {
+  it("1 suit mode treats every card as wild on tableau", () => {
+    const state = emptyState([[]]);
+    state.config.numberOfSuits = 1;
+    expect(effectiveSuitChoicesForGame(state, "C", []).sort()).toEqual(["C", "D", "H", "S"]);
+  });
+
+  it("2 suit mode treats every card as half-wild on tableau", () => {
+    const state = emptyState([[]]);
+    state.config.numberOfSuits = 2;
+    expect(effectiveSuitChoicesForGame(state, "H", []).sort()).toEqual(["D", "H"]);
+    expect(effectiveSuitChoicesForGame(state, "S", []).sort()).toEqual(["C", "S"]);
+  });
+
+  it("4 suit mode defers to card effects only", () => {
+    const state = emptyState([[]]);
+    state.config.numberOfSuits = 4;
+    expect(effectiveSuitChoicesForGame(state, "H", [])).toEqual(["H"]);
+  });
+});
+
 describe("effectiveSuitChoices", () => {
   it("wild allows all suits", () => {
     expect(effectiveSuitChoices("H", [EFFECT_WILD])).toEqual(["S", "C", "D", "H"]);
@@ -92,6 +115,29 @@ describe("isValidTableauRun", () => {
   const s2 = d.find((c) => c.suit === "S" && c.rank === 2)!;
   const s7 = d.find((c) => c.suit === "S" && c.rank === 7)!;
   const s9 = d.find((c) => c.suit === "S" && c.rank === 9)!;
+
+  it("2-suit mode allows red suits to share a run when ranks align", () => {
+    const d5 = d.find((c) => c.suit === "D" && c.rank === 5)!;
+    const h4 = d.find((c) => c.suit === "H" && c.rank === 4)!;
+    const col = pile({ card: d5, faceUp: true }, { card: h4, faceUp: true });
+    const state = emptyState([col]);
+    state.config.numberOfSuits = 2;
+    expect(isValidTableauRun(state, 0, col, 0)).toBe(true);
+  });
+
+  it("1-suit mode allows mixed-color runs when ranks align", () => {
+    const s5 = d.find((c) => c.suit === "S" && c.rank === 5)!;
+    const h4 = d.find((c) => c.suit === "H" && c.rank === 4)!;
+    const d3 = d.find((c) => c.suit === "D" && c.rank === 3)!;
+    const col = pile(
+      { card: s5, faceUp: true },
+      { card: h4, faceUp: true },
+      { card: d3, faceUp: true },
+    );
+    const state = emptyState([col]);
+    state.config.numberOfSuits = 1;
+    expect(isValidTableauRun(state, 0, col, 0)).toBe(true);
+  });
 
   it("wild 4 on 5S moves as a unit with 5S", () => {
     const col = pile({ card: s5, faceUp: true }, { card: s4, faceUp: true });

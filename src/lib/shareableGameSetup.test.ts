@@ -14,6 +14,7 @@ describe("shareableGameSetup", () => {
       seed: "my-seed",
       deckPairId: "mathematics",
       jokerCount: 2,
+      numberOfSuits: 2 as const,
     };
     const encoded = encodeShareableGameSetup(cfg);
     expect(encoded.startsWith(SHAREABLE_SETUP_PREFIX)).toBe(true);

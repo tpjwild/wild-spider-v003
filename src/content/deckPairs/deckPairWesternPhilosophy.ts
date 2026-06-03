@@ -1,16 +1,16 @@
 import { deckEntry } from "@/content/deckPairs/deckEntry";
 import {
-  JOKER_POWER_2_KINGS_TRANSPARENT,
-  JOKER_POWER_ALL_KINGS_TRANSPARENT,
-  JOKER_POWER_EXTRA_COLUMN,
-  JOKER_POWER_SELECTED_CARD_SKIP1,
-  JOKER_POWER_SELECTED_CARD_SKIP2,
-  JOKER_POWER_SELECTED_CARD_TRANSPARENT,
-  JOKER_POWER_SELECTED_CARD_WILD,
-  JOKER_POWER_SELECTED_COLUMN_TRANSPARENT,
-  JOKER_POWER_CARD_SWAP,
+  POWER_2_KINGS_TRANSPARENT,
+  POWER_ALL_KINGS_TRANSPARENT,
+  POWER_EXTRA_COLUMN,
+  POWER_SELECTED_CARD_SKIP1,
+  POWER_SELECTED_CARD_SKIP2,
+  POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_SELECTED_CARD_WILD,
+  POWER_SELECTED_COLUMN_TRANSPARENT,
+  POWER_CARD_SWAP,
 } from "@/content/powerDefinitions";
-import { themedFaces, themedJokers } from "@/content/deckPairs/builders";
+import { themedSets, themedJokers } from "@/content/deckPairs/builders";
 import type { DeckPairDefinition } from "@/content/deckPairs/types";
 
 export const WESTERN_PHILOSOPHY_ID = "westernPhilosophy" as const;
@@ -58,37 +58,37 @@ export const westernPhilosophyPair: DeckPairDefinition = {
           {
             name: "Protagoras",
             bio: "A leading Sophist of classical Greece, Protagoras famously claimed that “man is the measure of all things.” He raised enduring questions about whether truth and value are relative to human perspectives and how rhetoric, persuasion, and power shape what people accept as real or just.",
-            powerId: JOKER_POWER_ALL_KINGS_TRANSPARENT,
+            powerId: POWER_ALL_KINGS_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Pyrrho of Elis",
             bio: "Often seen as the founder of ancient skepticism, Pyrrho urged withholding judgment about how things truly are. By suspending belief rather than insisting on certainty, he sought peace of mind and highlighted the difficulty of ever fully grasping reality through dogmatic theories.",
-            powerId: JOKER_POWER_2_KINGS_TRANSPARENT,
+            powerId: POWER_2_KINGS_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Diogenes of Sinope",
             bio: "A provocative Cynic, Diogenes rejected social conventions and lived with extreme simplicity, often shocking Athenians with his behavior. By mocking prestige, wealth, and politeness, he forced people to confront what truly matters, turning his own life into a sharp critique of hypocrisy and false values.",
-            powerId: JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
             initialCharges: 30,
             initialDuration: 4,
           },
           {
             name: "Heraclitus",
             bio: "Known as the philosopher of flux, Heraclitus taught that everything flows and that apparent opposites belong together. His cryptic sayings challenge the idea of any fixed, stable reality, suggesting that change and tension are woven into the very structure of the world.",
-            powerId: JOKER_POWER_SELECTED_CARD_WILD,
+            powerId: POWER_SELECTED_CARD_WILD,
             initialCharges: 3,
             initialDuration: null,
           },
         ],
       }),
-      faces: themedFaces({
+      sets: themedSets({
         pairId: "westernPhilosophy",
         deck: 1,
-        faces: {
+        sets: {
           S: {
             jName: "Augustine of Hippo",
             jBio:
@@ -99,6 +99,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "Thomas Aquinas",
             kBio:
               "Aquinas integrated Aristotelian philosophy with Christian theology, developing influential views on law, justice, and the common good. His account of natural law frames moral and political order as grounded in human reason and a larger divine plan, shaping centuries of thought on ethics and society.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           C: {
             jName: "Plotinus",
@@ -110,6 +113,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "Aristotle",
             kBio:
               "Aristotle systematized vast areas of knowledge, but at the core of his work is metaphysics: the study of substance, form, matter, and cause. He asked what it is for something to be, how change is possible, and how the world’s underlying structure makes experience intelligible.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           D: {
             jName: "Sextus Empiricus",
@@ -121,6 +127,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "Plato",
             kBio:
               "Plato distinguished opinion from knowledge, arguing that true understanding concerns unchanging Forms rather than the shifting world of appearances. Through myths like the cave and the divided line, he explored how the soul can ascend from illusion to insight and what it means genuinely to know.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           H: {
             jName: "Epicurus",
@@ -132,6 +141,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "Socrates",
             kBio:
               "Known through Plato’s dialogues, Socrates wandered Athens asking probing questions about virtue, justice, and the good life. He claimed to know only his own ignorance, yet insisted that the unexamined life is not worth living, choosing death rather than abandon his commitment to truth and integrity.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
         },
       }),
@@ -144,37 +156,37 @@ export const westernPhilosophyPair: DeckPairDefinition = {
           {
             name: "Albert Camus",
             bio: "Novelist and philosopher of the absurd, Camus argued that we live in a universe without pre-given meaning. Rather than despair or resignation, he urged lucid awareness, revolt, and solidarity, asking how we can live with dignity and honesty amid suffering and uncertainty.",
-            powerId: JOKER_POWER_CARD_SWAP,
+            powerId: POWER_CARD_SWAP,
             initialCharges: 10,
             initialDuration: null,
           },
           {
             name: "Jean-Paul Sartre",
             bio: "An existentialist philosopher and writer, Sartre claimed that “existence precedes essence”: we are thrown into the world without fixed natures and must create ourselves through our choices. He analyzed bad faith, freedom, and responsibility, insisting that we cannot escape owning the lives we make.",
-            powerId: JOKER_POWER_EXTRA_COLUMN,
+            powerId: POWER_EXTRA_COLUMN,
             initialCharges: 10,
             initialDuration: 10,
           },
           {
             name: "Friedrich Nietzsche",
             bio: "A fierce critic of traditional morality, religion, and the idea of objective truth, Nietzsche called for a “revaluation of all values.” He challenged inherited notions of good and evil, explored the will to power, and asked what it would mean to affirm life without comforting illusions.",
-            powerId: JOKER_POWER_SELECTED_CARD_SKIP2,
+            powerId: POWER_SELECTED_CARD_SKIP2,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Ludwig Wittgenstein",
             bio: "Wittgenstein radically rethought language and meaning, first treating propositions as pictures of reality, then emphasizing everyday “language games.” He asked how the rules we follow in practice give our words sense, challenging philosophers to see confusion in language as the source of many traditional problems.",
-            powerId: JOKER_POWER_SELECTED_COLUMN_TRANSPARENT,
+            powerId: POWER_SELECTED_COLUMN_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
         ],
       }),
-      faces: themedFaces({
+      sets: themedSets({
         pairId: "westernPhilosophy",
         deck: 2,
-        faces: {
+        sets: {
           S: {
             jName: "John Stuart Mill",
             jBio:
@@ -185,6 +197,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "Karl Marx",
             kBio:
               "Marx analyzed capitalism as a system structured by class domination, exploitation, and alienation. He argued that economic relations shape law, politics, and culture, and that historical change is driven by class struggle, inspiring powerful movements and critiques of modern industrial society.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           C: {
             jName: "Baruch Spinoza",
@@ -196,6 +211,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "René Descartes",
             kBio:
               "Descartes sought indubitable foundations for knowledge, beginning from the famous “I think, therefore I am.” He argued that mind and body are distinct substances and that clear and distinct ideas, guaranteed by God, reveal the basic structure of reality, inaugurating a new modern metaphysics.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           D: {
             jName: "Karl Popper",
@@ -207,6 +225,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "David Hume",
             kBio:
               "Hume grounded knowledge in experience and habit, arguing that we never directly perceive necessary connections between events. His skeptical analysis of causation, induction, and the self questioned how much we can really justify, while still leaving room for everyday belief and scientific practice.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           H: {
             jName: "Philippa Foot",
@@ -218,6 +239,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "Immanuel Kant",
             kBio:
               "Kant argued that morality is grounded in reason and the dignity of persons. His “categorical imperative” demands that we act only on principles we could will as universal laws and that we treat every person as an end in themselves, reshaping modern debates about duty and freedom.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
         },
       }),

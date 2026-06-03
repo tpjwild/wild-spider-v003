@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { faceArtForRegularCard, jokerArtForCard, sharedJokerSlotFromId } from "@/lib/deckCardArt";
+import { faceArtForRegularCard, courtThumbsForSet, jokerArtForCard, sharedJokerSlotFromId } from "@/lib/deckCardArt";
 
 describe("deckCardArt", () => {
   it("faceArtForRegularCard uses shared pip SVGs for ranks 1–10", () => {
@@ -39,6 +39,15 @@ describe("deckCardArt", () => {
       "/gameArt/portraits-small/mathematics/deck1/math01-king-diamonds-carl-friedrich-gauss.webp",
     );
     expect(king?.framePath).toBe("/gameArt/shared/frames/king-diamonds-frame.svg");
+  });
+
+  it("courtThumbsForSet returns K/Q/J thumb paths for deck and suit", () => {
+    const thumbs = courtThumbsForSet("mathematics", 1, "D");
+    expect(thumbs).not.toBeNull();
+    expect(thumbs!.king).toContain("king-diamonds");
+    expect(thumbs!.queen).toContain("queen-diamonds");
+    expect(thumbs!.jack).toContain("jack-diamonds");
+    expect(thumbs!.king).toContain("/portraits-small/");
   });
 
   it("sharedJokerSlotFromId cycles 1..4", () => {

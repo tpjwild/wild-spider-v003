@@ -8,6 +8,9 @@ import {
   leadStockIndicesForUpcomingDeals,
 } from "./deal";
 import { applyExtraColumn } from "./extraColumn";
+import { createShelfJokerEntry } from "./powers";
+import { createShelfSetPowerEntry } from "./setPowers";
+import { isShelfJoker } from "@/lib/setPowerUi";
 import { createInitialState } from "./setup";
 
 describe("getDealColumnIndices", () => {
@@ -185,11 +188,34 @@ describe("dealFromStock", () => {
     const r = dealFromStock(g);
     expect(r).not.toBeNull();
     expect(r!.state.stock).toEqual([]);
-    expect(r!.state.shelf.map((s) => s.card)).toEqual([jok(0)]);
+    expect(r!.state.shelf.filter(isShelfJoker).map((s) => s.card)).toEqual([jok(0)]);
     expect(r!.history.type).toBe("deal");
     if (r!.history.type === "deal") {
       expect(r!.history.entries.length).toBe(3);
     }
+  });
+
+  it("appends deal jokers before set-power entries on the shelf", () => {
+    const jok = (id: number) => ({ kind: "joker" as const, id });
+    const reg = (id: number) =>
+      ({ kind: "regular" as const, id, suit: "S" as const, rank: 1 as const });
+    const g = createInitialState({
+      columns: 2,
+      deals: 5,
+      deckPairId: "mathematics",
+      seed: "shelf-order",
+      jokerCount: 0,
+    });
+    g.shelf = [
+      createShelfJokerEntry("mathematics", jok(0)),
+      createShelfSetPowerEntry(g, "1-H"),
+    ];
+    g.stock = [jok(1), reg(100), reg(101)];
+    const r = dealFromStock(g);
+    expect(r).not.toBeNull();
+    expect(r!.state.shelf.map((e) => e.kind)).toEqual(["joker", "joker", "set"]);
+    expect(r!.state.shelf[1]!.kind).toBe("joker");
+    expect((r!.state.shelf[1] as { card: { id: number } }).card.id).toBe(1);
   });
 
   it("sends jokers to shelf and still fills each column with regular cards", () => {

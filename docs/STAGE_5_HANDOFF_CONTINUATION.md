@@ -1,8 +1,29 @@
 # Stage 5 handoff — continuation (powers UI + set powers)
 
-**Supersedes** the “codebase reality” table in [STAGE_5_HANDOFF.md](./STAGE_5_HANDOFF.md) for implementation status as of the continuation handoff. Product rules are unchanged: **[WILD_SPIDER_SPEC.md](./WILD_SPIDER_SPEC.md)** (sections **Powers**, **Effects**, Game View).
+**Supersedes** the “codebase reality” table in [STAGE_5_HANDOFF.md](./STAGE_5_HANDOFF.md) for implementation status as of the continuation handoff. Product rules: **[WILD_SPIDER_SPEC.md](./WILD_SPIDER_SPEC.md)** (sections **Sets**, **Powers**, **Effects**, **Shelf**, Game View).
 
 Build checklist (if present): `.cursor/plans/wild_spider_phased_build_9d78c4e6.plan.md` — Stage 5.
+
+**Set powers slice:** Phases 0–7 of the set-powers implementation plan are **done** in code (alignment, shelf UI, triggers, undo, E2E). Per-suit unique set powers and achievement gating remain future work.
+
+---
+
+## Set powers (implemented)
+
+| Area | Location | Status |
+|------|----------|--------|
+| Types + persistence | `ShelfEntry`, `ShelfSetPower`, `alignedSetKeys`, `gameStorage` migration | Done |
+| Alignment | `src/engine/setAlignment.ts` (tableau J–Q–K stack, foundation K–Q–J pile) | Done |
+| Create on move/deal + undo | `applyNewSetAlignments`, `setPowersAdded` on history, `undoSetPowersAdded` | Done |
+| Catalog authoring | `themedSets()` / `baseSets()` per suit in `deckPair*.ts` | Done |
+| Trigger + charge | Same handlers / `triggerTargetedPower` / `armedPowerIdForShelf` set branch | Done |
+| Shelf UI | `ShelfStrip` jokers \| gap \| sets; `SetPowerShelfCard` | Done |
+| Name plates | Shelf set hover; tableau **Set power** when aligned | Done |
+| Tests | `setAlignment.test.ts`, `setPowers.test.ts`, `SetPowerShelfCard.test.tsx`, `ShelfStrip.test.tsx`, `e2e/set-powers.spec.ts` | Done |
+
+**Shipped default (all suits, all pairs):** `POWER_SELECTED_CARD_TRANSPARENT` (Veiled glimpse), **10** charges, duration **5** moves.
+
+**Key files:** `src/engine/setPowers.ts`, `src/lib/setPowerUi.ts`, `src/components/game/SetPowerShelfCard.tsx`, `src/content/setPowers.ts`, `e2e/fixtures/setPowersGame.ts`.
 
 ---
 
@@ -29,7 +50,7 @@ Public power API: **`import { … } from "@/engine/powers"`** (re-exported from 
 |------|------|
 | `src/content/gameContent.ts` | `GAME_CONTENT = { deckPairs, powerDefinitions }` + re-exports |
 | `src/content/deckPairs.ts` | Full deck-pair catalog (~900 lines) |
-| `src/content/powerDefinitions.ts` | `POWER_DEFINITIONS`, `JOKER_POWER_*`, `getPowerDefinition` |
+| `src/content/powerDefinitions.ts` | `POWER_DEFINITIONS`, `POWER_*`, `getPowerDefinition` |
 | `src/content/portraitManifest.ts` | Themed portrait **files** only (courts + jokers) |
 
 **Removed shims:** `src/constants/deckPairs.ts`, `powers.ts`, `portraitManifest.ts` — import from `@/content/...` or `@/constants` barrel (`deckPairs` / `powers` re-export from content).
@@ -43,13 +64,13 @@ jokers: themedJokers({
   pairId: "computerScience",
   deck: 1,
   jokers: [
-    { name: "Ada Lovelace", bio: "…", powerId: JOKER_POWER_RED_ALL_KINGS },
+    { name: "Ada Lovelace", bio: "…", powerId: POWER_ALL_KINGS_TRANSPARENT },
     // slots 1–4 → portrait files from manifest by `${pairId}:${deck}:${slot}`
   ],
 }),
 ```
 
-`themedFaces({ pairId, deck, faces: { S: { j, jBio, … }, … } })` uses the same options-object shape.
+`themedSets({ pairId, deck, sets: { S: { jName, jBio, …, powerId, initialCharges, initialDuration }, … } })` builds court `faces` + per-suit `setPowers` in one place.
 
 - **`name`** comes from catalog only (`def.name`); manifest `name` on jokers is unused.
 - **`powerId`** is per joker in the tuple/object (today all themed pairs: slots 1–2 red, 3–4 black).
@@ -59,10 +80,10 @@ Helpers: `jokerDefinitionForInGameId(pairId, jokerId)`, `allJokersInDeckPair(pai
 
 ### Power definitions (behavior metadata)
 
-| `powerId` | Class | Effect |
-|-----------|--------|--------|
-| `jokerRedAllKingsTransparent` | immediate | `transparent` on all Kings (card ids 0..103 rank 13) |
-| `jokerBlackCardTransparent` | targeted | `transparent` on one valid target |
+| `powerId` (persisted) | TS constant (examples) | Class | Effect |
+|-----------------------|-------------------------|--------|--------|
+| `jokerAllKingsTransparent` | `POWER_ALL_KINGS_TRANSPARENT` | immediate | `transparent` on all Kings |
+| `jokerSelectedCardTransparent` | `POWER_SELECTED_CARD_TRANSPARENT` | targeted | `transparent` on one valid target (jokers **and** set powers) |
 
 Target validation (engine): `isValidBlackJokerCardTarget(state, card, { tableauFaceDown, inStockPopup, deckPopupFaceDown })` — must match actual game state.
 
@@ -72,16 +93,11 @@ Target validation (engine): `isValidBlackJokerCardTarget(state, card, { tableauF
 
 | Area | Status |
 |------|--------|
-| **`gameStore`** | No `triggerImmediatePower` / `triggerTargetedPower` wiring |
-| **`ShelfStrip`** | No double-click to trigger; no charge badges; no power vs set distinction |
-| **`CardView`** | `displayMode="transparent"` still uses **gradient veil** — spec wants **face + `DeckPopupFaceDownBackOverlay`** when face-down + effect |
-| **Effect badges in UI** | `effectCount={0}` hardcoded in `TableauColumn`, `DeckPopup`, `StockPopup`; not reading `game.cardEffects` |
-| **`CardEffectBadges`** | Count badge when `effectCount > 3`; spec says **> 2** |
-| **Power Target mode** | Not in `GameShell` — hover Deck/Stock opens popups while targeting; Escape cancels |
-| **Black joker targeting** | Engine ready; no click handlers on tableau/popup cards |
-| **Set powers** | No alignment detector, no `ShelfSetPower` type, no handlers |
-| **E2E** | No Playwright tests for powers (per plan) |
-| **Spec doc paths** | `WILD_SPIDER_SPEC.md` still mentions `src/constants/deckPairs.ts` / `portraitManifest.ts` |
+| **Per-suit set powers** | All suits share Veiled glimpse (10 / 5); unique powers per deck pair deferred |
+| **Achievement-gated set unlocks** | Stage 6 — spec rules only |
+| **Set shelf Card details** | Shift+inspect dialog for set cards not implemented (optional) |
+| **`CardView`** | `displayMode="transparent"` may still use **gradient veil** in some paths — verify against spec |
+| **Spec doc paths** | Prefer `src/content/deckPairs/` over legacy `src/constants/deckPairs.ts` mentions |
 
 ---
 
@@ -94,8 +110,8 @@ Target validation (engine): `isValidBlackJokerCardTarget(state, card, { tableauF
 5. **`ShelfStrip`** — double-click shelf item; show `chargesRemaining`; disable/depleted at 0.
 6. **`GameShell`** — pointer modes `PowerTarget` / `ValidPowerTarget`; deck/stock bar hover opens popups while targeting; Escape cancels without charge.
 7. **One power end-to-end** — red joker immediate in UI first, then black targeted + undo in UI.
-8. **E2E** — immediate kings transparent + targeted card + undo.
-9. **Set alignment** + set powers (later Stage 5 slice).
+8. **E2E** — joker powers + **`e2e/set-powers.spec.ts`** (align, trigger, undo).
+9. **Per-suit set power content** — replace uniform Veiled glimpse in `deckPair*.ts` when design is ready.
 
 ---
 
@@ -105,7 +121,7 @@ Target validation (engine): `isValidBlackJokerCardTarget(state, card, { tableauF
 2. **Kings transparent in state** — Effect is on all 8 King **ids** even if not in play; foundation kings have effect in state but **no** badge/overlay per spec.
 3. **Undo** — Power trigger counts as a move; `undo()` in `game.ts` uses `undoLastEntry` (increments `undoCount`).
 4. **Base pair** — `jokers: []`; no shelf powers for Base.
-5. **Portrait manifest** — Keys use `deck` 1|2: `${pairId}:${deck}:${slot}` for jokers; `${pairId}:${deck}:${suit}:${rank}` for courts. Court **names** still come from manifest in `themedFaces`; only jokers use catalog `name`.
+5. **Portrait manifest** — Keys use `deck` 1|2: `${pairId}:${deck}:${slot}` for jokers; `${pairId}:${deck}:${suit}:${rank}` for courts. Court **names** come from `themedSets` / `baseSets` catalog input; portrait **files** from manifest.
 6. **Authored joker names vs art** — Catalog names (e.g. “Ada Lovelace” on CS deck 1 slot 1) may not match portrait filenames (e.g. Konrad Zuse) until content is aligned intentionally.
 
 ---
@@ -115,12 +131,14 @@ Target validation (engine): `isValidBlackJokerCardTarget(state, card, { tableauF
 ```
 src/content/
   gameContent.ts          # GAME_CONTENT entry point
-  deckPairs.ts            # deck pairs, themedJokers/themedFaces builders
+  deckPairs/              # deck pairs, themedJokers/themedSets builders
   powerDefinitions.ts     # POWER_DEFINITIONS
   portraitManifest.ts     # file paths (+ unused court/joker names for courts)
 
 src/engine/
-  types.ts                # GameState effects, ShelfJoker, HistoryEntry
+  types.ts                # GameState effects, ShelfEntry, HistoryEntry
+  setAlignment.ts         # aligned set detection
+  setPowers.ts            # shelf set instances, undo hook
   effects.ts              # cardEffectKey, add/remove effects
   game.ts                 # triggerImmediatePower, triggerTargetedPower, undo
   powers/
@@ -131,7 +149,8 @@ src/engine/
 src/components/game/
   CardView.tsx            # needs transparent effect wiring
   CardEffectBadges.tsx    # threshold + real badges
-  ShelfStrip.tsx          # trigger UX
+  ShelfStrip.tsx          # jokers + set powers, trigger UX
+  SetPowerShelfCard.tsx   # composite set shelf card
   GameShell.tsx           # targeting mode
   TableauColumn.tsx       # effectCount from state
   DeckPopup.tsx / StockPopup.tsx
@@ -142,11 +161,12 @@ src/components/game/
 ## Tests
 
 ```bash
-npm test -- --run src/engine/powers src/content
+npm test
+npm run test:e2e -- e2e/set-powers.spec.ts
 npx tsc --noEmit
 ```
 
-All engine tests were green at handoff; UI work is mostly untested.
+Set-power unit and E2E coverage added with the set-powers slice; older handoff rows above may still describe pre-UI gaps for jokers/effects.
 
 ---
 

@@ -7,6 +7,7 @@ import { getDeckPairById } from "@/content/deckPairs";
 import { countPowerTriggers } from "@/engine/history";
 import { computeScore } from "@/engine/scoring";
 import { formatScore } from "@/lib/formatScore";
+import { normalizeNumberOfSuits, numberOfSuitsGameBarLabel } from "@/lib/numberOfSuits";
 import { POWER_TARGET_INVALID_CURSOR_CLASS } from "@/lib/powerTargetUi";
 import type { GameState } from "@/engine/types";
 import { useGameStore } from "@/state/gameStore";
@@ -53,6 +54,7 @@ export function GameBar({
   const powers = countPowerTriggers(game);
   const deckPairName =
     getDeckPairById(game.config.deckPairId)?.name ?? game.config.deckPairId;
+  const suitsLabel = numberOfSuitsGameBarLabel(normalizeNumberOfSuits(game.config.numberOfSuits));
   const seed = game.config.seed;
   const seedShown = deferSeedDisplay ? null : seed;
 
@@ -132,6 +134,9 @@ export function GameBar({
       <div className="flex min-w-0 shrink flex-wrap items-center justify-center gap-x-4 gap-y-1 text-emerald-100/85">
         <span data-testid="game-deck-pair">
           Decks: <span className="text-emerald-50">{deckPairName}</span>
+        </span>
+        <span data-testid="game-suits">
+          Suits: <span className="text-emerald-50">{suitsLabel}</span>
         </span>
         <span data-testid="game-powers">
           Powers: <span className="text-emerald-50">{powers}</span>

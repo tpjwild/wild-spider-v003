@@ -7,6 +7,7 @@ import { applyDealEntriesProgress } from "@/engine/deal";
 import { applyInitialDealEntriesProgress } from "@/engine/initialDeal";
 import { computeScore } from "@/engine/scoring";
 import { formatScore } from "@/lib/formatScore";
+import { normalizeNumberOfSuits } from "@/lib/numberOfSuits";
 import type { GameState } from "@/engine/types";
 import type { DealAnimationState } from "@/state/gameStore";
 import { useGameStore } from "@/state/gameStore";
@@ -115,6 +116,8 @@ export function EndGameDialog() {
                 <dd className="font-mono text-zinc-100">{cfg.columns}</dd>
                 <dt className="text-zinc-500">Deals</dt>
                 <dd className="font-mono text-zinc-100">{cfg.deals}</dd>
+                <dt className="text-zinc-500">Suits (tableau)</dt>
+                <dd className="font-mono text-zinc-100">{normalizeNumberOfSuits(cfg.numberOfSuits)}</dd>
                 <dt className="text-zinc-500">Deck pair</dt>
                 <dd className="text-zinc-100">{deckPairLabel(cfg.deckPairId)}</dd>
                 <dt className="text-zinc-500">Jokers</dt>

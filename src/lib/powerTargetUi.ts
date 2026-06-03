@@ -1,11 +1,11 @@
 import { jokerDefinitionForInGameId } from "@/content/deckPairs";
 import {
-  getPowerDefinition,
   normalizePowerId,
   powerIsCardSwap,
   powerTargetsFoundationSlot,
   powerTargetsTableauColumn,
 } from "@/content/powerDefinitions";
+import { resolvedSetPowerId } from "@/engine/setPowers";
 import {
   isValidTargetedCardTarget,
   isValidTargetedColumnTarget,
@@ -17,6 +17,7 @@ import type { Card, GameState, PowerId } from "@/engine/types";
 export function armedPowerIdForShelf(game: GameState, shelfIndex: number): PowerId | null {
   const entry = game.shelf[shelfIndex];
   if (!entry) return null;
+  if (entry.kind === "set") return resolvedSetPowerId(game.config.deckPairId, entry);
   const fromCatalog = jokerDefinitionForInGameId(game.config.deckPairId, entry.card.id);
   if (fromCatalog) return fromCatalog.powerId;
   return normalizePowerId(entry.powerId);

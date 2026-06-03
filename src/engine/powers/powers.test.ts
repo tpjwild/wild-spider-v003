@@ -3,14 +3,14 @@ import { allJokersInDeckPair } from "@/content/deckPairs";
 import {
   EFFECT_TRANSPARENT,
   getPowerDefinition,
-  JOKER_POWER_2_KINGS_TRANSPARENT,
-  JOKER_POWER_CARD_SWAP,
-  JOKER_POWER_EXTRA_COLUMN,
-  JOKER_POWER_FOUNDATION_RETURN,
-  JOKER_POWER_SELECTED_CARD_TRANSPARENT,
-  JOKER_POWER_SELECTED_CARD_WILD,
-  JOKER_POWER_SELECTED_COLUMN_TRANSPARENT,
-  JOKER_POWER_SELECTED_COLUMN_WILD,
+  POWER_2_KINGS_TRANSPARENT,
+  POWER_CARD_SWAP,
+  POWER_EXTRA_COLUMN,
+  POWER_FOUNDATION_RETURN,
+  POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_SELECTED_CARD_WILD,
+  POWER_SELECTED_COLUMN_TRANSPARENT,
+  POWER_SELECTED_COLUMN_WILD,
   normalizePowerId,
   normalizeShelfJoker,
   powers,
@@ -26,6 +26,7 @@ import {
 } from "@/engine/effects";
 import {
   triggerImmediatePower,
+  triggerCardSwapPower,
   triggerTargetedColumnPower,
   triggerTargetedPower,
   undo,
@@ -41,6 +42,7 @@ import {
 } from "@/engine/powers";
 import { emptyExtraColumnState } from "@/engine/extraColumnState";
 import type { GameState, PowerId, ShelfJoker } from "@/engine/types";
+import { deckNumFromRegularCardId } from "@/lib/deckCardArt";
 
 function baseState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -55,6 +57,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     foundation: [[], [], [], [], [], [], [], []],
     stock: [],
     shelf: [],
+    alignedSetKeys: [],
     cardEffects: {},
     columnEffects: {},
     ...emptyExtraColumnState(),
@@ -66,6 +69,14 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
 
 function kingsInDeck() {
   return buildDoubleDeck().filter((c) => c.rank === 13);
+}
+
+function regularCard(rank: number, suit: "S" | "C" | "D" | "H", deckNum: 1 | 2) {
+  const card = buildDoubleDeck().find(
+    (c) => c.rank === rank && c.suit === suit && deckNumFromRegularCardId(c.id) === deckNum,
+  );
+  if (!card) throw new Error(`Missing regular card rank=${rank} suit=${suit} deck=${deckNum}`);
+  return card;
 }
 
 describe("applyMakeAllKingsTransparent", () => {
@@ -116,6 +127,7 @@ describe("legacy power ids", () => {
     expect(normalizePowerId("jokerBlackCardTransparent")).toBe("jokerSelectedCardTransparent");
     expect(getPowerDefinition("jokerRedAllKingsTransparent").triggerClass).toBe("immediate");
     const legacy = normalizeShelfJoker({
+      kind: "joker",
       card: buildJokers(1)[0]!,
       slot: 1,
       powerId: "jokerRedAllKingsTransparent" as never,
@@ -134,9 +146,9 @@ describe("deckPairs joker catalog", () => {
       expect(j.initialCharges).toBeGreaterThan(0);
     }
     expect(list.find((j) => j.name === "John Backus")?.powerId).toBe(
-      JOKER_POWER_FOUNDATION_RETURN,
+      POWER_FOUNDATION_RETURN,
     );
-    expect(list.find((j) => j.name === "Guido van Rossum")?.powerId).toBe(JOKER_POWER_CARD_SWAP);
+    expect(list.find((j) => j.name === "Guido van Rossum")?.powerId).toBe(POWER_CARD_SWAP);
     expect(list.find((j) => j.name === "John Backus")?.initialCharges).toBe(5);
     expect(list.find((j) => j.name === "Guido van Rossum")?.initialCharges).toBe(5);
   });
@@ -254,6 +266,71 @@ describe("triggerTargetedPower", () => {
   });
 });
 
+describe("triggerCardSwapPower", () => {
+  it("awards a set when swap creates K-Q-J in the middle of a tableau column", () => {
+    const swapJokerIndex = allJokersInDeckPair("computerScience").findIndex(
+      (j) => j.powerId === POWER_CARD_SWAP,
+    );
+    expect(swapJokerIndex).toBeGreaterThanOrEqual(0);
+
+    const kingH = regularCard(13, "H", 1);
+    const queenH = regularCard(12, "H", 1);
+    const jackH = regularCard(11, "H", 1);
+    const fillerBelow = regularCard(5, "C", 1);
+    const fillerMiddle = regularCard(9, "S", 1);
+    const fillerAbove = regularCard(2, "D", 1);
+    const other = regularCard(7, "C", 2);
+
+    const state = baseState({
+      config: {
+        columns: 4,
+        deals: 6,
+        deckPairId: "computerScience",
+        seed: "swap-set-award",
+        jokerCount: 4,
+      },
+      columns: [
+        [
+          { card: fillerBelow, faceUp: true },
+          { card: kingH, faceUp: true },
+          { card: fillerMiddle, faceUp: true },
+          { card: jackH, faceUp: true },
+          { card: fillerAbove, faceUp: true },
+        ],
+        [
+          { card: queenH, faceUp: true },
+          { card: other, faceUp: true },
+        ],
+        [],
+        [],
+      ],
+      shelf: [createShelfJokerEntry("computerScience", { kind: "joker", id: swapJokerIndex })],
+      alignedSetKeys: [],
+    });
+
+    const after = triggerCardSwapPower(
+      state,
+      0,
+      fillerMiddle,
+      queenH,
+      { tableauCard: true },
+      { tableauCard: true },
+    );
+    expect(after).not.toBeNull();
+    expect(after!.alignedSetKeys).toContain("1-H");
+    expect(after!.shelf.some((e) => e.kind === "set" && e.setKey === "1-H")).toBe(true);
+    expect(after!.history[0]).toMatchObject({
+      type: "power_trigger",
+      setPowersAdded: ["1-H"],
+    });
+
+    const restored = undo(after!);
+    expect(restored).not.toBeNull();
+    expect(restored!.alignedSetKeys).not.toContain("1-H");
+    expect(restored!.shelf.some((e) => e.kind === "set" && e.setKey === "1-H")).toBe(false);
+  });
+});
+
 describe("isValidTargetedCardTarget", () => {
   it("returns false when the card already has transparent", () => {
     const d = buildDoubleDeck();
@@ -264,7 +341,7 @@ describe("isValidTargetedCardTarget", () => {
       cardEffects: { [key]: [appliedEffect(EFFECT_TRANSPARENT)] },
     });
     expect(
-      isValidTargetedCardTarget(state, JOKER_POWER_SELECTED_CARD_TRANSPARENT, card, {
+      isValidTargetedCardTarget(state, POWER_SELECTED_CARD_TRANSPARENT, card, {
         tableauFaceDown: true,
       }),
     ).toBe(false);
@@ -280,7 +357,7 @@ describe("isValidTargetedCardTarget", () => {
       columns: [[{ card, faceUp: false }], [], [], []],
     });
     expect(
-      isValidTargetedCardTarget(state, JOKER_POWER_SELECTED_CARD_TRANSPARENT, card, {
+      isValidTargetedCardTarget(state, POWER_SELECTED_CARD_TRANSPARENT, card, {
         tableauFaceDown: true,
       }),
     ).toBe(true);
@@ -297,7 +374,7 @@ describe("cardEffectsForCard", () => {
 
 function shelfWithPower(powerId: PowerId, chargesRemaining = 3): ShelfJoker {
   const joker = buildJokers(1)[0]!;
-  return { card: joker, slot: 3, powerId, chargesRemaining };
+  return { kind: "joker", card: joker, slot: 3, powerId, chargesRemaining };
 }
 
 /** Shelf entry whose catalog row matches `powerId` (western philosophy joker ids). */
@@ -325,23 +402,23 @@ describe("power registry", () => {
   });
 
   it("defines all new joker powers", () => {
-    expect(getPowerDefinition(JOKER_POWER_SELECTED_CARD_WILD).appliesEffect).toBe(EFFECT_WILD);
-    expect(getPowerDefinition(JOKER_POWER_2_KINGS_TRANSPARENT).triggerClass).toBe("immediate");
-    expect(getPowerDefinition(JOKER_POWER_SELECTED_COLUMN_WILD).targetKinds).toContain(
+    expect(getPowerDefinition(POWER_SELECTED_CARD_WILD).appliesEffect).toBe(EFFECT_WILD);
+    expect(getPowerDefinition(POWER_2_KINGS_TRANSPARENT).triggerClass).toBe("immediate");
+    expect(getPowerDefinition(POWER_SELECTED_COLUMN_WILD).targetKinds).toContain(
       "tableauColumn",
     );
-    expect(getPowerDefinition(JOKER_POWER_EXTRA_COLUMN).triggerClass).toBe("targeted");
-    expect(getPowerDefinition(JOKER_POWER_EXTRA_COLUMN).targetKinds).toContain("tableauColumn");
-    expect(getPowerDefinition(JOKER_POWER_FOUNDATION_RETURN).targetKinds).toContain(
+    expect(getPowerDefinition(POWER_EXTRA_COLUMN).triggerClass).toBe("targeted");
+    expect(getPowerDefinition(POWER_EXTRA_COLUMN).targetKinds).toContain("tableauColumn");
+    expect(getPowerDefinition(POWER_FOUNDATION_RETURN).targetKinds).toContain(
       "foundationSlot",
     );
-    expect(getPowerDefinition(JOKER_POWER_CARD_SWAP).targetKinds).toContain("deckPopupCard");
+    expect(getPowerDefinition(POWER_CARD_SWAP).targetKinds).toContain("deckPopupCard");
   });
 
   it("western philosophy Sartre catalog row is Extra Column", () => {
     const sartre = allJokersInDeckPair("westernPhilosophy")[5];
     expect(sartre?.name).toBe("Jean-Paul Sartre");
-    expect(sartre?.powerId).toBe(JOKER_POWER_EXTRA_COLUMN);
+    expect(sartre?.powerId).toBe(POWER_EXTRA_COLUMN);
     expect(sartre?.initialCharges).toBe(10);
     expect(sartre?.initialDuration).toBe(10);
   });
@@ -373,7 +450,7 @@ describe("triggerTargetedPower — card effects", () => {
         jokerCount: 4,
       },
       columns: [[{ card, faceUp: true }], [], [], []],
-      shelf: [shelfWithWesternPhilosophyPower(JOKER_POWER_SELECTED_CARD_WILD)],
+      shelf: [shelfWithWesternPhilosophyPower(POWER_SELECTED_CARD_WILD)],
     });
     const after = triggerTargetedPower(state, 0, card, { tableauCard: true });
     expect(after).not.toBeNull();
@@ -393,7 +470,7 @@ describe("triggerTargetedColumnPower", () => {
         jokerCount: 4,
       },
       columns: [[{ card, faceUp: false }], [], [], []],
-      shelf: [shelfWithWesternPhilosophyPower(JOKER_POWER_SELECTED_COLUMN_TRANSPARENT)],
+      shelf: [shelfWithWesternPhilosophyPower(POWER_SELECTED_COLUMN_TRANSPARENT)],
     });
     const after = triggerTargetedColumnPower(state, 0, 0);
     expect(after).not.toBeNull();
@@ -411,7 +488,7 @@ describe("triggerTargetedColumnPower", () => {
         jokerCount: 4,
       },
       columns: [[], [], [], []],
-      shelf: [shelfWithWesternPhilosophyPower(JOKER_POWER_SELECTED_COLUMN_TRANSPARENT)],
+      shelf: [shelfWithWesternPhilosophyPower(POWER_SELECTED_COLUMN_TRANSPARENT)],
     });
     const after = triggerTargetedColumnPower(state, 0, 1)!;
     const restored = undo(after)!;
@@ -425,7 +502,7 @@ describe("isValidTargetedColumnTarget", () => {
       columnEffects: { 0: [appliedEffect(EFFECT_WILD)] },
     });
     expect(
-      isValidTargetedColumnTarget(state, JOKER_POWER_SELECTED_COLUMN_WILD, 0),
+      isValidTargetedColumnTarget(state, POWER_SELECTED_COLUMN_WILD, 0),
     ).toBe(false);
   });
 
@@ -450,9 +527,9 @@ describe("isValidTargetedColumnTarget", () => {
         { parentColumnIndex: 1, movesRemaining: 5 },
       ],
     });
-    expect(isValidTargetedColumnTarget(state, JOKER_POWER_EXTRA_COLUMN, 0)).toBe(true);
-    expect(isValidTargetedColumnTarget(state, JOKER_POWER_EXTRA_COLUMN, 1)).toBe(true);
-    expect(isValidTargetedColumnTarget(state, JOKER_POWER_EXTRA_COLUMN, 2)).toBe(true);
+    expect(isValidTargetedColumnTarget(state, POWER_EXTRA_COLUMN, 0)).toBe(true);
+    expect(isValidTargetedColumnTarget(state, POWER_EXTRA_COLUMN, 1)).toBe(true);
+    expect(isValidTargetedColumnTarget(state, POWER_EXTRA_COLUMN, 2)).toBe(true);
   });
 });
 
@@ -484,7 +561,7 @@ describe("triggerTargetedColumnPower — extra column", () => {
         seed: "sartre-extra-column",
         jokerCount: 4,
       },
-      shelf: [shelfWithWesternPhilosophyPower(JOKER_POWER_EXTRA_COLUMN)],
+      shelf: [shelfWithWesternPhilosophyPower(POWER_EXTRA_COLUMN)],
     });
     const after = triggerTargetedColumnPower(state, 0, 0);
     expect(after).not.toBeNull();
@@ -509,9 +586,10 @@ describe("triggerTargetedColumnPower — extra column", () => {
     const state = baseState({
       shelf: [
         {
+          kind: "joker",
           card: { kind: "joker", id: 0 },
           slot: 1,
-          powerId: JOKER_POWER_EXTRA_COLUMN,
+          powerId: POWER_EXTRA_COLUMN,
           chargesRemaining: 3,
         },
       ],
@@ -528,9 +606,10 @@ describe("triggerTargetedColumnPower — extra column undo", () => {
       columns: [[{ card, faceUp: true }], [], []],
       shelf: [
         {
+          kind: "joker",
           card: { kind: "joker", id: 0 },
           slot: 1,
-          powerId: JOKER_POWER_EXTRA_COLUMN,
+          powerId: POWER_EXTRA_COLUMN,
           chargesRemaining: 2,
         },
       ],

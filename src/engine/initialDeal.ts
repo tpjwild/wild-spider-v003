@@ -1,4 +1,4 @@
-import { createShelfJokerEntry } from "./powers";
+import { appendShelfJoker, createShelfJokerEntry } from "./powers";
 import { tableauDealColumnOrder } from "./tableauDealLayout";
 import type { GameState, InitialDealEntry, PlacedCard } from "./types";
 
@@ -91,6 +91,7 @@ export function initialDealAnimationBase(
     history: [],
     undoCount: 0,
     shelf: [],
+    alignedSetKeys: finalGame.alignedSetKeys,
     stock: [...fg.stock, ...topSegment],
   };
 }
@@ -113,7 +114,7 @@ export function applyInitialDealEntriesProgress(
 
   const stock = [...base.stock];
   const columns = base.columns.map((col) => [...col]);
-  const shelf = [...base.shelf];
+  let shelf = [...base.shelf];
 
   for (let i = 0; i < landedCount; i++) {
     const e = entries[i]!;
@@ -130,7 +131,7 @@ export function applyInitialDealEntriesProgress(
       if (e.card.kind !== "joker") {
         throw new Error("applyInitialDealEntriesProgress: shelf flight requires a joker card");
       }
-      shelf.push(createShelfJokerEntry(base.config.deckPairId, e.card));
+      shelf = appendShelfJoker(shelf, createShelfJokerEntry(base.config.deckPairId, e.card));
     }
   }
 

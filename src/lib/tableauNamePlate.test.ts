@@ -22,6 +22,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     config: { seed: "t", deckPairId: "base", columns: 10, deals: 5, jokerCount: 0 },
     stock: [],
     shelf: [],
+    alignedSetKeys: [],
     foundation: [],
     columns: Array.from({ length: 10 }, () => []),
     history: [],
@@ -43,6 +44,42 @@ describe("tableauNamePlate", () => {
     expect(model.heading).toContain("Base Deck (Blue)");
     expect(model.isFaceCard).toBe(true);
     expect(model.set).toBe("Blue Deck Hearts - Base Hearts");
+  });
+
+  it("set power line shows catalog power name when set is aligned", () => {
+    const card = reg(102, 13, "C");
+    const placed = { card, faceUp: true };
+    const state = baseState({
+      config: {
+        seed: "t",
+        deckPairId: WESTERN_PHILOSOPHY_ID,
+        columns: 10,
+        deals: 5,
+        jokerCount: 0,
+      },
+      alignedSetKeys: ["2-C"],
+      columns: [[placed], ...Array.from({ length: 9 }, () => [])],
+    });
+    const model = tableauNamePlateFromCard(state, 0, placed)!;
+    expect(model.setPower).toBe("Veiled glimpse");
+  });
+
+  it("set power line is blank when set is not aligned", () => {
+    const card = reg(102, 13, "C");
+    const placed = { card, faceUp: true };
+    const state = baseState({
+      config: {
+        seed: "t",
+        deckPairId: WESTERN_PHILOSOPHY_ID,
+        columns: 10,
+        deals: 5,
+        jokerCount: 0,
+      },
+      alignedSetKeys: [],
+      columns: [[placed], ...Array.from({ length: 9 }, () => [])],
+    });
+    const model = tableauNamePlateFromCard(state, 0, placed)!;
+    expect(model.setPower).toBe("");
   });
 
   it("set line for themed pair: Color Deck Suit - short deck theme", () => {

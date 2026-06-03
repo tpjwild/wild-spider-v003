@@ -23,10 +23,9 @@ export function useAuth(): AuthContextValue {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const bypass = !isSupabaseConfigured();
-  const [loading, setLoading] = useState(() => {
-    if (bypass) return false;
-    return Boolean(getSupabaseBrowserClient());
-  });
+  // Always start loading when Supabase is configured so SSR and the first client
+  // paint match; session is resolved in useEffect only.
+  const [loading, setLoading] = useState(() => !bypass);
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {

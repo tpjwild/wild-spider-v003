@@ -16,6 +16,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     config: { seed: "t", deckPairId: "base", columns: 10, deals: 5, jokerCount: 0 },
     stock: [],
     shelf: [],
+    alignedSetKeys: [],
     foundation: [],
     columns: Array.from({ length: 10 }, () => []),
     history: [],
@@ -56,4 +57,5 @@ describe("TableauDragStackPreview", () => {
 
     expect(container.querySelectorAll("[data-effect-badge-glyph]").length).toBe(0);
   });
+
 });

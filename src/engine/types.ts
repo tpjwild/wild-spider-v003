@@ -65,14 +65,30 @@ export type PowerId =
   | "jokerFoundationReturn"
   | "jokerCardSwap";
 
+/** Stable id for an aligned court set — `${deckNum}-${suit}` (same as {@link courtSetKey}). */
+export type SetKey = `${1 | 2}-${Suit}`;
+
 /** One joker sitting on the shelf after being dealt from stock */
 export type ShelfJoker = {
+  kind: "joker";
   card: JokerCard;
   /** Portrait slot 1–4 when placed (drives art and {@link powerId}). */
   slot: JokerPortraitSlot;
   powerId: PowerId;
   chargesRemaining: number;
 };
+
+/** Set power instance on the shelf after alignment (K/Q/J same deck + suit). */
+export type ShelfSetPower = {
+  kind: "set";
+  setKey: SetKey;
+  deckNum: 1 | 2;
+  suit: Suit;
+  powerId: PowerId;
+  chargesRemaining: number;
+};
+
+export type ShelfEntry = ShelfJoker | ShelfSetPower;
 
 export type FoundationIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -84,6 +100,13 @@ export type InitialDealEntry = {
 };
 
 import type { ExtraColumnTopologySnapshot } from "./extraColumnTopology";
+
+/** Snapshot of timed card/column effects and extra-column links before a move/deal tick. */
+export type TimedEffectsSnapshot = {
+  cardEffects: Record<CardEffectKey, AppliedEffect[]>;
+  columnEffects: Record<number, AppliedEffect[]>;
+  extraColumnLinks: ExtraColumnLink[];
+};
 
 /** Snapshot of a card slot before a card-swap power (for undo). */
 export type CardSlotSnapshot =
@@ -100,6 +123,10 @@ export type HistoryEntry =
       count: number;
       /** Face-up state of card at startIndex-1 before the forward move (before flip) */
       revealedWasFaceUp: boolean;
+      /** Set powers created by this move (undo removes shelf entries + alignedSetKeys). */
+      setPowersAdded?: SetKey[];
+      /** Timed effects / extra-column links before this move's duration tick (undo restores). */
+      timedEffectsBeforeTick?: TimedEffectsSnapshot;
     }
   | {
       type: "move_to_foundation";
@@ -110,11 +137,15 @@ export type HistoryEntry =
       foundationIndex: FoundationIndex;
       /** Face-up state of card at startIndex-1 before the forward move (before flip) */
       revealedWasFaceUp: boolean;
+      setPowersAdded?: SetKey[];
+      timedEffectsBeforeTick?: TimedEffectsSnapshot;
     }
   | {
       type: "deal";
       /** Each stock pop in order; tableauColumn null means joker went to shelf */
       entries: { card: Card; tableauColumn: number | null }[];
+      setPowersAdded?: SetKey[];
+      timedEffectsBeforeTick?: TimedEffectsSnapshot;
     }
   | {
       type: "power_trigger";
@@ -123,6 +154,8 @@ export type HistoryEntry =
       /** Effects added by this trigger (for undo). */
       cardEffectsAdded: { key: CardEffectKey; effect: EffectId }[];
       columnEffectsAdded: { columnIndex: number; effect: EffectId }[];
+      /** Set powers created by this trigger when it repositions cards (e.g. Card Swap). */
+      setPowersAdded?: SetKey[];
       /** Present when Extra Column (or future structural column powers) changes tableau topology. */
       extraColumnTopologyBefore?: ExtraColumnTopologySnapshot;
       /** Foundation Return: card returned from foundation to tableau. */
@@ -146,6 +179,9 @@ export type ExtraColumnLink = {
 
 export type ColumnFlagsEntry = { isExtraChild: true };
 
+/** Tableau suit-matching mode; foundation always uses physical suits. */
+export type NumberOfSuits = 1 | 2 | 4;
+
 export type GameConfig = {
   /** Initial deal width only; {@link GameState.columns} may grow with Extra Column. */
   columns: number;
@@ -155,6 +191,11 @@ export type GameConfig = {
   seed: string;
   /** 0..4 jokers, all start in stock after shuffle */
   jokerCount: number;
+  /**
+   * Tableau only: 4 = normal suits; 2 = all cards half-wild; 1 = all cards wild.
+   * Omitted in older saves — treated as 4.
+   */
+  numberOfSuits?: NumberOfSuits;
 };
 
 export type GameState = {
@@ -164,7 +205,9 @@ export type GameState = {
   foundation: PlacedCard[][];
   /** Bottom = index 0, top = last; dealing pops from top */
   stock: Card[];
-  shelf: ShelfJoker[];
+  shelf: ShelfEntry[];
+  /** Set keys that already have a shelf power instance (append order independent). */
+  alignedSetKeys: readonly SetKey[];
   /** Per-card effects keyed by {@link cardEffectKey}. */
   cardEffects: Record<CardEffectKey, AppliedEffect[]>;
   /** Per-tableau-column effects (column index → effect list). */

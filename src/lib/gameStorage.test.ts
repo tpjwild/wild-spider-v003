@@ -74,6 +74,29 @@ describe("gameStorage last new-game defaults", () => {
     expect(parsed!.columnFlags).toEqual({});
   });
 
+  it("parseStoredGameState migrates legacy shelf entries without kind", () => {
+    const g = newGame({
+      columns: 4,
+      deals: 5,
+      deckPairId: DEFAULT_DECK_PAIR_ID,
+      seed: "04-005-BAS-11111111111111",
+      jokerCount: 0,
+    });
+    const legacy = JSON.parse(JSON.stringify(g)) as Record<string, unknown>;
+    legacy.shelf = [
+      {
+        card: { kind: "joker", id: 0 },
+        slot: 1,
+        powerId: "jokerAllKingsTransparent",
+        chargesRemaining: 3,
+      },
+    ];
+    delete legacy.alignedSetKeys;
+    const parsed = parseStoredGameState(legacy);
+    expect(parsed!.alignedSetKeys).toEqual([]);
+    expect(parsed!.shelf[0]).toMatchObject({ kind: "joker" });
+  });
+
   it("parseStoredGameState fills extra column defaults on older saves", () => {
     const g = newGame({
       columns: 4,
@@ -167,6 +190,7 @@ describe("gameStorage last new-game defaults", () => {
     expect(cfg.deals).toBe(6);
     expect(cfg.deckPairId).toBe(DEFAULT_DECK_PAIR_ID);
     expect(cfg.jokerCount).toBe(0);
-    expect(cfg.seed).toMatch(/^\d{2}-\d{3}-BAS-\d{14}$/);
+    expect(cfg.numberOfSuits).toBe(4);
+    expect(cfg.seed).toMatch(/^\d{2}-\d{3}-4-BAS-\d{14}$/);
   });
 });

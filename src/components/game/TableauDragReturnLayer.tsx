@@ -5,16 +5,16 @@ import { createPortal } from "react-dom";
 import { TableauDragStackPreview } from "@/components/game/TableauDragStackPreview";
 import { layoutIdDropTransition } from "@/constants/timings";
 import type { GameState } from "@/engine/types";
-import type { TableauOverlayReturnFlight } from "@/lib/tableauDragReturnFlight";
+import type { TableauOverlayFlight } from "@/lib/tableauDragReturnFlight";
 
-/** Fixed-position flight from drop point back to the source column (invalid drop / cancel). */
+/** Fixed-position flight for invalid-drop return or successful tableau column drop. */
 export function TableauDragReturnLayer({
   flight,
   applyHoverScale,
   onComplete,
   game,
 }: {
-  flight: TableauOverlayReturnFlight;
+  flight: TableauOverlayFlight;
   applyHoverScale: boolean;
   onComplete: () => void;
   game: GameState;
@@ -34,7 +34,7 @@ export function TableauDragReturnLayer({
         cards={flight.cards}
         applyHoverScale={applyHoverScale}
         game={game}
-        columnIndex={flight.fromCol}
+        columnIndex={flight.columnIndex}
       />
     </motion.div>,
     document.body,

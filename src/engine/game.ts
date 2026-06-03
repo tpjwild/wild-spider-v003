@@ -9,8 +9,9 @@ import {
   type BlackJokerTargetContext,
 } from "./powers";
 import { applyMoveTableau, applyMoveToFoundation } from "./moves";
+import { applyNewSetAlignments, withSetPowersOnHistoryEntry } from "./setPowers";
 import { createInitialState } from "./setup";
-import { tickEffectDurations } from "./effects";
+import { snapshotTimedEffectsState, tickEffectDurations } from "./effects";
 import { tickExtraColumnLinks } from "./extraColumn";
 import type {
   Card,
@@ -20,6 +21,7 @@ import type {
   HistoryEntry,
   MoveTableauArgs,
   MoveToFoundationArgs,
+  TimedEffectsSnapshot,
 } from "./types";
 
 export function newGame(config: GameConfig): GameState {
@@ -29,7 +31,7 @@ export function newGame(config: GameConfig): GameState {
 export function moveTableau(state: GameState, args: MoveTableauArgs): GameState | null {
   const r = applyMoveTableau(state, args);
   if (!r) return null;
-  return appendHistory(r.state, r.history);
+  return finalizePlayerMove(r.state, r.history);
 }
 
 export function moveToFoundation(
@@ -38,14 +40,36 @@ export function moveToFoundation(
 ): GameState | null {
   const r = applyMoveToFoundation(state, args);
   if (!r) return null;
-  return appendHistory(r.state, r.history);
+  return finalizePlayerMove(r.state, r.history);
 }
 
 export function dealStock(state: GameState): GameState | null {
   const r = dealFromStock(state);
   if (!r) return null;
-  return appendHistory(r.state, r.history);
+  return finalizePlayerMove(r.state, r.history);
 }
+
+function withTimedEffectsBeforeTick(
+  entry: HistoryEntry,
+  snapshot: TimedEffectsSnapshot,
+): HistoryEntry {
+  switch (entry.type) {
+    case "move_tableau":
+    case "move_to_foundation":
+    case "deal":
+      return { ...entry, timedEffectsBeforeTick: snapshot };
+    default:
+      return entry;
+  }
+}
+
+function finalizePlayerMove(state: GameState, historyEntry: HistoryEntry): GameState {
+  const { state: withSets, setPowersAdded } = applyNewSetAlignments(state);
+  const entry = withSetPowersOnHistoryEntry(historyEntry, setPowersAdded);
+  return appendHistory(withSets, entry);
+}
+
+export { finalizePlayerMove };
 
 function shouldTickEffectDurations(entry: HistoryEntry): boolean {
   return (
@@ -56,11 +80,16 @@ function shouldTickEffectDurations(entry: HistoryEntry): boolean {
 }
 
 function appendHistory(state: GameState, entry: HistoryEntry): GameState {
+  const timedSnapshot = shouldTickEffectDurations(entry)
+    ? snapshotTimedEffectsState(state)
+    : null;
+  const entryWithSnapshot =
+    timedSnapshot != null ? withTimedEffectsBeforeTick(entry, timedSnapshot) : entry;
   const withHistory = {
     ...state,
-    history: [...state.history, entry],
+    history: [...state.history, entryWithSnapshot],
   };
-  if (!shouldTickEffectDurations(entry)) return withHistory;
+  if (!shouldTickEffectDurations(entryWithSnapshot)) return withHistory;
   return tickExtraColumnLinks(tickEffectDurations(withHistory));
 }
 
@@ -118,7 +147,9 @@ export function triggerCardSwapPower(
 ): GameState | null {
   const r = applyCardSwapPower(state, shelfIndex, firstCard, secondCard, firstContext, secondContext);
   if (!r) return null;
-  return appendHistory(r.state, r.history);
+  const { state: withSets, setPowersAdded } = applyNewSetAlignments(r.state);
+  const entry = withSetPowersOnHistoryEntry(r.history, setPowersAdded);
+  return appendHistory(withSets, entry);
 }
 
 export type { BlackJokerTargetContext };

@@ -1,5 +1,6 @@
 import { validateGameConfig } from "@/engine/setup";
 import type { GameConfig } from "@/engine/types";
+import { normalizeNumberOfSuits } from "@/lib/numberOfSuits";
 
 /** Clipboard / paste prefix for v1 encoded setup (plain game seeds must not start with this exact prefix). */
 export const SHAREABLE_SETUP_PREFIX = "ws1:";
@@ -28,6 +29,7 @@ type ShareablePayloadV1 = {
   deals: number;
   jokerCount: number;
   deckPairId: string;
+  numberOfSuits?: number;
 };
 
 /** One-line string (e.g. for sharing): includes seed and full layout so the same deal can be reconstructed when pasted into New Game. */
@@ -40,6 +42,7 @@ export function encodeShareableGameSetup(config: GameConfig): string {
     deals: config.deals,
     jokerCount: config.jokerCount,
     deckPairId: config.deckPairId,
+    numberOfSuits: normalizeNumberOfSuits(config.numberOfSuits),
   };
   return SHAREABLE_SETUP_PREFIX + base64UrlEncodeUtf8(JSON.stringify(payload));
 }
@@ -61,6 +64,7 @@ export function decodeShareableGameSetup(raw: string): GameConfig | null {
       deals: Number(o.deals),
       jokerCount: Number(o.jokerCount),
       deckPairId: String(o.deckPairId),
+      numberOfSuits: normalizeNumberOfSuits(o.numberOfSuits),
     };
     validateGameConfig(cfg);
     return cfg;

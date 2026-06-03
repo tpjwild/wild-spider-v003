@@ -34,6 +34,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     foundation: [[], [], [], [], [], [], [], []],
     stock: [],
     shelf: [],
+    alignedSetKeys: [],
     cardEffects: {},
     columnEffects: {},
     ...emptyExtraColumnState(),

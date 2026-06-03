@@ -11,6 +11,7 @@ export type {
   DeckFaceRank,
   DeckInPair,
   DeckJokerCard,
+  DeckSetPower,
   DeckPairDefinition,
   DeckPairId,
   SuitTheme,
@@ -18,7 +19,9 @@ export type {
 export { deckEntry } from "@/content/deckPairs/deckEntry";
 export { rankSuitImageStem } from "@/content/deckPairs/types";
 
-export type { ThemedJokerInput } from "@/content/deckPairs/builders";
+export type { ThemedJokerInput, ThemedSetSuitInput } from "@/content/deckPairs/builders";
+export { baseSets, themedSets } from "@/content/deckPairs/builders";
+export type { ThemedSetsResult } from "@/content/deckPairs/builders";
 
 export { DEFAULT_DECK_PAIR_ID, basePair } from "@/content/deckPairs/deckPairBase";
 export { COMPUTER_SCIENCE_ID, computerSciencePair } from "@/content/deckPairs/deckPairComputerScience";
@@ -29,7 +32,8 @@ import { basePair } from "@/content/deckPairs/deckPairBase";
 import { computerSciencePair } from "@/content/deckPairs/deckPairComputerScience";
 import { mathematicsPair } from "@/content/deckPairs/deckPairMathematics";
 import { westernPhilosophyPair } from "@/content/deckPairs/deckPairWesternPhilosophy";
-import type { DeckJokerCard, DeckPairDefinition } from "@/content/deckPairs/types";
+import type { DeckJokerCard, DeckPairDefinition, DeckSetPower } from "@/content/deckPairs/types";
+import type { Suit } from "@/engine/types";
 
 /** Product registry: stable menu order — Base, Computer Science, Western Philosophy, Mathematics. */
 export const deckPairs: readonly DeckPairDefinition[] = [
@@ -58,6 +62,29 @@ export function jokerDefinitionForInGameId(
   const list = allJokersInDeckPair(pairId);
   if (list.length === 0) return undefined;
   return list[jokerId % list.length];
+}
+
+/** Flattened set-power catalog for a pair (deck 1 suits S→H, then deck 2). */
+export function allSetPowersInDeckPair(
+  pairId: string,
+): readonly { deckNum: 1 | 2; def: DeckSetPower }[] {
+  const p = getDeckPairById(pairId);
+  if (!p) return [];
+  return [
+    ...p.decks[0].setPowers.map((def) => ({ deckNum: 1 as const, def })),
+    ...p.decks[1].setPowers.map((def) => ({ deckNum: 2 as const, def })),
+  ];
+}
+
+/** Catalog row for an aligned court set (deck 1 or 2, suit S/C/D/H). */
+export function setPowerDefinitionForSet(
+  pairId: string,
+  deckNum: 1 | 2,
+  suit: Suit,
+): DeckSetPower | undefined {
+  const p = getDeckPairById(pairId);
+  if (!p) return undefined;
+  return p.decks[deckNum - 1].setPowers.find((row) => row.suit === suit);
 }
 
 /** Whether the pair can be selected in New Game and opened in Deck Pair Details (Stage 6 may tighten this). */

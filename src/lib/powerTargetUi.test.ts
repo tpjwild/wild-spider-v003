@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  JOKER_POWER_EXTRA_COLUMN,
-  JOKER_POWER_SELECTED_CARD_SKIP2,
-  JOKER_POWER_SELECTED_CARD_TRANSPARENT,
-  JOKER_POWER_SELECTED_COLUMN_TRANSPARENT,
+  POWER_EXTRA_COLUMN,
+  POWER_SELECTED_CARD_SKIP2,
+  POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_SELECTED_COLUMN_TRANSPARENT,
 } from "@/content/powerDefinitions";
+import { createShelfSetPowerEntry } from "@/engine/setPowers";
 import { triggerTargetedPower } from "@/engine/game";
 import { hasCardEffect } from "@/engine/effects";
 import { EFFECT_SKIP2 } from "@/content/effectDefinitions";
@@ -17,12 +18,18 @@ import {
   isColumnTargetingPower,
   isTableauColumnPowerTarget,
   isDeckPopupPowerTarget,
+  isStockPopupPowerTarget,
   isTableauPowerTarget,
   powerTargetCursorClass,
   POWER_TARGET_INVALID_CURSOR_CLASS,
   POWER_TARGET_VALID_CURSOR_CLASS,
   tableauPowerTargetContextForCommit,
 } from "@/lib/powerTargetUi";
+import {
+  powerTargetsDeckPopup,
+  powerTargetsStockPopup,
+  powerTargetsTableauColumn,
+} from "@/content/powerDefinitions";
 
 function baseState(overrides: Partial<GameState> = {}): GameState {
   const d = buildDoubleDeck();
@@ -39,6 +46,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     foundation: [[], [], [], [], [], [], [], []],
     stock: [],
     shelf: [],
+    alignedSetKeys: [],
     cardEffects: {},
     columnEffects: {},
     ...emptyExtraColumnState(),
@@ -94,7 +102,7 @@ describe("powerTargetUi", () => {
       stock: [inStock],
       shelf: shelfWithCatalogPower("westernPhilosophy", 6),
     });
-    expect(armedPowerIdForShelf(game, 0)).toBe(JOKER_POWER_SELECTED_CARD_SKIP2);
+    expect(armedPowerIdForShelf(game, 0)).toBe(POWER_SELECTED_CARD_SKIP2);
     expect(isDeckPopupPowerTarget(game, faceDownOnTableau, true, 0)).toBe(true);
     expect(isDeckPopupPowerTarget(game, faceUpOnTableau, false, 0)).toBe(true);
     expect(isDeckPopupPowerTarget(game, inStock, true, 0)).toBe(true);
@@ -115,7 +123,7 @@ describe("powerTargetUi", () => {
       shelf: shelfWithCatalogPower("westernPhilosophy", 5),
     });
     expect(createShelfJokerEntry("westernPhilosophy", { kind: "joker", id: 5 }).powerId).toBe(
-      JOKER_POWER_EXTRA_COLUMN,
+      POWER_EXTRA_COLUMN,
     );
     expect(isTableauColumnPowerTarget(game, 0, 0)).toBe(true);
     const chained = baseState({
@@ -132,8 +140,8 @@ describe("powerTargetUi", () => {
 
   it("armedPowerIdForShelf uses western philosophy catalog for Wittgenstein joker id", () => {
     const wittgenstein = createShelfJokerEntry("westernPhilosophy", { kind: "joker", id: 7 });
-    expect(wittgenstein.powerId).toBe(JOKER_POWER_SELECTED_COLUMN_TRANSPARENT);
-    const mismatchedShelf = [{ ...wittgenstein, powerId: JOKER_POWER_SELECTED_CARD_TRANSPARENT }];
+    expect(wittgenstein.powerId).toBe(POWER_SELECTED_COLUMN_TRANSPARENT);
+    const mismatchedShelf = [{ ...wittgenstein, powerId: POWER_SELECTED_CARD_TRANSPARENT }];
     const game = baseState({ shelf: mismatchedShelf });
     expect(isColumnTargetingPower(game, 0)).toBe(true);
     const card = buildDoubleDeck().find((c) => c.rank === 4)!;
@@ -168,5 +176,32 @@ describe("powerTargetUi", () => {
     expect(tableauPowerTargetContextForCommit(game, card, false, 0)).toEqual({
       tableauFaceDown: true,
     });
+  });
+
+  it("armedPowerIdForShelf uses set placeholder catalog for set shelf entries", () => {
+    const card = buildDoubleDeck().find((c) => c.rank === 4)!;
+    const game = baseState({
+      shelf: [createShelfSetPowerEntry(baseState(), "2-S")],
+    });
+    expect(armedPowerIdForShelf(game, 0)).toBe(POWER_SELECTED_CARD_TRANSPARENT);
+    expect(isTableauPowerTarget(game, card, false, 0)).toBe(true);
+  });
+
+  it("set shelf transparent power exposes deck and stock popup targets", () => {
+    const faceDownOnTableau = buildDoubleDeck().find((c) => c.rank === 4)!;
+    const inStock = buildDoubleDeck().find((c) => c.rank === 6)!;
+    const game = baseState({
+      columns: [[{ card: faceDownOnTableau, faceUp: false }], [], [], []],
+      stock: [inStock],
+      shelf: [createShelfSetPowerEntry(baseState(), "1-H")],
+    });
+    const powerId = armedPowerIdForShelf(game, 0)!;
+    expect(powerId).toBe(POWER_SELECTED_CARD_TRANSPARENT);
+    expect(powerTargetsDeckPopup(powerId)).toBe(true);
+    expect(powerTargetsStockPopup(powerId)).toBe(true);
+    expect(powerTargetsTableauColumn(powerId)).toBe(false);
+    expect(isDeckPopupPowerTarget(game, faceDownOnTableau, true, 0)).toBe(true);
+    expect(isStockPopupPowerTarget(game, inStock, 0)).toBe(true);
+    expect(isColumnTargetingPower(game, 0)).toBe(false);
   });
 });

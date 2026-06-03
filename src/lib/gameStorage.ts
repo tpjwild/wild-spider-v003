@@ -1,13 +1,26 @@
 import { DEFAULT_DECK_PAIR_ID, deckPairs, maxJokersInPlayForDeckPair } from "@/content/deckPairs";
-import { normalizeShelfJoker } from "@/content/powerDefinitions";
-import { syncShelfJokerPowerFromCatalog } from "@/engine/powers";
+import { normalizePowerId, normalizeShelfJoker } from "@/content/powerDefinitions";
+import {
+  normalizeShelfPartition,
+  syncShelfJokerPowerFromCatalog,
+  syncShelfSetPowerFromCatalog,
+} from "@/engine/powers";
 import { emptyExtraColumnState, normalizeExtraColumnState } from "@/engine/extraColumnState";
 import { emptyEffectsState, normalizeEffectsState } from "@/engine/effects";
 import { stripEphemeralGameState } from "@/engine/initialDeal";
 import { createShelfJokerEntry } from "@/engine/powers";
 import { validateGameConfig } from "@/engine/setup";
-import type { GameConfig, GameState, ShelfJoker } from "@/engine/types";
+import type {
+  GameConfig,
+  GameState,
+  JokerCard,
+  SetKey,
+  ShelfEntry,
+  ShelfJoker,
+  ShelfSetPower,
+} from "@/engine/types";
 import { formatFormattedGameSeed, newRandomShuffleKey } from "@/lib/formattedGameSeed";
+import { normalizeNumberOfSuits } from "@/lib/numberOfSuits";
 
 const STORAGE_KEY = "wild-spider-game-v1";
 const LAST_NEW_GAME_DEFAULTS_KEY = "wild-spider-last-new-game-defaults-v1";
@@ -52,11 +65,58 @@ export function loadLastNewGameDefaults(): GameConfig | null {
     }
     const maxJ = Math.min(8, maxJokersInPlayForDeckPair(parsed.deckPairId));
     parsed.jokerCount = Math.min(Math.max(0, parsed.jokerCount), maxJ);
+    parsed.numberOfSuits = normalizeNumberOfSuits(parsed.numberOfSuits);
     validateGameConfig(parsed);
     return parsed;
   } catch {
     return null;
   }
+}
+
+function normalizeShelfSetPower(entry: ShelfSetPower, deckPairId: string): ShelfSetPower {
+  const powerId = normalizePowerId(entry.powerId);
+  const withPower = powerId === entry.powerId ? entry : { ...entry, powerId };
+  return syncShelfSetPowerFromCatalog(deckPairId, withPower);
+}
+
+function normalizeLegacyShelfJokerEntry(
+  entry: Record<string, unknown>,
+  deckPairId: string,
+): ShelfJoker {
+  const legacy = entry as Omit<ShelfJoker, "kind"> & { kind?: string };
+  const withKind: ShelfJoker =
+    legacy.kind === "joker"
+      ? (legacy as ShelfJoker)
+      : {
+          kind: "joker",
+          card: legacy.card,
+          slot: legacy.slot,
+          powerId: legacy.powerId,
+          chargesRemaining: legacy.chargesRemaining,
+        };
+  const normalized = normalizeShelfJoker(withKind);
+  return syncShelfJokerPowerFromCatalog(deckPairId, normalized);
+}
+
+function normalizeShelfEntry(entry: unknown, deckPairId: string): ShelfEntry {
+  if (!entry || typeof entry !== "object") {
+    throw new Error("Invalid shelf entry");
+  }
+  const raw = entry as Record<string, unknown>;
+  if (raw.kind === "set") {
+    return normalizeShelfSetPower(raw as ShelfSetPower, deckPairId);
+  }
+  if (
+    raw.kind === "joker" ||
+    ("powerId" in raw && "chargesRemaining" in raw && "slot" in raw && "card" in raw)
+  ) {
+    return normalizeLegacyShelfJokerEntry(raw, deckPairId);
+  }
+  const card = raw.card as JokerCard | undefined;
+  if (card?.kind === "joker") {
+    return createShelfJokerEntry(deckPairId, card);
+  }
+  throw new Error("Invalid shelf entry");
 }
 
 /** Parse persisted JSON (localStorage or Supabase `state` column). Returns null if invalid. */
@@ -76,6 +136,7 @@ export function parseStoredGameState(value: unknown): GameState | null {
     const cfg = parsed.config as GameConfig;
     const maxJ = Math.min(8, maxJokersInPlayForDeckPair(cfg.deckPairId));
     cfg.jokerCount = Math.min(Math.max(0, cfg.jokerCount), maxJ);
+    cfg.numberOfSuits = normalizeNumberOfSuits(cfg.numberOfSuits);
     validateGameConfig(cfg);
     if (!Array.isArray(parsed.history)) return null;
     return normalizeStoredGameState(parsed);
@@ -87,24 +148,16 @@ export function parseStoredGameState(value: unknown): GameState | null {
 /** Fills Stage 5 fields missing from older persisted saves. */
 export function normalizeStoredGameState(parsed: GameState): GameState {
   const effects = emptyEffectsState();
-  const extra = emptyExtraColumnState();
-  const shelf: ShelfJoker[] = (parsed.shelf ?? []).map((entry) => {
-    if (
-      entry &&
-      typeof entry === "object" &&
-      "powerId" in entry &&
-      "chargesRemaining" in entry &&
-      "slot" in entry
-    ) {
-      const normalized = normalizeShelfJoker(entry as ShelfJoker);
-      return syncShelfJokerPowerFromCatalog(parsed.config.deckPairId, normalized);
-    }
-    const card = (entry as { card: ShelfJoker["card"] }).card;
-    return createShelfJokerEntry(parsed.config.deckPairId, card);
-  });
+  const shelf = normalizeShelfPartition(
+    (parsed.shelf ?? []).map((entry) => normalizeShelfEntry(entry, parsed.config.deckPairId)),
+  );
+  const alignedSetKeys: readonly SetKey[] = Array.isArray(parsed.alignedSetKeys)
+    ? parsed.alignedSetKeys
+    : [];
   return {
     ...parsed,
     shelf,
+    alignedSetKeys,
     ...normalizeEffectsState({
       cardEffects: parsed.cardEffects ?? effects.cardEffects,
       columnEffects: parsed.columnEffects ?? effects.columnEffects,
@@ -150,7 +203,8 @@ export function resolvedGameConfigForEmptyShell(): GameConfig {
     columns: 8,
     deals: 6,
     deckPairId: DEFAULT_DECK_PAIR_ID,
-    seed: formatFormattedGameSeed(8, 6, pairCode, newRandomShuffleKey()),
+    seed: formatFormattedGameSeed(8, 6, 4, pairCode, newRandomShuffleKey()),
     jokerCount: 0,
+    numberOfSuits: 4,
   };
 }

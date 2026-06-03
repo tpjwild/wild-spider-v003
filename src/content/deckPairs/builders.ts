@@ -7,7 +7,12 @@ import {
 } from "@/constants/gameArtPaths";
 import { THEMED_COURT_PORTRAITS, THEMED_JOKER_PORTRAITS } from "@/content/portraitManifest";
 import type { PowerId, Suit } from "@/engine/types";
-import type { DeckFaceCard, DeckFaceRank, DeckJokerCard } from "@/content/deckPairs/types";
+import type {
+  DeckFaceCard,
+  DeckFaceRank,
+  DeckJokerCard,
+  DeckSetPower,
+} from "@/content/deckPairs/types";
 
 const SUITS_ORDER: readonly Suit[] = ["S", "C", "D", "H"];
 
@@ -17,23 +22,34 @@ function courtPortraitKey(pairId: ThemedPairId, deck: 1 | 2, suit: Suit, rank: D
   return `${pairId}:${deck}:${suit}:${rank}`;
 }
 
-type ThemedFaceSuitRow = {
+/** Per suit: court card copy plus shelf set-power catalog (like joker slots). */
+export type ThemedSetSuitInput = {
   jName: string;
   jBio: string;
   qName: string;
   qBio: string;
   kName: string;
   kBio: string;
+  powerId: PowerId;
+  initialCharges: number;
+  /** null = permanent effects. */
+  initialDuration: number | null;
 };
 
-type ThemedFacesArgs = {
+export type ThemedSetsResult = {
+  faces: readonly DeckFaceCard[];
+  setPowers: readonly DeckSetPower[];
+};
+
+type ThemedSetsArgs = {
   pairId: ThemedPairId;
   deck: 1 | 2;
-  faces: Record<Suit, ThemedFaceSuitRow>;
+  sets: Record<Suit, ThemedSetSuitInput>;
 };
 
-export function themedFaces({ pairId, deck, faces: bySuit }: ThemedFacesArgs): readonly DeckFaceCard[] {
-  const out: DeckFaceCard[] = [];
+export function themedSets({ pairId, deck, sets: bySuit }: ThemedSetsArgs): ThemedSetsResult {
+  const faces: DeckFaceCard[] = [];
+  const setPowers: DeckSetPower[] = [];
   for (const suit of SUITS_ORDER) {
     const row = bySuit[suit];
     const triple: readonly [DeckFaceRank, string, string][] = [
@@ -45,7 +61,7 @@ export function themedFaces({ pairId, deck, faces: bySuit }: ThemedFacesArgs): r
       const key = courtPortraitKey(pairId, deck, suit, rank);
       const m = THEMED_COURT_PORTRAITS[key];
       if (!m) throw new Error(`Missing themed court portrait manifest entry: ${key}`);
-      out.push({
+      faces.push({
         suit,
         rank,
         name,
@@ -55,15 +71,34 @@ export function themedFaces({ pairId, deck, faces: bySuit }: ThemedFacesArgs): r
         framePath: sharedCourtFramePath(rank, suit),
       });
     }
+    setPowers.push({
+      suit,
+      powerId: row.powerId,
+      initialCharges: row.initialCharges,
+      initialDuration: row.initialDuration,
+    });
   }
-  return out;
+  return { faces, setPowers };
 }
 
-export function baseFaces(
+type BaseSetSuitInput = {
+  j: string;
+  jBio: string;
+  q: string;
+  qBio: string;
+  k: string;
+  kBio: string;
+  powerId: PowerId;
+  initialCharges: number;
+  initialDuration: number | null;
+};
+
+export function baseSets(
   deckNum: 1 | 2,
-  bySuit: Record<Suit, { j: string; jBio: string; q: string; qBio: string; k: string; kBio: string }>,
-): readonly DeckFaceCard[] {
-  const out: DeckFaceCard[] = [];
+  bySuit: Record<Suit, BaseSetSuitInput>,
+): ThemedSetsResult {
+  const faces: DeckFaceCard[] = [];
+  const setPowers: DeckSetPower[] = [];
   for (const suit of SUITS_ORDER) {
     const row = bySuit[suit];
     const triple: readonly [DeckFaceRank, string, string][] = [
@@ -73,7 +108,7 @@ export function baseFaces(
     ];
     for (const [rank, name, bio] of triple) {
       const basename = baseCourtPortraitBasename(deckNum, rank, suit);
-      out.push({
+      faces.push({
         suit,
         rank,
         name,
@@ -83,8 +118,14 @@ export function baseFaces(
         framePath: sharedCourtFramePath(rank, suit),
       });
     }
+    setPowers.push({
+      suit,
+      powerId: row.powerId,
+      initialCharges: row.initialCharges,
+      initialDuration: row.initialDuration,
+    });
   }
-  return out;
+  return { faces, setPowers };
 }
 
 /** Per joker slot 1–4: catalog name, bio, power, charges, and duration; portrait file from manifest. */

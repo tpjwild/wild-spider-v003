@@ -1,11 +1,11 @@
 import { deckEntry } from "@/content/deckPairs/deckEntry";
 import {
-  JOKER_POWER_ALL_KINGS_TRANSPARENT,
-  JOKER_POWER_CARD_SWAP,
-  JOKER_POWER_FOUNDATION_RETURN,
-  JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_ALL_KINGS_TRANSPARENT,
+  POWER_CARD_SWAP,
+  POWER_FOUNDATION_RETURN,
+  POWER_SELECTED_CARD_TRANSPARENT,
 } from "@/content/powerDefinitions";
-import { themedFaces, themedJokers } from "@/content/deckPairs/builders";
+import { themedSets, themedJokers } from "@/content/deckPairs/builders";
 import type { DeckPairDefinition } from "@/content/deckPairs/types";
 
 export const COMPUTER_SCIENCE_ID = "computerScience" as const;
@@ -53,37 +53,37 @@ export const computerSciencePair: DeckPairDefinition = {
           {
             name: "Konrad Zuse",
             bio: "Working largely alone in Germany, Zuse built some of the first programmable binary computers, including the Z3. His machines and ideas about high-level languages showed that practical, general-purpose computation could be engineered in hardware, parallel to and partly independent of more widely known efforts elsewhere.",
-            powerId: JOKER_POWER_ALL_KINGS_TRANSPARENT,
+            powerId: POWER_ALL_KINGS_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "John Backus",
             bio: "Backus led the team that created Fortran, one of the first widely used high-level programming languages, and later introduced Backus–Naur Form for describing syntax. His work helped bridge human intentions and machine instructions, making it easier to write complex programs and reason about language structure.",
-            powerId: JOKER_POWER_FOUNDATION_RETURN,
+            powerId: POWER_FOUNDATION_RETURN,
             initialCharges: 5,
             initialDuration: null,
           },
           {
             name: "Charles Babbage",
             bio: "Babbage designed the Difference Engine and Analytical Engine, ambitious mechanical devices meant to automate calculation. Although never fully built in his lifetime, these designs anticipated programmable computing, with separate memory and control, making him a visionary precursor of modern computer architecture.",
-            powerId: JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Norbert Wiener",
             bio: "Wiener founded cybernetics, studying control and communication in animals and machines. His work connected feedback loops, signal processing, and information flow, influencing the development of automation, robotics, and early thinking about how systems—biological or artificial—adapt and respond to their environments.",
-            powerId: JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
         ],
       }),
-      faces: themedFaces({
+      sets: themedSets({
         pairId: "computerScience",
         deck: 1,
-        faces: {
+        sets: {
           S: {
             jName: "Dennis Ritchie",
             jBio:
@@ -94,6 +94,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "John von Neumann",
             kBio:
               "Von Neumann helped design some of the earliest electronic computers and articulated the stored-program architecture that still underlies most modern machines. His vision of memory, control, and processing laid out a practical blueprint for turning abstract computation into working hardware and software systems.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           C: {
             jName: "John McCarthy",
@@ -105,6 +108,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Alan Turing",
             kBio:
               "Turing defined a simple idealized machine to capture the essence of computation and showed that some questions, like whether a program halts, are undecidable. His work on computability, algorithms, and codebreaking makes him one of the central founders of both theoretical computer science and modern computing.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           D: {
             jName: "Whitfield Diffie",
@@ -116,6 +122,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Claude Shannon",
             kBio:
               "Shannon founded information theory, introducing the bit and showing how to quantify information and communication capacity. He proved that reliable communication is possible over noisy channels using coding schemes, laying the mathematical groundwork for digital communication, data compression, and error-correcting codes used everywhere today.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           H: {
             jName: "Douglas Engelbart",
@@ -127,6 +136,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Edsger W. Dijkstra",
             kBio:
               "Dijkstra advocated for structured programming and mathematical clarity in software, insisting that programs should be reasoned about, not merely hacked together. His essays and algorithms emphasized simplicity, correctness, and elegance, profoundly influencing how generations of programmers think about writing and proving code.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
         },
       }),
@@ -139,37 +151,37 @@ export const computerSciencePair: DeckPairDefinition = {
           {
             name: "Geoffrey Hinton",
             bio: "Hinton played a central role in developing deep learning, showing how neural networks with many layers could learn complex patterns from data. His work on backpropagation and representation learning helped trigger a modern AI boom, with applications from image recognition to speech and natural language processing.",
-            powerId: JOKER_POWER_ALL_KINGS_TRANSPARENT,
+            powerId: POWER_ALL_KINGS_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Guido van Rossum",
             bio: "Van Rossum created the Python programming language, emphasizing readability, simplicity, and a friendly community. Python’s clear syntax and batteries-included standard library have made it a go-to language for education, scripting, web development, data science, and AI, reflecting his vision of approachable, practical code.",
-            powerId: JOKER_POWER_CARD_SWAP,
+            powerId: POWER_CARD_SWAP,
             initialCharges: 5,
             initialDuration: null,
           },
           {
             name: "Marvin Minsky",
             bio: "Minsky was a leading figure in early artificial intelligence, exploring how machines might represent knowledge and reason symbolically. His ambitious, sometimes controversial ideas pushed the boundaries of what computing and cognition might mean, inspiring both breakthroughs and critiques in the history of AI research.",
-            powerId: JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Richard Stallman",
             bio: "Stallman founded the Free Software movement, arguing that users should be free to study, modify, and share the software they run. Through the GNU project and the GPL license, he championed strong ethical and legal frameworks for software freedom, influencing open-source culture worldwide.",
-            powerId: JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
         ],
       }),
-      faces: themedFaces({
+      sets: themedSets({
         pairId: "computerScience",
         deck: 2,
-        faces: {
+        sets: {
           S: {
             jName: "Linus Torvalds",
             jBio:
@@ -180,6 +192,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Ken Thompson",
             kBio:
               "Thompson co-created the Unix operating system and the B programming language, helping define the structure of modern multi-user, multitasking systems. His work on simple, composable tools and clear abstractions influenced generations of operating systems and command-line environments.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           C: {
             jName: "Stephen Cook",
@@ -191,6 +206,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Donald Knuth",
             kBio:
               "Knuth’s multi-volume The Art of Computer Programming systematically analyzes algorithms and data structures, emphasizing both correctness and efficiency. He helped establish algorithm analysis as a rigorous discipline and popularized literate programming, treating code and explanation together as a kind of mathematical literature.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           D: {
             jName: "John O'Sullivan",
@@ -202,6 +220,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Vint Cerf",
             kBio:
               "Cerf co-designed the TCP/IP protocols that underpin the internet, enabling diverse networks to interconnect and route data reliably. Often called a “father of the internet,” he helped establish the layered architecture that allows information to move flexibly between machines across the globe.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           H: {
             jName: "Jimmy Wales",
@@ -213,6 +234,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Tim Berners-Lee",
             kBio:
               "Berners-Lee invented the World Wide Web, designing URLs, HTTP, and HTML to make information easily shareable across the internet. His vision of a decentralized, open hypertext system transformed how people access, publish, and connect information, profoundly reshaping communication, knowledge, and everyday life.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
         },
       }),

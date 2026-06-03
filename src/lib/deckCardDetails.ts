@@ -5,6 +5,7 @@ import {
   cardHasTransparentEffectInColumn,
   tableauCardDisplayMode,
 } from "@/lib/cardEffectsUi";
+import { isShelfJoker } from "@/lib/setPowerUi";
 import { deckNumFromRegularCardId, faceArtForRegularCard, jokerArtForCard } from "@/lib/deckCardArt";
 import { isJoker, isRegular } from "@/engine/cards";
 import type { Card, GameState, PlacedCard, Suit } from "@/engine/types";
@@ -79,7 +80,7 @@ export function shelfPowerChargesForJoker(
 ): JokerPowerCharges | undefined {
   if (!isJoker(card)) return undefined;
   const entry = game.shelf.find(
-    (sj) => sj.card.kind === "joker" && sj.card.id === card.id,
+    (e) => isShelfJoker(e) && e.card.kind === "joker" && e.card.id === card.id,
   );
   if (!entry) return undefined;
   const def = jokerDefinitionForInGameId(game.config.deckPairId, card.id);

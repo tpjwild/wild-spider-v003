@@ -1,5 +1,6 @@
 import { isRegular } from "@/engine/cards";
 import { canPlaceOnTableauWithEffects } from "@/engine/tableauEffects";
+import { isShelfJoker } from "@/lib/setPowerUi";
 import type {
   Card,
   CardSlotSnapshot,
@@ -16,7 +17,9 @@ export function isCardInFoundation(state: GameState, card: Card): boolean {
 }
 
 export function isCardOnShelf(state: GameState, card: Card): boolean {
-  return state.shelf.some((s) => s.card.kind === card.kind && s.card.id === card.id);
+  return state.shelf.some(
+    (s) => isShelfJoker(s) && s.card.kind === card.kind && s.card.id === card.id,
+  );
 }
 
 function isOnTableau(state: GameState, card: Card): boolean {

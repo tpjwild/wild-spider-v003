@@ -1,9 +1,9 @@
 import { deckEntry } from "@/content/deckPairs/deckEntry";
 import {
-  JOKER_POWER_ALL_KINGS_TRANSPARENT,
-  JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_ALL_KINGS_TRANSPARENT,
+  POWER_SELECTED_CARD_TRANSPARENT,
 } from "@/content/powerDefinitions";
-import { themedFaces, themedJokers } from "@/content/deckPairs/builders";
+import { themedSets, themedJokers } from "@/content/deckPairs/builders";
 import type { DeckPairDefinition } from "@/content/deckPairs/types";
 
 export const MATHEMATICS_ID = "mathematics" as const;
@@ -51,37 +51,37 @@ export const mathematicsPair: DeckPairDefinition = {
           {
             name: "Évariste Galois",
             bio: "Galois died at twenty after a duel, leaving behind notes that founded group theory and transformed algebra. His insights revealed how the symmetries of polynomial equations determine whether they can be solved by radicals, opening a new realm of abstract structure born from a brief, turbulent life.",
-            powerId: JOKER_POWER_ALL_KINGS_TRANSPARENT,
+            powerId: POWER_ALL_KINGS_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Georg Cantor",
             bio: "Cantor created set theory and showed that some infinities are strictly larger than others, distinguishing, for example, between countable and uncountable sets. His work initially faced strong resistance but ultimately reshaped modern mathematics, providing a language and framework for talking rigorously about infinite collections.",
-            powerId: JOKER_POWER_ALL_KINGS_TRANSPARENT,
+            powerId: POWER_ALL_KINGS_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Zeno of Elea",
             bio: "Zeno is famous for paradoxes that challenge our understanding of motion and infinity, such as Achilles never overtaking the tortoise. By turning simple assumptions into contradictions, he forced later thinkers to refine their notions of space, time, and continuity in more subtle mathematical ways.",
-            powerId: JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Pythagoras",
             bio: "Half legendary, Pythagoras and his followers saw numbers and ratios as the key to understanding harmony and the cosmos. Their discovery of irrational magnitudes unsettled earlier beliefs about number and proportion, setting the stage for deeper investigations into the foundations and limits of arithmetic.",
-            powerId: JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
         ],
       }),
-      faces: themedFaces({
+      sets: themedSets({
         pairId: "mathematics",
         deck: 1,
-        faces: {
+        sets: {
           S: {
             jName: "Pierre-Simon Laplace",
             jBio:
@@ -92,6 +92,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "Bernhard Riemann",
             kBio:
               "Riemann revolutionized geometry by introducing curved manifolds, providing the framework later used in general relativity. He also made deep contributions to complex analysis and number theory, including the famous Riemann Hypothesis, reshaping how mathematicians think about space, shape, and the infinite.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           C: {
             jName: "Gottfried Wilhelm Leibniz",
@@ -103,6 +106,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "Euclid",
             kBio:
               "Euclid’s Elements organized Greek geometry into a clear axiomatic system of definitions, postulates, and proofs. For centuries it served as the model of rigorous mathematical reasoning, showing how complex results can be built step by step from simple assumptions about points, lines, and planes.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           D: {
             jName: "Joseph-Louis Lagrange",
@@ -114,6 +120,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "Carl Friedrich Gauss",
             kBio:
               "Often called the “prince of mathematicians,” Gauss made foundational contributions to number theory, algebra, geometry, and analysis. His Disquisitiones Arithmeticae reshaped the study of integers and congruences, revealing deep patterns in primes and modular arithmetic that continue to influence mathematics today.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           H: {
             jName: "Augustin-Louis Cauchy",
@@ -125,6 +134,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "Isaac Newton",
             kBio:
               "Newton co-invented calculus and used it to formulate laws of motion and universal gravitation, linking algebraic equations with physical forces. His work showed how continuous change—accelerating bodies, planetary orbits, falling apples—could be precisely described by differential equations and geometric reasoning.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
         },
       }),
@@ -137,37 +149,37 @@ export const mathematicsPair: DeckPairDefinition = {
           {
             name: "Paul Erdős",
             bio: "Erdős was an extraordinarily prolific and eccentric mathematician who collaborated with hundreds of others. He helped develop modern combinatorics and the probabilistic method, showing how randomness can prove the existence of intricate structures, and became legendary for his restless travel and love of problem-posing.",
-            powerId: JOKER_POWER_ALL_KINGS_TRANSPARENT,
+            powerId: POWER_ALL_KINGS_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Benoit Mandelbrot",
             bio: "Mandelbrot developed fractal geometry to describe rough, irregular shapes in nature, from coastlines to clouds. The Mandelbrot set, a simple formula generating endlessly complex patterns, became an icon of mathematical beauty and chaos, demonstrating how feedback and iteration create intricate structure from elementary rules.",
-            powerId: JOKER_POWER_ALL_KINGS_TRANSPARENT,
+            powerId: POWER_ALL_KINGS_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Kurt Gödel",
             bio: "Gödel’s incompleteness theorems showed that any sufficiently strong formal system cannot prove all truths about arithmetic within itself. His work revealed inherent limits to axiomatic methods, transforming our understanding of logic, consistency, and what mathematics can, and cannot, fully capture.",
-            powerId: JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
           {
             name: "Stefan Banach",
             bio: "Banach helped create functional analysis, studying infinite-dimensional spaces of functions now called Banach spaces. His work on norms, linear operators, and series provided tools to understand continuity and convergence in very abstract settings, reshaping modern analysis and the geometry of function spaces.",
-            powerId: JOKER_POWER_SELECTED_CARD_TRANSPARENT,
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
             initialCharges: 3,
             initialDuration: null,
           },
         ],
       }),
-      faces: themedFaces({
+      sets: themedSets({
         pairId: "mathematics",
         deck: 2,
-        faces: {
+        sets: {
           S: {
             jName: "Stephen Smale",
             jBio:
@@ -178,6 +190,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "Henri Poincaré",
             kBio:
               "Poincaré made foundational contributions to topology, dynamical systems, and celestial mechanics. He introduced qualitative methods for studying differential equations and the global shape of spaces, helping to create the modern view of geometry and chaos where the structure of trajectories matters as much as explicit formulas.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           C: {
             jName: "Alonzo Church",
@@ -189,6 +204,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "David Hilbert",
             kBio:
               "Hilbert championed the axiomatic method and set an ambitious program to secure mathematics by proving its consistency. Though that goal was later complicated by Gödel’s work, Hilbert’s problems and formal approach helped structure 20th-century research and clarified what it means to found mathematics on clear principles.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           D: {
             jName: "G. H. Hardy",
@@ -200,6 +218,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "Srinivasa Ramanujan",
             kBio:
               "Largely self-taught, Ramanujan produced astonishing formulas in number theory, including identities for partitions, modular forms, and infinite series. His notebooks revealed a seemingly intuitive grasp of deep numerical patterns, inspiring generations of mathematicians and leaving a legacy still being explored today.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
           H: {
             jName: "Andrey Kolmogorov",
@@ -211,6 +232,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "John von Neumann",
             kBio:
               "Von Neumann’s work spanned functional analysis, quantum mechanics, game theory, and numerical methods. He helped formalize quantum theory mathematically, pioneered ideas in computing, and analyzed strategic behavior in economics, exemplifying how sophisticated mathematics can model complex, evolving systems in the real world.",
+            powerId: POWER_SELECTED_CARD_TRANSPARENT,
+            initialCharges: 10,
+            initialDuration: 5,
           },
         },
       }),

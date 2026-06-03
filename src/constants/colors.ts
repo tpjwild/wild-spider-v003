@@ -5,6 +5,8 @@
  * (game shell root and/or popup panel via {@link deckPopupScrollCssVariables}).
  */
 
+import { dimensions } from "@/constants/dimensions";
+
 const billiardFelt = "#2f6f45";
 
 /** CSS custom properties injected on the game shell (see `GameShell`). */
@@ -12,6 +14,7 @@ export const gameCssVariables = {
   "--ws-shelf-scrollbar-thumb": "#b8e6bc",
   "--ws-shelf-scrollbar-thumb-hover": "#d8efd9",
   "--ws-shelf-scrollbar-track": "rgba(0, 0, 0, 0.3)",
+  "--ws-shelf-scrollbar-size": `${dimensions.shelfHorizontalScrollbarPx}px`,
 } as const;
 
 export const colors = {

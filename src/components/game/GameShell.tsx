@@ -28,7 +28,7 @@ import { StockPopup } from "@/components/game/StockPopup";
 import { FoundationSlot } from "@/components/game/FoundationSlot";
 import { GameBar } from "@/components/game/GameBar";
 import { NewGameDialog } from "@/components/game/NewGameDialog";
-import { ShelfStrip } from "@/components/game/ShelfStrip";
+import { ShelfFoundationStockRow } from "@/components/game/ShelfFoundationStockRow";
 import { StockPile } from "@/components/game/StockPile";
 import { TableauColumn } from "@/components/game/TableauColumn";
 import { FoundationInspectNamePlate, TableauInspectController } from "@/components/game/TableauInspectBridge";
@@ -47,14 +47,16 @@ import {
 } from "@/constants/dimensions";
 import { timings } from "@/constants/timings";
 import { applyDealEntriesProgress, canDealFromStock } from "@/engine/deal";
+import { undo as undoGameState } from "@/engine/game";
 import { gameHasAnyCards } from "@/engine/setup";
 import { applyInitialDealEntriesProgress } from "@/engine/initialDeal";
 import type { Card, FoundationIndex, PlacedCard } from "@/engine/types";
 import type { TableauNamePlateSource } from "@/lib/tableauNamePlate";
 import { clearGameState } from "@/lib/gameStorage";
 import {
-  measureTableauOverlayReturnFlight,
-  type TableauOverlayReturnFlight,
+  measureTableauOverlayFlight,
+  measureTableauStackFlight,
+  type TableauOverlayFlight,
 } from "@/lib/tableauDragReturnFlight";
 import { recordLogoutHadInProgressGame } from "@/lib/authSessionGameBootstrap";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -129,6 +131,7 @@ export function GameShell() {
   const restart = useGameStore((s) => s.restart);
   const openEndGame = useGameStore((s) => s.openEndGame);
   const undoMove = useGameStore((s) => s.undoMove);
+  const commitUndoResult = useGameStore((s) => s.commitUndoResult);
   const tryDeal = useGameStore((s) => s.tryDeal);
   const tryMoveTableau = useGameStore((s) => s.tryMoveTableau);
   const tryMoveToFoundation = useGameStore((s) => s.tryMoveToFoundation);
@@ -161,10 +164,12 @@ export function GameShell() {
   /** While set, only this draggable id keeps `useDraggable` during the drag (see `TableauColumn`). */
   const [activeTableauDragId, setActiveTableauDragId] = useState<string | null>(null);
   const [overlayApplyDragHoverScale, setOverlayApplyDragHoverScale] = useState(true);
-  const [overlayReturnFlight, setOverlayReturnFlight] = useState<TableauOverlayReturnFlight | null>(
-    null,
-  );
+  const [overlayFlight, setOverlayFlight] = useState<TableauOverlayFlight | null>(null);
   const [tableauReturnHide, setTableauReturnHide] = useState<{
+    column: number;
+    startIndex: number;
+  } | null>(null);
+  const [tableauDropHide, setTableauDropHide] = useState<{
     column: number;
     startIndex: number;
   } | null>(null);
@@ -417,37 +422,151 @@ export function GameShell() {
     setOverlayCards(null);
     setOverlayFromColumn(null);
     setDragInspectTarget(null);
-    setOverlayReturnFlight(null);
+    setOverlayFlight(null);
     setTableauReturnHide(null);
+    setTableauDropHide(null);
     setOverlayApplyDragHoverScale(true);
   }, []);
 
-  const finishTableauReturnFlight = useCallback(() => {
-    setOverlayReturnFlight(null);
+  const finishTableauOverlayFlight = useCallback(() => {
+    setOverlayFlight(null);
     setTableauReturnHide(null);
+    setTableauDropHide(null);
     setOverlayApplyDragHoverScale(true);
   }, []);
 
-  const beginTableauReturnFlight = useCallback(
-    (fromCol: number, startIndex: number, column: readonly PlacedCard[]) => {
-      const run = column.slice(startIndex);
-      const flight = measureTableauOverlayReturnFlight(fromCol, startIndex, column, run);
-      boostLayoutReturnForColumn(fromCol);
-      if (!flight) {
-        clearTableauDragSession();
-        return;
-      }
+  const startTableauOverlayFlight = useCallback(
+    (
+      flight: TableauOverlayFlight,
+      boostColumn: number,
+      hide: { type: "return" | "drop"; column: number; startIndex: number },
+    ) => {
+      boostLayoutReturnForColumn(boostColumn);
       batchReactUpdates(() => {
-        setOverlayReturnFlight(flight);
-        setTableauReturnHide({ column: fromCol, startIndex });
+        setOverlayFlight(flight);
+        if (hide.type === "return") {
+          setTableauReturnHide({ column: hide.column, startIndex: hide.startIndex });
+          setTableauDropHide(null);
+        } else {
+          setTableauDropHide({ column: hide.column, startIndex: hide.startIndex });
+          setTableauReturnHide(null);
+        }
         setActiveTableauDragId(null);
         setOverlayCards(null);
+        setOverlayFromColumn(null);
         setDragInspectTarget(null);
         setOverlayApplyDragHoverScale(false);
       });
     },
-    [boostLayoutReturnForColumn, clearTableauDragSession],
+    [boostLayoutReturnForColumn],
   );
+
+  const beginTableauReturnFlight = useCallback(
+    (fromCol: number, startIndex: number, column: readonly PlacedCard[]) => {
+      const run = column.slice(startIndex);
+      const flight = measureTableauOverlayFlight(fromCol, startIndex, column, run);
+      if (!flight) {
+        clearTableauDragSession();
+        return;
+      }
+      startTableauOverlayFlight(flight, fromCol, {
+        type: "return",
+        column: fromCol,
+        startIndex,
+      });
+    },
+    [startTableauOverlayFlight, clearTableauDragSession],
+  );
+
+  const beginTableauDropFlight = useCallback(
+    (
+      toCol: number,
+      destStartIndex: number,
+      destColumn: readonly PlacedCard[],
+      cards: readonly PlacedCard[],
+    ) => {
+      const flight = measureTableauOverlayFlight(toCol, destStartIndex, destColumn, cards);
+      if (!flight) {
+        clearTableauDragSession();
+        return;
+      }
+      startTableauOverlayFlight(flight, toCol, {
+        type: "drop",
+        column: toCol,
+        startIndex: destStartIndex,
+      });
+    },
+    [startTableauOverlayFlight, clearTableauDragSession],
+  );
+
+  const beginTableauUndoFlight = useCallback(
+    (entry: {
+      fromCol: number;
+      toCol: number;
+      startIndex: number;
+      count: number;
+    }) => {
+      const { game } = useGameStore.getState();
+      if (!game) return false;
+      const { fromCol, toCol, startIndex, count } = entry;
+      const destCol = game.columns[toCol];
+      if (!destCol || destCol.length < count) return false;
+
+      const destStart = destCol.length - count;
+      const run = destCol.slice(destStart);
+      const sourceAfterUndo = [
+        ...game.columns[fromCol]!.slice(0, startIndex),
+        ...run,
+        ...game.columns[fromCol]!.slice(startIndex),
+      ];
+      const flight = measureTableauStackFlight(
+        toCol,
+        destStart,
+        destCol,
+        fromCol,
+        startIndex,
+        sourceAfterUndo,
+        run,
+      );
+      if (!flight) return false;
+
+      const next = undoGameState(game);
+      if (!next) return false;
+
+      commitUndoResult(next);
+      startTableauOverlayFlight(
+        { ...flight, columnIndex: fromCol, anchorIndex: startIndex },
+        fromCol,
+        { type: "return", column: fromCol, startIndex },
+      );
+      return true;
+    },
+    [commitUndoResult, startTableauOverlayFlight],
+  );
+
+  /** Tableau undo uses a stack flight when possible; boost source column for layout fallback. */
+  const handleUndoMove = useCallback(() => {
+    const { game, dealAnimation } = useGameStore.getState();
+    if (dealAnimation || overlayFlight || !game || game.history.length === 0) return;
+    const last = game.history[game.history.length - 1]!;
+
+    if (last.type === "move_tableau" && last.count > 0) {
+      if (beginTableauUndoFlight(last)) return;
+      boostLayoutReturnForColumn(last.fromCol);
+      undoMove();
+      return;
+    }
+
+    if (last.type === "move_tableau" || last.type === "move_to_foundation") {
+      boostLayoutReturnForColumn(last.fromCol);
+    }
+    undoMove();
+  }, [
+    beginTableauUndoFlight,
+    boostLayoutReturnForColumn,
+    overlayFlight,
+    undoMove,
+  ]);
 
   const onDragStart = useCallback(
     (e: DragStartEvent) => {
@@ -472,8 +591,9 @@ export function GameShell() {
         clearTableauDragSession();
         return;
       }
-      setOverlayReturnFlight(null);
+      setOverlayFlight(null);
       setTableauReturnHide(null);
+      setTableauDropHide(null);
       setActiveTableauDragId(String(e.active.id));
       setOverlayApplyDragHoverScale(true);
       setOverlayFromColumn(d.fromColumn);
@@ -524,14 +644,25 @@ export function GameShell() {
           else clearOverlay();
           return;
         }
+        const run = column?.slice(startIndex) ?? [];
+        const movedCount = run.length;
         let ok = false;
         batchReactUpdates(() => {
           ok = tryMoveTableau(fromCol, startIndex, toCol);
-          if (ok) clearOverlay();
         });
-        if (!ok) {
-          if (column) beginTableauReturnFlight(fromCol, startIndex, column);
-          else clearOverlay();
+        if (ok) {
+          const nextGame = useGameStore.getState().game;
+          const destCol = nextGame?.columns[toCol];
+          if (destCol && movedCount > 0) {
+            const destStart = destCol.length - movedCount;
+            beginTableauDropFlight(toCol, destStart, destCol, run);
+          } else {
+            clearOverlay();
+          }
+        } else if (column) {
+          beginTableauReturnFlight(fromCol, startIndex, column);
+        } else {
+          clearOverlay();
         }
         return;
       }
@@ -565,6 +696,7 @@ export function GameShell() {
       tryMoveTableau,
       tryMoveToFoundation,
       beginTableauReturnFlight,
+      beginTableauDropFlight,
       clearTableauDragSession,
     ],
   );
@@ -676,6 +808,7 @@ export function GameShell() {
       activeTableauDragId,
       layoutBoostColumn,
       tableauReturnHide,
+      tableauDropHide,
       applyTableauDropViewportFloorMinHeight,
       tableauDropFloorBottomPx,
     }),
@@ -683,6 +816,7 @@ export function GameShell() {
       activeTableauDragId,
       layoutBoostColumn,
       tableauReturnHide,
+      tableauDropHide,
       applyTableauDropViewportFloorMinHeight,
       tableauDropFloorBottomPx,
     ],
@@ -872,7 +1006,7 @@ export function GameShell() {
           if (!game) return;
           e.preventDefault();
           e.stopPropagation();
-          undoMove();
+          handleUndoMove();
           closeActionsMenu();
           break;
         default:
@@ -886,7 +1020,7 @@ export function GameShell() {
     openNewGameFromShell,
     restart,
     openEndGameFromShell,
-    undoMove,
+    handleUndoMove,
     closeActionsMenu,
     canCloudSave,
     cloudSaveBusy,
@@ -1059,7 +1193,7 @@ export function GameShell() {
                     disabled={!game}
                     className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/10 disabled:cursor-not-allowed disabled:text-zinc-600"
                     aria-keyshortcuts={ACTION_MENU_CHORDS.undo}
-                    onClick={undoMove}
+                    onClick={handleUndoMove}
                   >
                     <span>Undo</span>
                     <span className="shrink-0 text-[10px] text-zinc-500">{ACTION_MENU_CHORDS.undo}</span>
@@ -1136,22 +1270,12 @@ export function GameShell() {
               }`}
               style={{ minHeight: shelfFoundationStockStripMinHeightPx(effectiveGame.config.deals) }}
             >
-              <div
-                className="grid w-full items-start gap-x-2"
-                style={{
-                  // Equal left/right regions for shelf and stock; each at least shelfWidth, grow together.
-                  gridTemplateColumns: `minmax(${dimensions.shelfWidth}px, 1fr) auto minmax(${dimensions.shelfWidth}px, 1fr)`,
-                }}
-              >
-                <div className="flex min-w-0 justify-center">
-                  <ShelfStrip
-                    game={effectiveGame}
-                    shiftInspectMode={shiftInspectMode}
-                    onOpenCardDetails={openInGameCardDetails}
-                    detailsCard={inGameDetailsCard}
-                  />
-                </div>
-                <div className="flex min-w-0 justify-center">
+              <ShelfFoundationStockRow
+                game={effectiveGame}
+                shiftInspectMode={shiftInspectMode}
+                onOpenCardDetails={openInGameCardDetails}
+                detailsCard={inGameDetailsCard}
+                foundation={
                   <div
                     className="flex max-w-full flex-col"
                     style={{
@@ -1176,11 +1300,8 @@ export function GameShell() {
                       dragInspectTarget={dragInspectTarget}
                     />
                   </div>
-                </div>
-                <div
-                  className="flex min-w-0 justify-center"
-                  style={{ paddingTop: dimensions.shelfVerticalPad }}
-                >
+                }
+                stock={
                   <StockPile
                     game={effectiveGame}
                     frozenUpcomingLeadCards={
@@ -1192,8 +1313,8 @@ export function GameShell() {
                     onDeal={() => tryDeal()}
                     canDeal={canDeal}
                   />
-                </div>
-              </div>
+                }
+              />
             </div>
           ) : null}
         </div>
@@ -1256,11 +1377,11 @@ export function GameShell() {
           ) : null}
         </DragOverlay>
 
-        {overlayReturnFlight && effectiveGame ? (
+        {overlayFlight && effectiveGame ? (
           <TableauDragReturnLayer
-            flight={overlayReturnFlight}
+            flight={overlayFlight}
             applyHoverScale={overlayApplyDragHoverScale}
-            onComplete={finishTableauReturnFlight}
+            onComplete={finishTableauOverlayFlight}
             game={effectiveGame}
           />
         ) : null}

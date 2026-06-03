@@ -4,8 +4,10 @@ import {
   DEFAULT_DECK_PAIR_ID,
   isDeckPairUnlocked,
   rankSuitImageStem,
+  setPowerDefinitionForSet,
   type DeckPairDefinition,
 } from "@/content/deckPairs";
+import { POWER_SELECTED_CARD_TRANSPARENT } from "@/content/powerDefinitions";
 import type { Suit } from "@/engine/types";
 
 const SUITS: Suit[] = ["S", "C", "D", "H"];
@@ -44,6 +46,18 @@ function assertDeckPairShape(p: DeckPairDefinition) {
     for (const s of SUITS) {
       for (const rank of [11, 12, 13] as const) {
         expect(seen.has(`${s}-${rank}`)).toBe(true);
+      }
+    }
+    expect(deck.setPowers).toHaveLength(4);
+    const setSuits = new Set(deck.setPowers.map((sp) => sp.suit));
+    expect(setSuits.size).toBe(4);
+    for (const s of SUITS) {
+      expect(setSuits.has(s)).toBe(true);
+    }
+    for (const sp of deck.setPowers) {
+      expect(sp.initialCharges).toBeGreaterThan(0);
+      if (sp.initialDuration !== null) {
+        expect(sp.initialDuration).toBeGreaterThan(0);
       }
     }
   }
@@ -102,6 +116,17 @@ describe("deckPairs registry", () => {
     expect(sartre?.powerId).toBe("jokerExtraColumn");
     expect(sartre?.initialCharges).toBe(10);
     expect(sartre?.initialDuration).toBe(10);
+  });
+
+  it("setPowerDefinitionForSet resolves catalog rows per deck and suit", () => {
+    const row = setPowerDefinitionForSet("mathematics", 1, "H");
+    expect(row).toMatchObject({
+      suit: "H",
+      powerId: POWER_SELECTED_CARD_TRANSPARENT,
+      initialCharges: 10,
+      initialDuration: 5,
+    });
+    expect(setPowerDefinitionForSet("unknown", 1, "H")).toBeUndefined();
   });
 });
 
