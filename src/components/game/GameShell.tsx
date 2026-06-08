@@ -1328,11 +1328,6 @@ export function GameShell() {
           <p className="p-6 text-sm text-emerald-100/75">
             No game loaded — use <strong className="text-emerald-100/90">New Game</strong> from the Actions menu.
           </p>
-        ) : !gameHasAnyCards(game) ? (
-          <p className="p-6 text-sm text-emerald-100/75">
-            No cards in play — use <strong className="text-emerald-100/90">New Game</strong> or{" "}
-            <strong className="text-emerald-100/90">Restart Game</strong> from the Actions menu when you are ready.
-          </p>
         ) : null}
 
         {effectiveGame ? (

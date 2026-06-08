@@ -15,14 +15,14 @@ function clampRank(n: number): Rank | null {
   return n as Rank;
 }
 
-/** Rank choices for skip effects: ±1 (skip1) or ±1/±2 (skip2); natural rank excluded. */
+/** Rank choices for skip effects: printed rank plus ±1 (skip1) or ±2 (skip2). */
 export function effectiveRankChoices(rank: Rank, effects: readonly EffectId[]): Rank[] {
   const hasSkip2 = effects.includes(EFFECT_SKIP2);
   const hasSkip1 = effects.includes(EFFECT_SKIP1);
   const maxDelta = hasSkip2 ? 2 : hasSkip1 ? 1 : 0;
   if (maxDelta === 0) return [rank];
 
-  const out = new Set<Rank>();
+  const out = new Set<Rank>([rank]);
   for (let d = -maxDelta; d <= maxDelta; d++) {
     if (d === 0) continue;
     const r = clampRank(rank + d);

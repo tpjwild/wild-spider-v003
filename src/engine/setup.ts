@@ -26,7 +26,7 @@ import type { ParsedFormattedGameSeed } from "@/lib/formattedGameSeed";
 import { maxJokersInPlayForDeckPair } from "@/content/deckPairs";
 import { normalizeNumberOfSuits } from "@/lib/numberOfSuits";
 
-const MAX_COLUMNS = 10;
+const MAX_COLUMNS = 12;
 const MIN_DEALS = 5;
 /** Max jokers in a deck pair: 4 per deck × 2 decks (spec). */
 const MAX_JOKERS = 8;

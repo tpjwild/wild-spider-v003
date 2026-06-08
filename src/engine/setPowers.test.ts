@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { POWER_SELECTED_CARD_TRANSPARENT } from "@/content/powerDefinitions";
+import {
+  POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_SELECTED_CARD_WILD,
+} from "@/content/powerDefinitions";
 import { EFFECT_TRANSPARENT } from "@/content/effectDefinitions";
 import { buildDoubleDeck } from "@/engine/cards";
 import { hasCardEffect } from "@/engine/effects";
@@ -64,12 +67,12 @@ describe("createShelfSetPowerEntry", () => {
       setKey: "1-H",
       deckNum: 1,
       suit: "H",
-      powerId: POWER_SELECTED_CARD_TRANSPARENT,
-      chargesRemaining: 10,
+      powerId: POWER_SELECTED_CARD_WILD,
+      chargesRemaining: 1,
     });
   });
 
-  it("syncShelfSetPowerFromCatalog upgrades legacy persisted power ids", () => {
+  it("syncShelfSetPowerFromCatalog upgrades legacy persisted power ids to suit catalog", () => {
     const legacy = syncShelfSetPowerFromCatalog("mathematics", {
       kind: "set",
       setKey: "1-H",
@@ -78,7 +81,7 @@ describe("createShelfSetPowerEntry", () => {
       powerId: "jokerSelectedCardTransparent",
       chargesRemaining: 2,
     });
-    expect(legacy.powerId).toBe(POWER_SELECTED_CARD_TRANSPARENT);
+    expect(legacy.powerId).toBe(POWER_SELECTED_CARD_WILD);
   });
 });
 
@@ -95,7 +98,7 @@ describe("applyNewSetAlignments", () => {
     expect(next.alignedSetKeys).toEqual(["1-H"]);
     expect(next.shelf).toHaveLength(1);
     expect(isShelfSetPower(next.shelf[0]!)).toBe(true);
-    expect(next.shelf[0]).toMatchObject({ setKey: "1-H", chargesRemaining: 10 });
+    expect(next.shelf[0]).toMatchObject({ setKey: "1-H", chargesRemaining: 1 });
   });
 
   it("does not duplicate when the set is already recorded", () => {
@@ -187,10 +190,10 @@ describe("moveTableau set powers + undo", () => {
 });
 
 describe("triggerTargetedPower from set shelf index", () => {
-  it("applies transparent, records power_trigger, and undo restores charge and effect", () => {
-    const card = deck.find((c) => c.rank === 4)!;
+  it("applies transparent from spades set, records power_trigger, and undo restores charge and effect", () => {
+    const card = deck.find((c) => c.rank === 4 && c.suit === "S")!;
     const joker = createShelfJokerEntry("mathematics", { kind: "joker", id: 0 });
-    const setEntry = createShelfSetPowerEntry(baseState(), "1-C");
+    const setEntry = createShelfSetPowerEntry(baseState(), "1-S");
     const setShelfIndex = 1;
     let state = baseState({
       columns: [[{ card, faceUp: false }], [], [], []],
@@ -200,15 +203,15 @@ describe("triggerTargetedPower from set shelf index", () => {
     expect(state).not.toBeNull();
     expect(hasCardEffect(state, card, EFFECT_TRANSPARENT)).toBe(true);
     expect(isShelfSetPower(state.shelf[setShelfIndex]!)).toBe(true);
-    expect(state.shelf[setShelfIndex]!.chargesRemaining).toBe(9);
+    expect(state.shelf[setShelfIndex]!.chargesRemaining).toBe(0);
     const last = state.history[state.history.length - 1]!;
     expect(last.type).toBe("power_trigger");
     if (last.type === "power_trigger") {
       expect(last.shelfIndex).toBe(setShelfIndex);
-      expect(last.chargesBefore).toBe(10);
+      expect(last.chargesBefore).toBe(1);
     }
     state = undo(state)!;
-    expect(state.shelf[setShelfIndex]!.chargesRemaining).toBe(10);
+    expect(state.shelf[setShelfIndex]!.chargesRemaining).toBe(1);
     expect(hasCardEffect(state, card, EFFECT_TRANSPARENT)).toBe(false);
     expect(state.history).toHaveLength(0);
   });

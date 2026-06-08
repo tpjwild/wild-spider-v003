@@ -1,7 +1,10 @@
 import { deckEntry } from "@/content/deckPairs/deckEntry";
 import {
   POWER_ALL_KINGS_TRANSPARENT,
+  POWER_CARD_SWAP,
+  POWER_SELECTED_CARD_SKIP1,
   POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_SELECTED_CARD_WILD,
 } from "@/content/powerDefinitions";
 import { themedSets, themedJokers } from "@/content/deckPairs/builders";
 import type { DeckPairDefinition } from "@/content/deckPairs/types";
@@ -93,8 +96,8 @@ export const mathematicsPair: DeckPairDefinition = {
             kBio:
               "Riemann revolutionized geometry by introducing curved manifolds, providing the framework later used in general relativity. He also made deep contributions to complex analysis and number theory, including the famous Riemann Hypothesis, reshaping how mathematicians think about space, shape, and the infinite.",
             powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            initialCharges: 1,
+            initialDuration: null,
           },
           C: {
             jName: "Gottfried Wilhelm Leibniz",
@@ -106,9 +109,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "Euclid",
             kBio:
               "Euclid’s Elements organized Greek geometry into a clear axiomatic system of definitions, postulates, and proofs. For centuries it served as the model of rigorous mathematical reasoning, showing how complex results can be built step by step from simple assumptions about points, lines, and planes.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_CARD_SWAP,
+            initialCharges: 1,
+            initialDuration: null,
           },
           D: {
             jName: "Joseph-Louis Lagrange",
@@ -120,9 +123,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "Carl Friedrich Gauss",
             kBio:
               "Often called the “prince of mathematicians,” Gauss made foundational contributions to number theory, algebra, geometry, and analysis. His Disquisitiones Arithmeticae reshaped the study of integers and congruences, revealing deep patterns in primes and modular arithmetic that continue to influence mathematics today.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_SKIP1,
+            initialCharges: 1,
+            initialDuration: null,
           },
           H: {
             jName: "Augustin-Louis Cauchy",
@@ -134,9 +137,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "Isaac Newton",
             kBio:
               "Newton co-invented calculus and used it to formulate laws of motion and universal gravitation, linking algebraic equations with physical forces. His work showed how continuous change—accelerating bodies, planetary orbits, falling apples—could be precisely described by differential equations and geometric reasoning.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_WILD,
+            initialCharges: 1,
+            initialDuration: null,
           },
         },
       }),
@@ -191,8 +194,8 @@ export const mathematicsPair: DeckPairDefinition = {
             kBio:
               "Poincaré made foundational contributions to topology, dynamical systems, and celestial mechanics. He introduced qualitative methods for studying differential equations and the global shape of spaces, helping to create the modern view of geometry and chaos where the structure of trajectories matters as much as explicit formulas.",
             powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            initialCharges: 1,
+            initialDuration: null,
           },
           C: {
             jName: "Alonzo Church",
@@ -204,9 +207,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "David Hilbert",
             kBio:
               "Hilbert championed the axiomatic method and set an ambitious program to secure mathematics by proving its consistency. Though that goal was later complicated by Gödel’s work, Hilbert’s problems and formal approach helped structure 20th-century research and clarified what it means to found mathematics on clear principles.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_CARD_SWAP,
+            initialCharges: 1,
+            initialDuration: null,
           },
           D: {
             jName: "G. H. Hardy",
@@ -218,9 +221,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "Srinivasa Ramanujan",
             kBio:
               "Largely self-taught, Ramanujan produced astonishing formulas in number theory, including identities for partitions, modular forms, and infinite series. His notebooks revealed a seemingly intuitive grasp of deep numerical patterns, inspiring generations of mathematicians and leaving a legacy still being explored today.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_SKIP1,
+            initialCharges: 1,
+            initialDuration: null,
           },
           H: {
             jName: "Andrey Kolmogorov",
@@ -232,9 +235,9 @@ export const mathematicsPair: DeckPairDefinition = {
             kName: "John von Neumann",
             kBio:
               "Von Neumann’s work spanned functional analysis, quantum mechanics, game theory, and numerical methods. He helped formalize quantum theory mathematically, pioneered ideas in computing, and analyzed strategic behavior in economics, exemplifying how sophisticated mathematics can model complex, evolving systems in the real world.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_WILD,
+            initialCharges: 1,
+            initialDuration: null,
           },
         },
       }),

@@ -3,7 +3,9 @@ import {
   POWER_ALL_KINGS_TRANSPARENT,
   POWER_CARD_SWAP,
   POWER_FOUNDATION_RETURN,
+  POWER_SELECTED_CARD_SKIP1,
   POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_SELECTED_CARD_WILD,
 } from "@/content/powerDefinitions";
 import { themedSets, themedJokers } from "@/content/deckPairs/builders";
 import type { DeckPairDefinition } from "@/content/deckPairs/types";
@@ -95,8 +97,8 @@ export const computerSciencePair: DeckPairDefinition = {
             kBio:
               "Von Neumann helped design some of the earliest electronic computers and articulated the stored-program architecture that still underlies most modern machines. His vision of memory, control, and processing laid out a practical blueprint for turning abstract computation into working hardware and software systems.",
             powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            initialCharges: 1,
+            initialDuration: null,
           },
           C: {
             jName: "John McCarthy",
@@ -108,9 +110,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Alan Turing",
             kBio:
               "Turing defined a simple idealized machine to capture the essence of computation and showed that some questions, like whether a program halts, are undecidable. His work on computability, algorithms, and codebreaking makes him one of the central founders of both theoretical computer science and modern computing.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_CARD_SWAP,
+            initialCharges: 1,
+            initialDuration: null,
           },
           D: {
             jName: "Whitfield Diffie",
@@ -122,9 +124,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Claude Shannon",
             kBio:
               "Shannon founded information theory, introducing the bit and showing how to quantify information and communication capacity. He proved that reliable communication is possible over noisy channels using coding schemes, laying the mathematical groundwork for digital communication, data compression, and error-correcting codes used everywhere today.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_SKIP1,
+            initialCharges: 1,
+            initialDuration: null,
           },
           H: {
             jName: "Douglas Engelbart",
@@ -136,9 +138,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Edsger W. Dijkstra",
             kBio:
               "Dijkstra advocated for structured programming and mathematical clarity in software, insisting that programs should be reasoned about, not merely hacked together. His essays and algorithms emphasized simplicity, correctness, and elegance, profoundly influencing how generations of programmers think about writing and proving code.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_WILD,
+            initialCharges: 1,
+            initialDuration: null,
           },
         },
       }),
@@ -193,8 +195,8 @@ export const computerSciencePair: DeckPairDefinition = {
             kBio:
               "Thompson co-created the Unix operating system and the B programming language, helping define the structure of modern multi-user, multitasking systems. His work on simple, composable tools and clear abstractions influenced generations of operating systems and command-line environments.",
             powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            initialCharges: 1,
+            initialDuration: null,
           },
           C: {
             jName: "Stephen Cook",
@@ -206,9 +208,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Donald Knuth",
             kBio:
               "Knuth’s multi-volume The Art of Computer Programming systematically analyzes algorithms and data structures, emphasizing both correctness and efficiency. He helped establish algorithm analysis as a rigorous discipline and popularized literate programming, treating code and explanation together as a kind of mathematical literature.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_CARD_SWAP,
+            initialCharges: 1,
+            initialDuration: null,
           },
           D: {
             jName: "John O'Sullivan",
@@ -220,9 +222,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Vint Cerf",
             kBio:
               "Cerf co-designed the TCP/IP protocols that underpin the internet, enabling diverse networks to interconnect and route data reliably. Often called a “father of the internet,” he helped establish the layered architecture that allows information to move flexibly between machines across the globe.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_SKIP1,
+            initialCharges: 1,
+            initialDuration: null,
           },
           H: {
             jName: "Jimmy Wales",
@@ -234,9 +236,9 @@ export const computerSciencePair: DeckPairDefinition = {
             kName: "Tim Berners-Lee",
             kBio:
               "Berners-Lee invented the World Wide Web, designing URLs, HTTP, and HTML to make information easily shareable across the internet. His vision of a decentralized, open hypertext system transformed how people access, publish, and connect information, profoundly reshaping communication, knowledge, and everyday life.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_WILD,
+            initialCharges: 1,
+            initialDuration: null,
           },
         },
       }),

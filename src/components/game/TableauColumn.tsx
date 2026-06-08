@@ -564,8 +564,22 @@ export function TableauColumn({
     setMeasuredViewportFloorMinHeight((prev) => (prev === next ? prev : next));
   }, [viewportFloorActive, col.length, columnIndex, tableauDropFloorBottomPx]);
 
-  const stackH = tableauColumnStackHeightPx(col);
-  const minH = stackH + 32;
+  const columnHideRun =
+    tableauReturnHide?.column === columnIndex
+      ? tableauReturnHide
+      : tableauDropHide?.column === columnIndex
+        ? tableauDropHide
+        : null;
+  /** Entire stack lifted (drag overlay / flight hide): empty-column outline; cards stay mounted (hidden) so dnd-kit keeps the active draggable. */
+  const columnAllCardsLifted =
+    col.length > 0 &&
+    ((columnDragRunStart !== null && columnDragRunStart === 0) ||
+      (columnHideRun !== null && columnHideRun.startIndex === 0));
+  const showEmptyColumnOutline = col.length === 0 || columnAllCardsLifted;
+
+  const stackH = columnAllCardsLifted ? 0 : tableauColumnStackHeightPx(col);
+  const stackAreaHeight = showEmptyColumnOutline ? ch : Math.max(ch, stackH);
+  const minH = stackAreaHeight + 32;
 
   const droppableMinHeight =
     applyViewportFloor && viewportFloorMinHeight != null
@@ -666,15 +680,16 @@ export function TableauColumn({
       <div
         ref={stackElRef}
         className={`relative shrink-0 overflow-visible self-start ${columnTargetMode ? "pointer-events-none" : ""}`}
-        style={{ width: cw, height: Math.max(ch, stackH) }}
+        style={{ width: cw, height: stackAreaHeight }}
         data-tableau-stack={columnIndex}
         onPointerLeave={columnTargetMode ? undefined : handleStackPointerLeave}
       >
-        {col.length === 0 ? (
+        {showEmptyColumnOutline ? (
           <motion.div
             className="pointer-events-none absolute left-0 top-0 z-0 rounded-md border-2 border-dashed border-white/60"
             style={{ width: cw, height: ch }}
             aria-hidden
+            data-testid="tableau-empty-column-outline"
           />
         ) : null}
         {col.map((placed, cardIndex) => {

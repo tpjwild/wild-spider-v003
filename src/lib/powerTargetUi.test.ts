@@ -3,6 +3,7 @@ import {
   POWER_EXTRA_COLUMN,
   POWER_SELECTED_CARD_SKIP2,
   POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_SELECTED_CARD_WILD,
   POWER_SELECTED_COLUMN_TRANSPARENT,
 } from "@/content/powerDefinitions";
 import { createShelfSetPowerEntry } from "@/engine/setPowers";
@@ -187,7 +188,7 @@ describe("powerTargetUi", () => {
     expect(isTableauPowerTarget(game, card, false, 0)).toBe(true);
   });
 
-  it("set shelf transparent power exposes deck and stock popup targets", () => {
+  it("hearts set power is wild and exposes deck and stock popup targets", () => {
     const faceDownOnTableau = buildDoubleDeck().find((c) => c.rank === 4)!;
     const inStock = buildDoubleDeck().find((c) => c.rank === 6)!;
     const game = baseState({
@@ -196,7 +197,7 @@ describe("powerTargetUi", () => {
       shelf: [createShelfSetPowerEntry(baseState(), "1-H")],
     });
     const powerId = armedPowerIdForShelf(game, 0)!;
-    expect(powerId).toBe(POWER_SELECTED_CARD_TRANSPARENT);
+    expect(powerId).toBe(POWER_SELECTED_CARD_WILD);
     expect(powerTargetsDeckPopup(powerId)).toBe(true);
     expect(powerTargetsStockPopup(powerId)).toBe(true);
     expect(powerTargetsTableauColumn(powerId)).toBe(false);

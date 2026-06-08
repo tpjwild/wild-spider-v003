@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { applyExtraColumn } from "@/engine/extraColumn";
 import { newGame } from "@/engine/game";
+import { createEmptyBoardShell, gameHasAnyCards } from "@/engine/setup";
 import { DEFAULT_DECK_PAIR_ID } from "@/content/deckPairs";
 import {
   loadLastNewGameDefaults,
@@ -41,6 +42,24 @@ describe("gameStorage last new-game defaults", () => {
     expect(last!.deals).toBe(5);
     expect(last!.jokerCount).toBe(2);
     expect(last!.seed).toBe("04-005-MAT-11111111111111");
+  });
+
+  it("persists cleared board shell so refresh restores post–End Game layout", () => {
+    const g = newGame({
+      columns: 6,
+      deals: 5,
+      deckPairId: DEFAULT_DECK_PAIR_ID,
+      seed: "06-005-BAS-33333333333333",
+      jokerCount: 0,
+    });
+    const shell = createEmptyBoardShell(g.config);
+    saveGameState(shell);
+    const loaded = loadGameState();
+    expect(loaded).not.toBeNull();
+    expect(gameHasAnyCards(loaded!)).toBe(false);
+    expect(loaded!.config.seed).toBe(g.config.seed);
+    expect(loaded!.columns).toHaveLength(6);
+    expect(loaded!.history).toEqual([]);
   });
 
   it("clearGameState removes game but keeps last defaults", () => {

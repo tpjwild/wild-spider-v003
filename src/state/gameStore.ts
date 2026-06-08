@@ -383,8 +383,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   confirmEndGame: () => {
     const { game } = get();
+    const shell = game ? createEmptyBoardShell(game.config) : null;
     set({
-      game: game ? createEmptyBoardShell(game.config) : null,
+      game: shell,
       endGameOpen: false,
       newGameOpen: false,
       lastError: null,
@@ -394,7 +395,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       dirtySinceCloudSave: false,
       sessionKey: get().sessionKey + 1,
     });
-    clearGameState();
+    if (shell) {
+      saveGameState(shell);
+    } else {
+      clearGameState();
+    }
   },
 
   undoMove: () => {

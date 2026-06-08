@@ -348,12 +348,12 @@ export function NewGameDialog() {
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <label className="text-xs text-zinc-400">
-            Columns (1–10)
+            Columns (1–12)
             <input
               ref={columnsInputRef}
               type="number"
               min={1}
-              max={10}
+              max={12}
               value={effective.columns}
               disabled={layoutFieldsDisabled}
               onChange={(e) => setColumns(Number(e.target.value))}

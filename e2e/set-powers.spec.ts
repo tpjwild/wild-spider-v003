@@ -73,7 +73,7 @@ test.describe("set powers", () => {
     const setShelf = page.getByTestId("shelf-set-0");
     await expect(setShelf).toBeVisible();
     await expect(page.getByTestId("set-power-shelf-card")).toBeVisible();
-    await expect(setShelf).toHaveAttribute("data-charges", "10");
+    await expect(setShelf).toHaveAttribute("data-charges", "1");
 
     await setShelf.dblclick();
     await expect(setShelf).toHaveAttribute("data-power-targeting", "true");
@@ -90,7 +90,7 @@ test.describe("set powers", () => {
     await page.getByRole("button", { name: "Undo" }).click();
 
     await expect(page.getByTestId("game-powers")).toContainText("0");
-    await expect(setShelf).toHaveAttribute("data-charges", "10");
+    await expect(setShelf).toHaveAttribute("data-charges", "1");
     await expect(targetEl.locator('[data-effect-badge-scope="card"]')).toHaveCount(0);
   });
 });

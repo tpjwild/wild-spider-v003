@@ -30,16 +30,16 @@ describe("formatShelfPowerDisplayName", () => {
 });
 
 describe("shelfSetDisplayLabels", () => {
-  it("includes duration on power name when set catalog has initialDuration", () => {
+  it("omits duration suffix when set catalog is permanent", () => {
     const labels = shelfSetDisplayLabels("westernPhilosophy", {
       kind: "set",
       setKey: "1-S",
       deckNum: 1,
       suit: "S",
       powerId: POWER_SELECTED_CARD_TRANSPARENT,
-      chargesRemaining: 10,
+      chargesRemaining: 1,
     });
-    expect(labels?.powerName).toBe("Veiled glimpse (5 moves)");
+    expect(labels?.powerName).toBe("Veiled glimpse");
   });
 });
 

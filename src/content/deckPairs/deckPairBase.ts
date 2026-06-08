@@ -1,13 +1,12 @@
 import { deckEntry } from "@/content/deckPairs/deckEntry";
 import { baseSets } from "@/content/deckPairs/builders";
-import { POWER_SELECTED_CARD_TRANSPARENT } from "@/content/powerDefinitions";
+import {
+  POWER_CARD_SWAP,
+  POWER_SELECTED_CARD_SKIP1,
+  POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_SELECTED_CARD_WILD,
+} from "@/content/powerDefinitions";
 import type { DeckPairDefinition } from "@/content/deckPairs/types";
-
-const BASE_SET_POWER = {
-  powerId: POWER_SELECTED_CARD_TRANSPARENT,
-  initialCharges: 10,
-  initialDuration: 5,
-} as const;
 
 export const DEFAULT_DECK_PAIR_ID = "base";
 
@@ -51,7 +50,9 @@ export const basePair: DeckPairDefinition = {
           qBio: "Face-card slot for Deck 1, spades.",
           k: "King of Spades",
           kBio: "Face-card slot for Deck 1, spades.",
-          ...BASE_SET_POWER,
+          powerId: POWER_SELECTED_CARD_TRANSPARENT,
+          initialCharges: 1,
+          initialDuration: null,
         },
         C: {
           j: "Jack of Clubs",
@@ -60,7 +61,9 @@ export const basePair: DeckPairDefinition = {
           qBio: "Face-card slot for Deck 1, clubs.",
           k: "King of Clubs",
           kBio: "Face-card slot for Deck 1, clubs.",
-          ...BASE_SET_POWER,
+          powerId: POWER_CARD_SWAP,
+          initialCharges: 1,
+          initialDuration: null,
         },
         D: {
           j: "Jack of Diamonds",
@@ -69,7 +72,9 @@ export const basePair: DeckPairDefinition = {
           qBio: "Face-card slot for Deck 1, diamonds.",
           k: "King of Diamonds",
           kBio: "Face-card slot for Deck 1, diamonds.",
-          ...BASE_SET_POWER,
+          powerId: POWER_SELECTED_CARD_SKIP1,
+          initialCharges: 1,
+          initialDuration: null,
         },
         H: {
           j: "Jack of Hearts",
@@ -78,7 +83,9 @@ export const basePair: DeckPairDefinition = {
           qBio: "Face-card slot for Deck 1, hearts.",
           k: "King of Hearts",
           kBio: "Face-card slot for Deck 1, hearts.",
-          ...BASE_SET_POWER,
+          powerId: POWER_SELECTED_CARD_WILD,
+          initialCharges: 1,
+          initialDuration: null,
         },
       }),
     }),
@@ -92,7 +99,9 @@ export const basePair: DeckPairDefinition = {
           qBio: "Face-card slot for Deck 2, spades.",
           k: "King of Spades (deck 2)",
           kBio: "Face-card slot for Deck 2, spades.",
-          ...BASE_SET_POWER,
+          powerId: POWER_SELECTED_CARD_TRANSPARENT,
+          initialCharges: 1,
+          initialDuration: null,
         },
         C: {
           j: "Jack of Clubs (deck 2)",
@@ -101,7 +110,9 @@ export const basePair: DeckPairDefinition = {
           qBio: "Face-card slot for Deck 2, clubs.",
           k: "King of Clubs (deck 2)",
           kBio: "Face-card slot for Deck 2, clubs.",
-          ...BASE_SET_POWER,
+          powerId: POWER_CARD_SWAP,
+          initialCharges: 1,
+          initialDuration: null,
         },
         D: {
           j: "Jack of Diamonds (deck 2)",
@@ -110,7 +121,9 @@ export const basePair: DeckPairDefinition = {
           qBio: "Face-card slot for Deck 2, diamonds.",
           k: "King of Diamonds (deck 2)",
           kBio: "Face-card slot for Deck 2, diamonds.",
-          ...BASE_SET_POWER,
+          powerId: POWER_SELECTED_CARD_SKIP1,
+          initialCharges: 1,
+          initialDuration: null,
         },
         H: {
           j: "Jack of Hearts (deck 2)",
@@ -119,7 +132,9 @@ export const basePair: DeckPairDefinition = {
           qBio: "Face-card slot for Deck 2, hearts.",
           k: "King of Hearts (deck 2)",
           kBio: "Face-card slot for Deck 2, hearts.",
-          ...BASE_SET_POWER,
+          powerId: POWER_SELECTED_CARD_WILD,
+          initialCharges: 1,
+          initialDuration: null,
         },
       }),
     }),

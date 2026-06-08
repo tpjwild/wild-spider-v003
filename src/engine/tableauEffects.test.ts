@@ -66,12 +66,12 @@ function withColumnEffect(state: GameState, columnIndex: number, effect: string)
 }
 
 describe("effectiveRankChoices", () => {
-  it("skip1 offers rank±1 only", () => {
-    expect(effectiveRankChoices(4, [EFFECT_SKIP1]).sort()).toEqual([3, 5]);
+  it("skip1 offers printed rank and rank±1", () => {
+    expect(effectiveRankChoices(4, [EFFECT_SKIP1]).sort()).toEqual([3, 4, 5]);
   });
 
-  it("skip2 offers rank±1 and ±2", () => {
-    expect(effectiveRankChoices(5, [EFFECT_SKIP2]).sort()).toEqual([3, 4, 6, 7]);
+  it("skip2 offers printed rank and rank±1 and ±2", () => {
+    expect(effectiveRankChoices(5, [EFFECT_SKIP2]).sort()).toEqual([3, 4, 5, 6, 7]);
   });
 });
 
@@ -216,13 +216,15 @@ describe("canPlaceOnTableauWithEffects", () => {
   const s9 = d.find((c) => c.suit === "S" && c.rank === 9)!;
   const s7b = d.find((c) => c.suit === "S" && c.rank === 7 && c.id !== s7.id)!;
 
-  it("skip1 4 can land on 6 or 4", () => {
+  it("skip1 4 can land on 6, 5, or 4", () => {
     let state = emptyState([[], []]);
     state = withCardEffect(state, s4a, EFFECT_SKIP1);
     expect(canPlaceOnTableauWithEffects(state, s4a, 0, s6, 1)).toBe(true);
-    expect(canPlaceOnTableauWithEffects(state, s4a, 0, s4b, 1)).toBe(true);
     const s5 = d.find((c) => c.suit === "S" && c.rank === 5)!;
-    expect(canPlaceOnTableauWithEffects(state, s4a, 0, s5, 1)).toBe(false);
+    expect(canPlaceOnTableauWithEffects(state, s4a, 0, s5, 1)).toBe(true);
+    expect(canPlaceOnTableauWithEffects(state, s4a, 0, s4b, 1)).toBe(true);
+    const s7 = d.find((c) => c.suit === "S" && c.rank === 7)!;
+    expect(canPlaceOnTableauWithEffects(state, s4a, 0, s7, 1)).toBe(false);
   });
 
   it("7 can land on skip1 9 or skip1 7", () => {

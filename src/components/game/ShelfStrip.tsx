@@ -18,6 +18,7 @@ import {
   shelfPanelHeightPx,
 } from "@/constants/dimensions";
 import { CARD_INSPECT_HIGHLIGHT_CLASS } from "@/lib/cardInspectUi";
+import { bindHorizontalWheelScroll } from "@/lib/horizontalWheelScroll";
 import {
   isShelfJoker,
   isShelfSetPower,
@@ -215,6 +216,13 @@ export function ShelfStrip({
   );
 
   const needsHorizontalScroll = innerWidth > panelWidthPx;
+  const shelfScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = shelfScrollRef.current;
+    if (!el || !needsHorizontalScroll) return;
+    return bindHorizontalWheelScroll(el);
+  }, [needsHorizontalScroll]);
 
   return (
     <div className="flex max-w-full flex-col" style={{ width: panelWidthPx }}>
@@ -257,6 +265,7 @@ export function ShelfStrip({
               }}
             >
               <div
+                ref={shelfScrollRef}
                 className={`shelf-scroll min-h-0 flex-1 overflow-y-hidden ${
                   needsHorizontalScroll ? "overflow-x-auto" : "overflow-x-hidden"
                 }`}
@@ -267,6 +276,7 @@ export function ShelfStrip({
                   paddingBottom: hoverBleed,
                   paddingLeft: hoverBleed,
                 }}
+                data-testid="shelf-scroll"
               >
                 <div className="flex min-w-full justify-start">
                 <div

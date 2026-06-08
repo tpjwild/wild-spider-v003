@@ -61,7 +61,7 @@ describe("tableauNamePlate", () => {
       columns: [[placed], ...Array.from({ length: 9 }, () => [])],
     });
     const model = tableauNamePlateFromCard(state, 0, placed)!;
-    expect(model.setPower).toBe("Veiled glimpse");
+    expect(model.setPower).toBe("Card swap");
   });
 
   it("set power line is blank when set is not aligned", () => {

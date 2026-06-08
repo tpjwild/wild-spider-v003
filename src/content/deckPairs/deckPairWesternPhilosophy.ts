@@ -100,8 +100,8 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kBio:
               "Aquinas integrated Aristotelian philosophy with Christian theology, developing influential views on law, justice, and the common good. His account of natural law frames moral and political order as grounded in human reason and a larger divine plan, shaping centuries of thought on ethics and society.",
             powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            initialCharges: 1,
+            initialDuration: null,
           },
           C: {
             jName: "Plotinus",
@@ -113,9 +113,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "Aristotle",
             kBio:
               "Aristotle systematized vast areas of knowledge, but at the core of his work is metaphysics: the study of substance, form, matter, and cause. He asked what it is for something to be, how change is possible, and how the world’s underlying structure makes experience intelligible.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_CARD_SWAP,
+            initialCharges: 1,
+            initialDuration: null,
           },
           D: {
             jName: "Sextus Empiricus",
@@ -127,9 +127,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "Plato",
             kBio:
               "Plato distinguished opinion from knowledge, arguing that true understanding concerns unchanging Forms rather than the shifting world of appearances. Through myths like the cave and the divided line, he explored how the soul can ascend from illusion to insight and what it means genuinely to know.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_SKIP1,
+            initialCharges: 1,
+            initialDuration: null,
           },
           H: {
             jName: "Epicurus",
@@ -141,9 +141,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "Socrates",
             kBio:
               "Known through Plato’s dialogues, Socrates wandered Athens asking probing questions about virtue, justice, and the good life. He claimed to know only his own ignorance, yet insisted that the unexamined life is not worth living, choosing death rather than abandon his commitment to truth and integrity.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_WILD,
+            initialCharges: 1,
+            initialDuration: null,
           },
         },
       }),
@@ -198,8 +198,8 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kBio:
               "Marx analyzed capitalism as a system structured by class domination, exploitation, and alienation. He argued that economic relations shape law, politics, and culture, and that historical change is driven by class struggle, inspiring powerful movements and critiques of modern industrial society.",
             powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            initialCharges: 1,
+            initialDuration: null,
           },
           C: {
             jName: "Baruch Spinoza",
@@ -211,9 +211,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "René Descartes",
             kBio:
               "Descartes sought indubitable foundations for knowledge, beginning from the famous “I think, therefore I am.” He argued that mind and body are distinct substances and that clear and distinct ideas, guaranteed by God, reveal the basic structure of reality, inaugurating a new modern metaphysics.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_CARD_SWAP,
+            initialCharges: 1,
+            initialDuration: null,
           },
           D: {
             jName: "Karl Popper",
@@ -225,9 +225,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "David Hume",
             kBio:
               "Hume grounded knowledge in experience and habit, arguing that we never directly perceive necessary connections between events. His skeptical analysis of causation, induction, and the self questioned how much we can really justify, while still leaving room for everyday belief and scientific practice.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_SKIP1,
+            initialCharges: 1,
+            initialDuration: null,
           },
           H: {
             jName: "Philippa Foot",
@@ -239,9 +239,9 @@ export const westernPhilosophyPair: DeckPairDefinition = {
             kName: "Immanuel Kant",
             kBio:
               "Kant argued that morality is grounded in reason and the dignity of persons. His “categorical imperative” demands that we act only on principles we could will as universal laws and that we treat every person as an end in themselves, reshaping modern debates about duty and freedom.",
-            powerId: POWER_SELECTED_CARD_TRANSPARENT,
-            initialCharges: 10,
-            initialDuration: 5,
+            powerId: POWER_SELECTED_CARD_WILD,
+            initialCharges: 1,
+            initialDuration: null,
           },
         },
       }),

@@ -62,7 +62,7 @@ describe("ShelfStrip", () => {
         deckNum: 1,
         suit: "S",
         powerId: POWER_SELECTED_CARD_TRANSPARENT,
-        chargesRemaining: 10,
+        chargesRemaining: 1,
       },
     ];
     const step = shelfHorizontalStepPx();

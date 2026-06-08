@@ -7,7 +7,10 @@ import {
   setPowerDefinitionForSet,
   type DeckPairDefinition,
 } from "@/content/deckPairs";
-import { POWER_SELECTED_CARD_TRANSPARENT } from "@/content/powerDefinitions";
+import {
+  POWER_SELECTED_CARD_TRANSPARENT,
+  POWER_SELECTED_CARD_WILD,
+} from "@/content/powerDefinitions";
 import type { Suit } from "@/engine/types";
 
 const SUITS: Suit[] = ["S", "C", "D", "H"];
@@ -118,13 +121,19 @@ describe("deckPairs registry", () => {
     expect(sartre?.initialDuration).toBe(10);
   });
 
-  it("setPowerDefinitionForSet resolves catalog rows per deck and suit", () => {
+  it("setPowerDefinitionForSet resolves standard catalog rows per deck and suit", () => {
     const row = setPowerDefinitionForSet("mathematics", 1, "H");
     expect(row).toMatchObject({
       suit: "H",
+      powerId: POWER_SELECTED_CARD_WILD,
+      initialCharges: 1,
+      initialDuration: null,
+    });
+    expect(setPowerDefinitionForSet("mathematics", 2, "S")).toMatchObject({
+      suit: "S",
       powerId: POWER_SELECTED_CARD_TRANSPARENT,
-      initialCharges: 10,
-      initialDuration: 5,
+      initialCharges: 1,
+      initialDuration: null,
     });
     expect(setPowerDefinitionForSet("unknown", 1, "H")).toBeUndefined();
   });

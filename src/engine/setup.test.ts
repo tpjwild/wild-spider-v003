@@ -11,10 +11,10 @@ import {
 } from "./setup";
 
 describe("validateGameConfig", () => {
-  it("rejects columns > 10", () => {
+  it("rejects columns > 12", () => {
     expect(() =>
       validateGameConfig({
-        columns: 11,
+        columns: 13,
         deals: 5,
         deckPairId: "x",
         seed: "s",
@@ -140,7 +140,7 @@ describe("createInitialState determinism", () => {
 
 describe("tableau distribution", () => {
   it("sums to 104 - columns*deals - jokers for all valid pairs", () => {
-    for (let columns = 1; columns <= 10; columns++) {
+    for (let columns = 1; columns <= 12; columns++) {
       for (let deals = 5; deals <= 20; deals++) {
         for (let jokers = 0; jokers <= 8; jokers++) {
           if (columns * deals > 104) continue;
